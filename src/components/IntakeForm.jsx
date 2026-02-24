@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import {
     User, Mail, Phone, MapPin, Linkedin,
     Briefcase, Clock, Building2, Zap, Target, DollarSign,
@@ -61,9 +61,14 @@ function SelectField({ icon: Icon, label, options, required, value, onChange }) 
     )
 }
 
+// ✅ PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL BELOW
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx6Pvo-FgusUmegTY-x6JpVNunD2dHR_r-CMsH5af2cLmwLxsdkExMeqZFSJ1DC8jYO/exec'
+
 export default function IntakeForm() {
     const [step, setStep] = useState(0)
     const [submitted, setSubmitted] = useState(false)
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState('')
     const [fileName, setFileName] = useState('')
     const fileRef = useRef()
 
@@ -79,10 +84,37 @@ export default function IntakeForm() {
         if (e.target.files[0]) setFileName(e.target.files[0].name)
     }
 
+    // Submit all form data to Google Sheets via Apps Script
+    const submitToGoogleSheets = useCallback(async () => {
+        setLoading(true)
+        setError('')
+        try {
+            const response = await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Google Apps Script requires no-cors
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...form,
+                    cvFileName: fileName,
+                    submittedAt: new Date().toISOString(),
+                }),
+            })
+            // no-cors means we can't read response — assume success
+            setSubmitted(true)
+        } catch (err) {
+            setError('Something went wrong. Please try again or contact us directly.')
+        } finally {
+            setLoading(false)
+        }
+    }, [form, fileName])
+
     const handleNext = (e) => {
         e.preventDefault()
-        if (step < 2) setStep(s => s + 1)
-        else setSubmitted(true)
+        if (step < 2) {
+            setStep(s => s + 1)
+        } else {
+            submitToGoogleSheets()
+        }
     }
 
     const renderStep = () => {
@@ -223,14 +255,24 @@ export default function IntakeForm() {
 
                         {renderStep()}
 
+                        {error && (
+                            <div className="form-error">
+                                ⚠️ {error}
+                            </div>
+                        )}
                         <div className="form-actions">
                             {step > 0 && (
-                                <button type="button" className="btn btn-outline" onClick={() => setStep(s => s - 1)}>
+                                <button type="button" className="btn btn-outline" onClick={() => setStep(s => s - 1)} disabled={loading}>
                                     <ArrowLeft size={16} /> Back
                                 </button>
                             )}
-                            <button type="submit" className="btn btn-primary btn-lg" style={{ marginLeft: 'auto' }}>
-                                {step < 2 ? <>Next Step <ArrowRight size={16} /></> : <>Submit &amp; Start My Job Search <Zap size={16} /></>}
+                            <button type="submit" className="btn btn-primary btn-lg" style={{ marginLeft: 'auto' }} disabled={loading}>
+                                {loading
+                                    ? <><span className="form-spinner" /> Submitting...</>
+                                    : step < 2
+                                        ? <>Next Step <ArrowRight size={16} /></>
+                                        : <>Submit &amp; Start My Job Search <Zap size={16} /></>
+                                }
                             </button>
                         </div>
                     </form>
