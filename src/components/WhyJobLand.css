@@ -1,0 +1,142 @@
+.why-section {
+    background: var(--white);
+}
+
+.why-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--gray-border);
+    border: 1px solid var(--gray-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 80px;
+}
+
+.why-stat {
+    background: var(--white);
+    padding: 32px 24px;
+    text-align: center;
+    transition: background var(--transition);
+}
+
+.why-stat:hover {
+    background: var(--gray-light);
+}
+
+.why-stat-value {
+    font-size: 40px;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 6px;
+}
+
+.why-stat-label {
+    font-size: 14px;
+    color: var(--gray);
+    font-weight: 500;
+}
+
+.why-inner {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 80px;
+    align-items: center;
+}
+
+.why-left {
+    position: sticky;
+    top: 100px;
+}
+
+.why-right {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.why-reason {
+    display: flex;
+    gap: 16px;
+    padding: 20px;
+    border-radius: var(--radius);
+    transition: background var(--transition), transform var(--transition);
+    cursor: default;
+}
+
+.why-reason:hover {
+    background: var(--gray-light);
+    transform: translateX(4px);
+}
+
+.why-reason-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--primary-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform var(--transition), background var(--transition);
+}
+
+.why-reason:hover .why-reason-icon {
+    background: var(--primary);
+    transform: scale(1.05);
+}
+
+.why-reason:hover .why-reason-icon svg {
+    color: white !important;
+}
+
+.why-reason-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 4px;
+}
+
+.why-reason-desc {
+    font-size: 14px;
+    color: var(--gray);
+    line-height: 1.6;
+}
+
+@media (max-width: 1024px) {
+    .why-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .why-inner {
+        grid-template-columns: 1fr;
+        gap: 40px;
+    }
+
+    .why-left {
+        position: static;
+        text-align: center;
+    }
+
+    .why-left .btn {
+        display: inline-flex;
+    }
+
+    .why-stats {
+        grid-template-columns: repeat(2, 1fr);
+        margin-bottom: 48px;
+    }
+
+    .why-stat-value {
+        font-size: 30px;
+    }
+}
+
+@media (max-width: 480px) {
+    .why-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

@@ -1,0 +1,116 @@
+.services-section {
+    background: var(--gray-light);
+}
+
+.services-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 32px;
+    margin-bottom: 52px;
+    flex-wrap: wrap;
+}
+
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+
+/* Make first card span more visually (featured) */
+.service-card--featured {
+    border-color: rgba(79, 70, 229, 0.2);
+    background: linear-gradient(135deg, #FAFBFF 0%, #F0F4FF 100%);
+}
+
+.service-card {
+    background: var(--white);
+    border: 1px solid var(--gray-border);
+    border-radius: var(--radius);
+    padding: 28px;
+    transition: box-shadow var(--transition), transform var(--transition), border-color var(--transition);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.service-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-3px);
+    border-color: rgba(79, 70, 229, 0.15);
+}
+
+.service-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.service-icon-wrap {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform var(--transition);
+}
+
+.service-card:hover .service-icon-wrap {
+    transform: scale(1.1) rotate(-3deg);
+}
+
+.service-tag {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.service-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--dark);
+}
+
+.service-desc {
+    font-size: 14px;
+    color: var(--gray);
+    line-height: 1.7;
+    flex: 1;
+}
+
+.service-cta {
+    font-size: 14px;
+    font-weight: 600;
+    transition: gap var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.service-cta:hover {
+    gap: 8px;
+}
+
+@media (max-width: 1024px) {
+    .services-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .services-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .services-header {
+        flex-direction: column;
+    }
+}
