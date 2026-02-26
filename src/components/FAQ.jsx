@@ -47,7 +47,7 @@ export default function FAQ() {
                         <p className="section-subtitle" style={{ marginBottom: '32px' }}>
                             Everything you need to know about HiredLogics. Can't find your answer?
                         </p>
-                        <a href="mailto:hello@jobland.io" className="btn btn-outline">
+                        <a href="mailto:hello@hiredlogics.com" className="btn btn-outline">
                             Contact Support
                         </a>
                     </div>

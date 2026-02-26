@@ -49,7 +49,7 @@ export default function Footer() {
                         <div className="footer-contact">
                             <div className="footer-contact-item">
                                 <Mail size={14} />
-                                <a href="mailto:hello@jobland.io">hello@jobland.io</a>
+                                <a href="mailto:hello@hiredlogics.com">hello@hiredlogics.com</a>
                             </div>
                             <div className="footer-contact-item">
                                 <Phone size={14} />

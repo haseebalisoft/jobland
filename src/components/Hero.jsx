@@ -115,12 +115,12 @@ export default function Hero() {
                     </h1>
 
                     <p className="hero__subtext">
-                        We build your ATS-optimized CV, apply to hundreds of jobs using AI,
-                        and help you secure real interviews — so you can focus on what matters.
+                        We build your ATS-optimized CV, handle hundreds of job submissions globally,
+                        and ensure you land real interviews — so you can focus on nails the hire.
                     </p>
 
                     <div className="hero__trust">
-                        {['ATS-optimized CV', 'AI Auto Apply', 'Guaranteed Interviews'].map((item, i) => (
+                        {['ATS-optimized CV', 'Expert Job Submissions', 'Guaranteed Interviews'].map((item, i) => (
                             <div key={i} className="hero__trust-item">
                                 <CheckCircle size={16} color="var(--accent)" />
                                 <span>{item}</span>

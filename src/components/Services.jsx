@@ -1,46 +1,30 @@
-import { FileText, Bot, Shield, LayoutDashboard, GraduationCap } from 'lucide-react'
+import { FileText, Shield, Globe } from 'lucide-react'
 import './Services.css'
 
 const services = [
     {
         icon: FileText,
         title: 'ATS CV Creation',
-        description: 'We craft an ATS-optimized, keyword-rich resume that passes automated filters and impresses recruiters at top companies.',
+        description: 'Our core service. We craft a professional, keyword-rich CV designed to pass modern ATS filters and catch the eye of top recruiters.',
         color: '#4F46E5',
         bg: '#EEF2FF',
-        tag: 'Most Requested',
-    },
-    {
-        icon: Bot,
-        title: 'AI Job Auto Apply',
-        description: 'Our AI applies to 20–50 jobs per day on your behalf across LinkedIn, Indeed, Workday, and 50+ platforms — while you sleep.',
-        color: '#22C55E',
-        bg: '#DCFCE7',
-        tag: 'AI Powered',
+        tag: 'Essential',
     },
     {
         icon: Shield,
         title: 'Interview Guarantee',
-        description: 'Pay only when you land an interview. Zero risk, maximum accountability. We\'re invested in your success as much as you are.',
+        description: 'Our signature guarantee. Choose your package and we ensure you land 1, 3, or 6 interviews. We focus on results, not just effort.',
         color: '#F59E0B',
         bg: '#FEF3C7',
-        tag: 'Pay Per Result',
+        tag: 'Outcome Based',
     },
     {
-        icon: LayoutDashboard,
-        title: 'Job Tracking Dashboard',
-        description: 'A real-time dashboard showing every application, its status, interview dates, and follow-up reminders — all in one place.',
-        color: '#8B5CF6',
-        bg: '#F5F3FF',
-        tag: 'Real-time',
-    },
-    {
-        icon: GraduationCap,
-        title: 'Interview Preparation',
-        description: 'Company-specific mock interviews, behavioral coaching, and salary negotiation tactics to help you nail every interview.',
-        color: '#EC4899',
-        bg: '#FDF2F8',
-        tag: 'Expert Coached',
+        icon: Globe,
+        title: 'Expert Job Submissions',
+        description: 'Our team manually submits your profile to high-potential roles globally, ensuring your CV reaches the right hiring managers.',
+        color: '#22C55E',
+        bg: '#DCFCE7',
+        tag: 'Global Reach',
     },
 ]
 

@@ -3,9 +3,9 @@ import './WhyHiredLogics.css'
 
 const reasons = [
     {
-        icon: Bot,
-        title: 'AI-Powered Applications',
-        description: 'Our AI applies to the right jobs at the right time — 20–50 applications daily, perfectly tailored to your profile.',
+        icon: UserCheck,
+        title: 'High-Impact Job Search',
+        description: 'We don\'t just blast applications. We strategically submit your profile to the roles most likely to result in an interview.',
     },
     {
         icon: UserCheck,
@@ -24,8 +24,8 @@ const reasons = [
     },
     {
         icon: DollarSign,
-        title: 'Affordable Pricing',
-        description: 'At $30/month, it\'s less than a coffee per day. Or only pay $100 when you actually get an interview.',
+        title: 'Transparent Pricing',
+        description: 'Choose your package — from a $15 professional resume to guaranteed interview bundles starting at just $30.',
     },
     {
         icon: Globe,
@@ -60,7 +60,7 @@ export default function WhyHiredLogics() {
                         <div className="section-label">🏆 Why HiredLogics?</div>
                         <h2 className="section-title">Built for Job Seekers Who<br />Mean Business</h2>
                         <p className="section-subtitle" style={{ marginBottom: '32px' }}>
-                            We're not just another job board. We're your personal AI-powered job search team, working around the clock to land you interviews.
+                            We're not just another job board. We're your professional job search team, working around the clock to land you real interviews.
                         </p>
                         <a href="#intake-form" className="btn btn-primary btn-lg">
                             Start Your Job Search
