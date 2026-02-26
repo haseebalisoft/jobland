@@ -1,5 +1,5 @@
 import { Bot, UserCheck, Clock, TrendingUp, DollarSign, Globe } from 'lucide-react'
-import './WhyJobLand.css'
+import './WhyHiredLogics.css'
 
 const reasons = [
     {
@@ -41,7 +41,7 @@ const stats = [
     { value: '14 days', label: 'Avg. First Interview' },
 ]
 
-export default function WhyJobLand() {
+export default function WhyHiredLogics() {
     return (
         <section className="why-section section">
             <div className="container">
@@ -57,7 +57,7 @@ export default function WhyJobLand() {
 
                 <div className="why-inner">
                     <div className="why-left">
-                        <div className="section-label">🏆 Why JobLand?</div>
+                        <div className="section-label">🏆 Why HiredLogics?</div>
                         <h2 className="section-title">Built for Job Seekers Who<br />Mean Business</h2>
                         <p className="section-subtitle" style={{ marginBottom: '32px' }}>
                             We're not just another job board. We're your personal AI-powered job search team, working around the clock to land you interviews.

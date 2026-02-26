@@ -34,7 +34,7 @@ export default function HowItWorks() {
             <div className="container">
                 <div className="text-center">
                     <div className="section-label">✨ The Process</div>
-                    <h2 className="section-title">How JobLand Works</h2>
+                    <h2 className="section-title">How HiredLogics Works</h2>
                     <p className="section-subtitle">
                         Three simple steps. Zero stress. Real interviews.
                     </p>

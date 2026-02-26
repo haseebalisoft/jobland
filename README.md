@@ -1,4 +1,4 @@
-# ⚡ JobLand – AI-Powered Job Search & Interview Landing Service
+# ⚡ HiredLogics – AI-Powered Job Search & Interview Landing Service
 
 > **Land your next job faster with guaranteed interviews.**  
 > We build your ATS CV, apply to jobs using AI, and help you secure real interviews.
@@ -13,7 +13,7 @@ Coming soon — deploy via Vercel / Netlify.
 
 ## 📌 About the Project
 
-**JobLand** is a premium SaaS landing page for a job automation and interview-landing service. It is designed to convert visitors into leads and paid users by clearly communicating value, trust, and ease of use.
+**HiredLogics** is a premium SaaS landing page for a job automation and interview-landing service. It is designed to convert visitors into leads and paid users by clearly communicating value, trust, and ease of use.
 
 ### Who It's For
 - Fresh graduates entering the job market
@@ -59,7 +59,7 @@ Coming soon — deploy via Vercel / Netlify.
 | 4 | **How It Works** | 3-step process cards (CV → Apply → Interview) |
 | 5 | **Services** | 5 service cards with icons & descriptions |
 | 6 | **Pricing** | Pay Per Interview vs Pro Subscription |
-| 7 | **Why JobLand** | Stats row + 6 benefit bullets |
+| 7 | **Why HiredLogics** | Stats row + 6 benefit bullets |
 | 8 | **Testimonials** | 4 success story cards with star ratings |
 | 9 | **FAQ** | Accordion with 7 questions |
 | 10 | **Final CTA** | Gradient card with dual CTA buttons |
@@ -136,7 +136,7 @@ jobland/
 │   │   ├── Services.css
 │   │   ├── Pricing.jsx        # Pricing plans
 │   │   ├── Pricing.css
-│   │   ├── WhyJobLand.jsx     # Stats + benefits
+│   │   ├── WhyJobLand.jsx     # Stats + benefits (Legacy Filename: WhyJobLand.jsx)
 │   │   ├── WhyJobLand.css
 │   │   ├── Testimonials.jsx   # Success stories
 │   │   ├── Testimonials.css
@@ -194,7 +194,7 @@ jobland/
 
 ## 📄 License
 
-This project is proprietary. All rights reserved © 2026 JobLand.
+This project is proprietary. All rights reserved © 2026 HiredLogics.
 
 ---
 

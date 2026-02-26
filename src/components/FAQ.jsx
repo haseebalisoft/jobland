@@ -45,7 +45,7 @@ export default function FAQ() {
                         <div className="section-label">❓ FAQ</div>
                         <h2 className="section-title">Frequently Asked Questions</h2>
                         <p className="section-subtitle" style={{ marginBottom: '32px' }}>
-                            Everything you need to know about JobLand. Can't find your answer?
+                            Everything you need to know about HiredLogics. Can't find your answer?
                         </p>
                         <a href="mailto:hello@jobland.io" className="btn btn-outline">
                             Contact Support

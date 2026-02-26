@@ -40,7 +40,7 @@ export default function Footer() {
                             <div className="footer-logo-icon">
                                 <Zap size={16} fill="white" color="white" />
                             </div>
-                            <span>JobLand</span>
+                            <span>HiredLogics</span>
                         </a>
                         <p className="footer-tagline">
                             AI-powered job search that gets you real interviews. We build your CV, apply to jobs, and help you land your dream role.
@@ -89,7 +89,7 @@ export default function Footer() {
                 </div>
 
                 <div className="footer-bottom">
-                    <p className="footer-copy">© 2026 JobLand. All rights reserved. Built with ❤️ for job seekers worldwide.</p>
+                    <p className="footer-copy">© 2026 HiredLogics. All rights reserved. Built with ❤️ for job seekers worldwide.</p>
                     <div className="footer-bottom-links">
                         <a href="#" className="footer-link">Privacy</a>
                         <a href="#" className="footer-link">Terms</a>

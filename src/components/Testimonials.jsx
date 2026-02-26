@@ -6,7 +6,7 @@ const testimonials = [
         name: 'Sarah Johnson',
         role: 'Landed: Senior Product Manager at Google',
         location: 'San Francisco, USA',
-        quote: 'JobLand found me 3 interviews in less than 2 weeks. The ATS CV they created was miles above what I had before. I got my dream job at Google — I couldn\'t believe it!',
+        quote: 'HiredLogics found me 3 interviews in less than 2 weeks. The ATS CV they created was miles above what I had before. I got my dream job at Google — I couldn\'t believe it!',
         initials: 'SJ',
         color: '#4F46E5',
         stars: 5,
@@ -15,7 +15,7 @@ const testimonials = [
         name: 'Ahmed Hassan',
         role: 'Landed: Software Engineer at Stripe',
         location: 'London, UK → Remote',
-        quote: 'As an international applicant, I thought getting a remote role at a US company was impossible. JobLand\'s AI applied to 400+ jobs and I got 8 interviews. Stripe offered me the job!',
+        quote: 'As an international applicant, I thought getting a remote role at a US company was impossible. HiredLogics\' AI applied to 400+ jobs and I got 8 interviews. Stripe offered me the job!',
         initials: 'AH',
         color: '#22C55E',
         stars: 5,
@@ -33,7 +33,7 @@ const testimonials = [
         name: 'Marcus Williams',
         role: 'Landed: Data Scientist at Netflix',
         location: 'New York, USA',
-        quote: 'I was applying manually for 6 months with no results. JobLand took over and within 3 weeks I had 5 interviews. Netflix hired me within a month. Absolutely insane results.',
+        quote: 'I was applying manually for 6 months with no results. HiredLogics took over and within 3 weeks I had 5 interviews. Netflix hired me within a month. Absolutely insane results.',
         initials: 'MW',
         color: '#EC4899',
         stars: 5,
@@ -48,7 +48,7 @@ export default function Testimonials() {
                     <div className="section-label">❤️ Success Stories</div>
                     <h2 className="section-title">Real People, Real Interviews,<br />Real Jobs</h2>
                     <p className="section-subtitle">
-                        Don't take our word for it — hear from the 2,500+ job seekers who've landed their dream roles with JobLand.
+                        Don't take our word for it — hear from the 2,500+ job seekers who've landed their dream roles with HiredLogics.
                     </p>
                 </div>
 

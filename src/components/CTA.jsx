@@ -16,7 +16,7 @@ export default function CTA() {
                             Ready to Land Your Next Job?
                         </h2>
                         <p className="cta-subtext">
-                            Join 2,500+ job seekers who used JobLand to get real interviews at top companies.
+                            Join 2,500+ job seekers who used HiredLogics to get real interviews at top companies.
                             Your next opportunity is one click away.
                         </p>
 

@@ -110,9 +110,8 @@ export default function Hero() {
                     </div>
 
                     <h1 className="hero__headline">
-                        Land Your Next Job<br />
-                        <span className="gradient-text">Faster with Guaranteed</span><br />
-                        Interviews
+                        Land Your Next Job Faster with <span className="gradient-text">HiredLogics</span><br />
+                        & Guaranteed Interviews
                     </h1>
 
                     <p className="hero__subtext">

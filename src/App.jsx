@@ -4,7 +4,7 @@ import IntakeForm from './components/IntakeForm'
 import HowItWorks from './components/HowItWorks'
 import Services from './components/Services'
 import Pricing from './components/Pricing'
-import WhyJobLand from './components/WhyJobLand'
+import WhyHiredLogics from './components/WhyHiredLogics'
 import Testimonials from './components/Testimonials'
 import FAQ from './components/FAQ'
 import CTA from './components/CTA'
@@ -20,7 +20,7 @@ function App() {
         <HowItWorks />
         <Services />
         <Pricing />
-        <WhyJobLand />
+        <WhyHiredLogics />
         <Testimonials />
         <FAQ />
         <CTA />
