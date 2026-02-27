@@ -3,89 +3,45 @@ import './Hero.css'
 
 const dashboardImg = '/dashboard-preview.png'
 
-function DashboardPreview() {
+function OutcomePreview() {
     return (
         <div className="hero__dashboard">
-            <div className="hero__dashboard-card hero__dashboard-card--apps">
+            <div className="hero__dashboard-card hero__dashboard-card--cv" style={{ marginBottom: '24px' }}>
                 <div className="dashboard-card-header">
-                    <Briefcase size={16} />
-                    <span>Recent Applications</span>
-                    <span className="badge badge-green" style={{ marginLeft: 'auto' }}>+12 today</span>
+                    <FileText size={16} />
+                    <span>HiredLogics ATS CV</span>
+                    <span className="badge badge-green" style={{ marginLeft: 'auto' }}>98% Match</span>
                 </div>
-                <div className="dashboard-job-list">
-                    {[
-                        { company: 'Google', role: 'SWE', status: 'Applied', color: 'blue' },
-                        { company: 'Stripe', role: 'PM', status: 'Interview', color: 'green' },
-                        { company: 'Airbnb', role: 'Designer', status: 'Offered', color: 'green' },
-                        { company: 'Netflix', role: 'Analyst', status: 'Applied', color: 'blue' },
-                    ].map((job, i) => (
-                        <div key={i} className="dashboard-job-row">
-                            <div className="dashboard-job-logo">{job.company[0]}</div>
-                            <div className="dashboard-job-info">
-                                <div className="dashboard-job-company">{job.company}</div>
-                                <div className="dashboard-job-role">{job.role}</div>
-                            </div>
-                            <span className={`badge badge-${job.color}`}>{job.status}</span>
-                        </div>
-                    ))}
+                <div className="cv-preview">
+                    <div className="cv-block cv-block--name"></div>
+                    <div className="cv-block cv-block--title"></div>
+                    <div className="cv-section-label">Core Skills</div>
+                    <div className="cv-skills">
+                        {['Strategic Search', 'Interviewing', 'Leadership', 'Efficiency'].map(s => (
+                            <span key={s} className="cv-skill-tag">{s}</span>
+                        ))}
+                    </div>
                 </div>
             </div>
 
             <div className="hero__dashboard-row">
                 <div className="hero__dashboard-card hero__dashboard-card--stats">
                     <div className="stat-row">
-                        <TrendingUp size={20} color="var(--primary)" />
+                        <TrendingUp size={24} color="var(--primary)" />
                         <div>
-                            <div className="stat-number">247</div>
-                            <div className="stat-label">Jobs Applied</div>
-                        </div>
-                    </div>
-                    <div className="stat-row">
-                        <CheckCircle size={20} color="var(--accent)" />
-                        <div>
-                            <div className="stat-number">14</div>
-                            <div className="stat-label">Interviews</div>
+                            <div className="stat-number">6+</div>
+                            <div className="stat-label">Interviews Guaranteed</div>
                         </div>
                     </div>
                 </div>
 
-                <div className="hero__dashboard-card hero__dashboard-card--interview">
+                <div className="hero__dashboard-card hero__dashboard-card--apps">
                     <div className="dashboard-card-header">
-                        <Calendar size={16} />
-                        <span>Next Interview</span>
+                        <CheckCircle size={16} color="var(--accent)" />
+                        <span>Success Status</span>
                     </div>
-                    <div className="interview-company">Stripe Inc.</div>
-                    <div className="interview-role">Product Manager</div>
-                    <div className="interview-time">Tomorrow, 10:00 AM GMT</div>
-                    <div className="interview-prep-bar">
-                        <div className="interview-prep-label">
-                            <span>Prep Progress</span>
-                            <span>78%</span>
-                        </div>
-                        <div className="progress-track">
-                            <div className="progress-fill" style={{ width: '78%' }}></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="hero__dashboard-card hero__dashboard-card--cv">
-                <div className="dashboard-card-header">
-                    <FileText size={16} />
-                    <span>ATS CV Builder</span>
-                    <span className="badge badge-green" style={{ marginLeft: 'auto' }}>96% Score</span>
-                </div>
-                <div className="cv-preview">
-                    <div className="cv-block cv-block--name"></div>
-                    <div className="cv-block cv-block--title"></div>
-                    <div className="cv-section-label">Experience</div>
-                    <div className="cv-block cv-block--line"></div>
-                    <div className="cv-block cv-block--line-short"></div>
-                    <div className="cv-section-label">Skills</div>
-                    <div className="cv-skills">
-                        {['React', 'Node.js', 'Python', 'AWS'].map(s => (
-                            <span key={s} className="cv-skill-tag">{s}</span>
-                        ))}
+                    <div className="hero__status-text">
+                        "Your profile is now live with 50+ hiring managers."
                     </div>
                 </div>
             </div>
@@ -155,9 +111,9 @@ export default function Hero() {
                     </div>
                 </div>
 
-                {/* Right: Dashboard Preview */}
+                {/* Right: Focused Outcome Visual */}
                 <div className="hero__visual">
-                    <DashboardPreview />
+                    <OutcomePreview />
                 </div>
             </div>
         </section>
