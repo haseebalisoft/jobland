@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import nodemailer from 'nodemailer';
-import Stripe from 'stripe';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -20,16 +19,6 @@ const transporter = nodemailer.createTransport({
         pass: process.env.EMAIL_PASS,
     },
 });
-
-// Stripe setup
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-const planPrices = {
-    'Professional Resume': 1500,
-    'Starter Pack': 3000,
-    'Success Pack': 6000,
-    'Elite Pack': 10000,
-};
 
 // Email route
 app.post('/api/send-welcome', async (req, res) => {
@@ -52,35 +41,6 @@ app.post('/api/send-welcome', async (req, res) => {
     } catch (error) {
         console.error('Error sending email:', error);
         res.status(500).json({ error: 'Failed to send welcome email.' });
-    }
-});
-
-// Stripe payment intent route
-app.post('/api/create-payment-intent', async (req, res) => {
-    try {
-        const { plan, email } = req.body;
-
-        const amount = planPrices[plan] || 6000;
-
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount,
-            currency: 'usd',
-            automatic_payment_methods: {
-                enabled: true,
-            },
-            receipt_email: email,
-            metadata: {
-                plan,
-                email,
-            },
-        });
-
-        res.send({
-            clientSecret: paymentIntent.client_secret,
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).send({ error: error.message });
     }
 });
 

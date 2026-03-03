@@ -40,7 +40,7 @@ Coming soon — deploy via Vercel / Netlify.
 | Soft Gray | `#6B7280` |
 | Border Radius | `16px` |
 | Typography | Inter (Google Fonts) |
-| Design Inspiration | Stripe, Linear, Notion |
+| Design Inspiration | Linear, Notion |
 
 - Glassmorphism hero section  
 - Soft gradients and subtle shadows  
@@ -112,13 +112,7 @@ The frontend will be available at **http://localhost:5173** and the backend at *
 
 ### Environment Variables
 
-Create the following files (they are already in `.gitignore`):
-
-- `.env` in the project root for **frontend (Vite)**:
-
-  ```env
-  VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key_here
-  ```
+Create the following file (it is already in `.gitignore`):
 
 - `backend/.env` for **backend (Express)**:
 
@@ -126,7 +120,6 @@ Create the following files (they are already in `.gitignore`):
   EMAIL_USER=your_smtp_email_here
   EMAIL_PASS=your_smtp_app_password_here
   PORT=5000
-  STRIPE_SECRET_KEY=your_stripe_secret_key_here
   ```
 
 ### Build for Production

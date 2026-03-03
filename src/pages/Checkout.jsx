@@ -1,14 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, ShieldCheck, CheckCircle, Lock } from 'lucide-react'
-import { loadStripe } from '@stripe/stripe-js'
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
 
 function CheckoutForm({ price, plan }) {
-    const stripe = useStripe();
-    const elements = useElements();
     const navigate = useNavigate();
 
     const [email, setEmail] = useState('');
@@ -18,29 +12,14 @@ function CheckoutForm({ price, plan }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!stripe || !elements) return;
-
         setIsLoading(true);
 
-        const { error, paymentIntent } = await stripe.confirmPayment({
-            elements,
-            confirmParams: {
-                return_url: `${window.location.origin}/dashboard`,
-                receipt_email: email,
-            },
-            redirect: 'if_required'
-        });
-
-        if (error) {
-            setMessage(error.message);
-        } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-            setMessage("Payment succeeded!");
+        // Mock checkout: no real payment, just redirect
+        setTimeout(() => {
+            setMessage("Checkout completed (no real payment processed).");
             navigate('/dashboard');
-        } else {
-            setMessage("An unexpected error occurred.");
-        }
-
-        setIsLoading(false);
+            setIsLoading(false);
+        }, 1000);
     };
 
     return (
@@ -57,17 +36,15 @@ function CheckoutForm({ price, plan }) {
                 />
             </div>
 
-            <PaymentElement id="payment-element" options={{ layout: "tabs" }} />
-
-            {message && <div style={{ color: 'red', marginTop: '10px', fontSize: '14px' }}>{message}</div>}
+            {message && <div style={{ color: 'green', marginTop: '10px', fontSize: '14px' }}>{message}</div>}
 
             <button
                 type="submit"
-                disabled={isLoading || !stripe || !elements}
+                disabled={isLoading}
                 style={{
                     ...styles.payButton,
-                    opacity: (isLoading || !stripe || !elements) ? 0.7 : 1,
-                    cursor: (isLoading || !stripe || !elements) ? 'not-allowed' : 'pointer'
+                    opacity: isLoading ? 0.7 : 1,
+                    cursor: isLoading ? 'not-allowed' : 'pointer'
                 }}
             >
                 {isLoading ? (
@@ -82,7 +59,7 @@ function CheckoutForm({ price, plan }) {
 
             <p style={styles.secureNote}>
                 <ShieldCheck size={14} />
-                Guaranteed safe & secure checkout powered by Stripe.
+                This is a mock checkout – no real payment will be charged.
             </p>
         </form>
     )
@@ -93,8 +70,6 @@ export default function Checkout() {
     const queryParams = new URLSearchParams(location.search)
     const plan = queryParams.get('plan') || 'Success Pack'
 
-    const [clientSecret, setClientSecret] = useState("")
-
     const planPrices = {
         'Professional Resume': '$15.00',
         'Starter Pack': '$30.00',
@@ -102,16 +77,6 @@ export default function Checkout() {
         'Elite Pack': '$100.00',
     }
     const price = planPrices[plan] || '$60.00'
-
-    useEffect(() => {
-        fetch("http://localhost:5000/api/create-payment-intent", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ plan }),
-        })
-            .then((res) => res.json())
-            .then((data) => setClientSecret(data.clientSecret));
-    }, [plan]);
 
     const appearance = {
         theme: 'stripe',
@@ -125,11 +90,6 @@ export default function Checkout() {
             borderRadius: '8px',
         }
     };
-    const options = {
-        clientSecret,
-        appearance,
-    };
-
     return (
         <div style={styles.container}>
             <div style={styles.checkoutWrapper}>
@@ -168,15 +128,8 @@ export default function Checkout() {
                 </div>
 
                 <div style={styles.paymentSide}>
-                    <h3 style={styles.paymentTitle}>Payment details</h3>
-
-                    {clientSecret ? (
-                        <Elements options={options} stripe={stripePromise}>
-                            <CheckoutForm price={price} plan={plan} />
-                        </Elements>
-                    ) : (
-                        <div style={{ color: 'var(--gray)', marginTop: '20px' }}>Loading secure checkout...</div>
-                    )}
+                    <h3 style={styles.paymentTitle}>Checkout</h3>
+                    <CheckoutForm price={price} plan={plan} />
                 </div>
             </div>
         </div>
