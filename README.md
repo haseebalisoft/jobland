@@ -92,14 +92,42 @@ Coming soon — deploy via Vercel / Netlify.
 git clone https://github.com/haseebalisoft/jobland.git
 cd jobland
 
-# Install dependencies
+# Install frontend dependencies
 npm install
 
-# Start development server
+# Install backend dependencies
+cd backend
+npm install
+cd ..
+
+# Start frontend (Vite)
 npm run dev
+
+# In another terminal, start backend (Express)
+cd backend
+npm start
 ```
 
-The app will be available at **http://localhost:5173**
+The frontend will be available at **http://localhost:5173** and the backend at **http://localhost:5000**.
+
+### Environment Variables
+
+Create the following files (they are already in `.gitignore`):
+
+- `.env` in the project root for **frontend (Vite)**:
+
+  ```env
+  VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key_here
+  ```
+
+- `backend/.env` for **backend (Express)**:
+
+  ```env
+  EMAIL_USER=your_smtp_email_here
+  EMAIL_PASS=your_smtp_app_password_here
+  PORT=5000
+  STRIPE_SECRET_KEY=your_stripe_secret_key_here
+  ```
 
 ### Build for Production
 
