@@ -13,11 +13,13 @@
 
 .pricing-card {
     border-radius: var(--radius-lg);
-    padding: 36px;
+    padding: 48px 32px 32px;
     border: 1px solid var(--gray-border);
     box-shadow: var(--shadow-md);
     position: relative;
     transition: transform var(--transition), box-shadow var(--transition);
+    display: flex;
+    flex-direction: column;
 }
 
 .pricing-card:hover {
@@ -26,9 +28,8 @@
 }
 
 .pricing-card--popular {
-    border: none;
-    box-shadow: 0 20px 60px rgba(79, 70, 229, 0.3), 0 8px 24px rgba(79, 70, 229, 0.15);
-    transform: scale(1.02);
+    border-color: var(--primary);
+    box-shadow: 0 20px 40px rgba(79, 70, 229, 0.15);
 }
 
 .pricing-card--popular:hover {
@@ -37,50 +38,84 @@
 }
 
 .pricing-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(255, 255, 255, 0.2);
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--primary);
     color: white;
-    font-size: 12px;
-    font-weight: 700;
-    padding: 6px 14px;
-    border-radius: var(--radius-full);
-    margin-bottom: 16px;
-    letter-spacing: 0.04em;
+    text-align: center;
+    padding: 8px 0;
+    font-size: 13px;
+    font-weight: 800;
     text-transform: uppercase;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    letter-spacing: 0.1em;
 }
 
 .pricing-header {
     margin-bottom: 24px;
+    position: relative;
 }
 
 .pricing-name {
-    font-size: 14px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    font-size: 24px;
+    font-weight: 800;
     margin-bottom: 12px;
 }
 
-.pricing-price-row {
+.pricing-price-area {
+    position: relative;
+    margin-bottom: 20px;
+    padding-top: 8px;
+}
+
+.pricing-top-right-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+}
+
+.discount-badge {
+    background: #E8F7ED;
+    color: #22C55E;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 4px 12px;
+    border-radius: 8px;
+    text-transform: uppercase;
+}
+
+.pricing-original-strike {
+    font-size: 15px;
+    color: var(--gray-light);
+    text-decoration: line-through;
+    margin-bottom: 2px;
+    font-weight: 500;
+}
+
+.pricing-main-row {
     display: flex;
     align-items: baseline;
     gap: 8px;
-    margin-bottom: 12px;
 }
 
-.pricing-price {
-    font-size: 56px;
-    font-weight: 900;
+.pricing-now {
+    font-size: 52px;
+    font-weight: 800;
     letter-spacing: -0.04em;
     line-height: 1;
 }
 
-.pricing-period {
-    font-size: 16px;
+.pricing-period-meta {
+    font-size: 15px;
     font-weight: 500;
+}
+
+.pricing-savings-text {
+    font-size: 15px;
+    font-weight: 700;
+    color: #22C55E;
+    margin-top: 6px;
 }
 
 .pricing-desc {
@@ -121,6 +156,7 @@
 .pricing-cta {
     width: 100%;
     justify-content: center;
+    margin-top: auto;
 }
 
 .pricing-cta--inverted {

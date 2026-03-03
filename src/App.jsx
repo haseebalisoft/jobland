@@ -1,32 +1,21 @@
-import Navbar from './components/Navbar'
-import Hero from './components/Hero'
-import IntakeForm from './components/IntakeForm'
-import HowItWorks from './components/HowItWorks'
-import Services from './components/Services'
-import Pricing from './components/Pricing'
-import WhyHiredLogics from './components/WhyHiredLogics'
-import Testimonials from './components/Testimonials'
-import FAQ from './components/FAQ'
-import CTA from './components/CTA'
-import Footer from './components/Footer'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import Home from './pages/Home'
+import Login from './pages/Login'
+import Signup from './pages/Signup'
+import Dashboard from './pages/Dashboard'
+import Checkout from './pages/Checkout'
 
 function App() {
   return (
-    <>
-      <Navbar />
-      <main>
-        <Hero />
-        <IntakeForm />
-        <HowItWorks />
-        <Services />
-        <Pricing />
-        <WhyHiredLogics />
-        <Testimonials />
-        <FAQ />
-        <CTA />
-      </main>
-      <Footer />
-    </>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/checkout" element={<Checkout />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 

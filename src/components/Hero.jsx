@@ -1,4 +1,5 @@
 import { ArrowRight, Calendar, CheckCircle, Briefcase, FileText, TrendingUp } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import './Hero.css'
 
 const dashboardImg = '/dashboard-preview.png'
@@ -85,13 +86,13 @@ export default function Hero() {
                     </div>
 
                     <div className="hero__ctas">
-                        <a href="#intake-form" className="btn btn-primary btn-lg">
+                        <Link to="/signup" className="btn btn-primary btn-lg">
                             Get Started Free
                             <ArrowRight size={18} />
-                        </a>
-                        <a href="#intake-form" className="btn btn-outline btn-lg">
-                            Book Free Consultation
-                        </a>
+                        </Link>
+                        <Link to="/login" className="btn btn-outline btn-lg">
+                            Login to Dashboard
+                        </Link>
                     </div>
 
                     <div className="hero__social-proof">

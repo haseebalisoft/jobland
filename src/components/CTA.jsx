@@ -1,4 +1,5 @@
 import { ArrowRight, Phone } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import './CTA.css'
 
 export default function CTA() {
@@ -21,10 +22,10 @@ export default function CTA() {
                         </p>
 
                         <div className="cta-buttons">
-                            <a href="#intake-form" className="btn btn-lg cta-btn-primary">
+                            <Link to="/signup" className="btn btn-lg cta-btn-primary">
                                 Get Started Now
                                 <ArrowRight size={18} />
-                            </a>
+                            </Link>
                             <a href="tel:+1234567890" className="btn btn-lg cta-btn-secondary">
                                 <Phone size={16} />
                                 Book Free Call

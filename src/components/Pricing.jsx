@@ -1,11 +1,15 @@
 import { Check, Zap, Star } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import './Pricing.css'
 
 const plans = [
     {
         name: 'Professional Resume',
-        price: '$15',
-        period: 'one-time',
+        now: '$15',
+        original: '$25',
+        discount: '40% OFF',
+        savings: 'Save $10',
+        period: 'One-time',
         description: 'Get a professional, ATS-optimized CV that lands you interviews.',
         features: [
             'Pro ATS-Optimized CV',
@@ -20,9 +24,12 @@ const plans = [
     },
     {
         name: 'Starter Pack',
-        price: '$30',
+        now: '$30',
+        original: '$40',
+        discount: '25% OFF',
+        savings: 'Save $10',
         period: '1 interview',
-        description: '20% DISCOUNT APPLIED. Perfect for individual applications.',
+        description: 'Perfect for individual applications.',
         features: [
             '1 Guaranteed Interview',
             'Professional ATS CV',
@@ -36,9 +43,12 @@ const plans = [
     },
     {
         name: 'Success Pack',
-        price: '$60',
+        now: '$60',
+        original: '$100',
+        discount: '40% OFF',
+        savings: 'Save $40',
         period: '3 interviews',
-        description: '40% DISCOUNT APPLIED. Our most popular result-driven plan.',
+        description: 'Our most popular result-driven plan.',
         features: [
             '3 Guaranteed Interviews',
             'Professional ATS CV',
@@ -52,9 +62,12 @@ const plans = [
     },
     {
         name: 'Elite Pack',
-        price: '$100',
+        now: '$100',
+        original: '$165',
+        discount: '40% OFF',
+        savings: 'Save $65',
         period: '6 interviews',
-        description: 'BEST VALUE. Maximum exposure for serious career growth.',
+        description: 'Maximum exposure for serious career growth.',
         features: [
             '6 Guaranteed Interviews',
             'Professional ATS CV',
@@ -97,11 +110,27 @@ export default function Pricing() {
                                 <h3 className="pricing-name" style={{ color: plan.popular ? 'rgba(255,255,255,0.85)' : 'var(--gray)' }}>
                                     {plan.name}
                                 </h3>
-                                <div className="pricing-price-row">
-                                    <span className="pricing-price" style={{ color: plan.color }}>{plan.price}</span>
-                                    <span className="pricing-period" style={{ color: plan.popular ? 'rgba(255,255,255,0.65)' : 'var(--gray)' }}>
-                                        / {plan.period}
-                                    </span>
+                                <div className="pricing-price-area">
+                                    <div className="pricing-top-right-badge">
+                                        <span className="discount-badge" style={{
+                                            background: plan.popular ? 'rgba(255,255,255,0.2)' : '#E8F7ED',
+                                            color: plan.popular ? 'white' : '#22C55E'
+                                        }}>
+                                            {plan.discount}
+                                        </span>
+                                    </div>
+                                    <div className="pricing-original-strike" style={{ color: plan.popular ? 'rgba(255,255,255,0.6)' : '#9CA3AF' }}>
+                                        {plan.original}
+                                    </div>
+                                    <div className="pricing-main-row">
+                                        <span className="pricing-now" style={{ color: plan.color }}>{plan.now}</span>
+                                        <span className="pricing-period-meta" style={{ color: plan.popular ? 'rgba(255,255,255,0.7)' : 'var(--gray)' }}>
+                                            {plan.period}
+                                        </span>
+                                    </div>
+                                    <div className="pricing-savings-text" style={{ color: plan.popular ? '#A7F3D0' : '#22C55E' }}>
+                                        {plan.savings}
+                                    </div>
                                 </div>
                                 <p className="pricing-desc" style={{ color: plan.popular ? 'rgba(255,255,255,0.75)' : 'var(--gray)' }}>
                                     {plan.description}
@@ -126,13 +155,13 @@ export default function Pricing() {
                                 ))}
                             </ul>
 
-                            <a
-                                href="#intake-form"
+                            <Link
+                                to={`/signup?plan=${encodeURIComponent(plan.name)}`}
                                 className={`btn btn-lg pricing-cta ${plan.popular ? 'pricing-cta--inverted' : 'btn-primary'}`}
                             >
                                 <Zap size={16} fill={plan.popular ? '#4F46E5' : 'white'} />
                                 {plan.cta}
-                            </a>
+                            </Link>
                         </div>
                     ))}
                 </div>

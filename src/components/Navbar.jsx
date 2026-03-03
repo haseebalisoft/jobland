@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Menu, X, Zap } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import './Navbar.css'
 
 const navLinks = [
@@ -28,7 +29,7 @@ export default function Navbar() {
                     <div className="navbar__logo-icon">
                         <Zap size={18} fill="white" color="white" />
                     </div>
-                    <span>HiredLogics</span>
+                    <span>JobLand</span>
                 </a>
 
                 {/* Desktop Nav */}
@@ -42,9 +43,9 @@ export default function Navbar() {
 
                 {/* CTA */}
                 <div className="navbar__actions">
-                    <a href="#intake-form" className="btn btn-primary btn-sm">
+                    <Link to="/login" className="btn btn-primary btn-sm">
                         Get Started
-                    </a>
+                    </Link>
                     <button
                         className="navbar__hamburger"
                         onClick={() => setMenuOpen(!menuOpen)}
@@ -67,14 +68,14 @@ export default function Navbar() {
                         {link.label}
                     </a>
                 ))}
-                <a
-                    href="#intake-form"
+                <Link
+                    to="/login"
                     className="btn btn-primary"
                     onClick={() => setMenuOpen(false)}
                     style={{ marginTop: '8px' }}
                 >
                     Get Started
-                </a>
+                </Link>
             </div>
         </header>
     )
