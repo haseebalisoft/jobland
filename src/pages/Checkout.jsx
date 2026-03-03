@@ -4,7 +4,7 @@ import { ArrowLeft, ShieldCheck, CheckCircle, Lock } from 'lucide-react'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 
-const stripePromise = loadStripe('pk_test_51SwOtNCXb5UF7f4wqbo8EKbUbbNaABhJUHgb0vpmPGkDzSRYMePyUxX6H13dvHHTcTnyY1jQT5acpytc7Cik3rLX00MZXSGb65')
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
 
 function CheckoutForm({ price, plan }) {
     const stripe = useStripe();
@@ -104,7 +104,7 @@ export default function Checkout() {
     const price = planPrices[plan] || '$60.00'
 
     useEffect(() => {
-        fetch("http://localhost:4242/api/create-payment-intent", {
+        fetch("http://localhost:5000/api/create-payment-intent", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ plan }),
