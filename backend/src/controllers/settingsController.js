@@ -1,6 +1,28 @@
 import { query } from '../config/db.js';
 import { updateUserProfile, changePassword } from '../services/authService.js';
 
+async function getLatestSubscription(userId) {
+  try {
+    const subRes = await query(
+      `
+        SELECT id, stripe_customer_id, stripe_subscription_id, plan_id, status, current_period_end, created_at
+        FROM subscriptions
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT 1
+      `,
+      [userId],
+    );
+
+    return subRes.rows[0] || null;
+  } catch (err) {
+    if (err?.code === '42P01') {
+      return null;
+    }
+    throw err;
+  }
+}
+
 export async function getSettings(req, res, next) {
   try {
     const userId = req.user.id;
@@ -20,18 +42,7 @@ export async function getSettings(req, res, next) {
 
     const user = userRes.rows[0];
 
-    const subRes = await query(
-      `
-        SELECT id, stripe_customer_id, stripe_subscription_id, plan_id, status, current_period_end, created_at
-        FROM subscriptions
-        WHERE user_id = $1
-        ORDER BY created_at DESC
-        LIMIT 1
-      `,
-      [userId],
-    );
-
-    const subscription = subRes.rows[0] || null;
+    const subscription = await getLatestSubscription(userId);
 
     res.json({
       user: {

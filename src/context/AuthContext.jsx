@@ -10,12 +10,18 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await api.post('/auth/refresh-token');
-        setAccessToken(res.data.accessToken);
         const me = await api.get('/auth/me');
         setUser(me.data);
       } catch (e) {
-        setUser(null);
+        try {
+          const res = await api.post('/auth/refresh-token');
+          setAccessToken(res.data.accessToken);
+          const me = await api.get('/auth/me');
+          setUser(me.data);
+        } catch {
+          // Don't overwrite user with null – they may have just logged in while startup requests were in flight
+          setUser((prev) => prev);
+        }
       } finally {
         setLoading(false);
       }

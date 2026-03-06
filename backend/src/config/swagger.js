@@ -896,6 +896,20 @@ const swaggerDefinition = {
       },
     },
     '/leads': {
+      get: {
+        tags: ['Leads'],
+        summary: 'List leads by role',
+        description: 'Returns leads based on logged-in user: users see leads from BDs assigned to them (user_bd_assignments); BDs/admins see leads they created. Same query params as /leads/bd and /leads/user.',
+        parameters: [
+          { in: 'query', name: 'range', schema: { type: 'string', enum: ['today', '3days', '7days', '15days', 'all'] }, description: 'Date filter' },
+          { in: 'query', name: 'page', schema: { type: 'integer' } },
+          { in: 'query', name: 'limit', schema: { type: 'integer' } },
+        ],
+        responses: {
+          200: { description: 'Paginated list (items, total, page, limit)' },
+          401: { description: 'Unauthorized' },
+        },
+      },
       post: {
         tags: ['Leads'],
         summary: 'Create a new lead (BD or admin)',
@@ -1033,7 +1047,8 @@ const swaggerDefinition = {
     '/leads/user': {
       get: {
         tags: ['Leads'],
-        summary: 'List leads assigned to the current user',
+        summary: 'List leads for the current user',
+        description: 'Leads from all BDs assigned to this user via user_bd_assignments. Supports range (today, 3days, 7days, 15days, all), page, limit.',
         parameters: [
           {
             in: 'query',

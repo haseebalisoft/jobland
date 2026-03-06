@@ -95,7 +95,7 @@ export async function updateLeadStatusService(leadId, newStatus, actor) {
 export async function listBdLeads(bdId, { range, page, limit }) {
   const { page: p, limit: l, offset } = parsePagination({ page, limit });
   let params = [bdId];
-  const { clause, params: withFilter } = buildDateRangeFilter('l.created_at', range, params);
+  const { clause, params: withFilter } = buildDateRangeFilter('ja.created_at', range, params);
   params = withFilter;
   const limitIndex = params.length + 1;
   const offsetIndex = params.length + 2;
@@ -103,26 +103,27 @@ export async function listBdLeads(bdId, { range, page, limit }) {
 
   const dataQuery = `
     SELECT
-      l.id,
-      l.job_id,
-      l.job_title,
-      l.company_name,
-      l.job_link,
-      l.status,
-      l.assigned_user_id,
-      l.bd_id,
-      l.created_at
-    FROM leads l
-    WHERE l.bd_id = $1
+      ja.id,
+      ja.job_id,
+      j.title AS job_title,
+      j.company_name,
+      j.job_url AS job_link,
+      ja.status,
+      ja.user_id AS assigned_user_id,
+      ja.bd_id,
+      ja.created_at
+    FROM job_assignments ja
+    JOIN jobs j ON j.id = ja.job_id
+    WHERE ja.bd_id = $1
     ${clause}
-    ORDER BY l.created_at DESC
+    ORDER BY ja.created_at DESC
     LIMIT $${limitIndex} OFFSET $${offsetIndex}
   `;
 
   const countQuery = `
     SELECT COUNT(*)::int AS count
-    FROM leads l
-    WHERE l.bd_id = $1
+    FROM job_assignments ja
+    WHERE ja.bd_id = $1
     ${clause}
   `;
 
@@ -139,10 +140,14 @@ export async function listBdLeads(bdId, { range, page, limit }) {
   };
 }
 
+/**
+ * List leads visible to a user: all leads created by BDs who are assigned to this user
+ * via user_bd_assignments (admin assigns users to BDs). Uses existing table structure.
+ */
 export async function listUserLeads(userId, { range, page, limit }) {
   const { page: p, limit: l, offset } = parsePagination({ page, limit });
   let params = [userId];
-  const { clause, params: withFilter } = buildDateRangeFilter('l.created_at', range, params);
+  const { clause, params: withFilter } = buildDateRangeFilter('ja.created_at', range, params);
   params = withFilter;
   const limitIndex = params.length + 1;
   const offsetIndex = params.length + 2;
@@ -150,26 +155,29 @@ export async function listUserLeads(userId, { range, page, limit }) {
 
   const dataQuery = `
     SELECT
-      l.id,
-      l.job_id,
-      l.job_title,
-      l.company_name,
-      l.job_link,
-      l.status,
-      l.assigned_user_id,
-      l.bd_id,
-      l.created_at
-    FROM leads l
-    WHERE l.assigned_user_id = $1
+      ja.id,
+      ja.job_id,
+      j.title AS job_title,
+      j.company_name,
+      j.job_url AS job_link,
+      ja.status,
+      ja.user_id AS assigned_user_id,
+      ja.bd_id,
+      ja.created_at
+    FROM job_assignments ja
+    JOIN jobs j ON j.id = ja.job_id
+    JOIN user_bd_assignments uba ON uba.bd_id = ja.bd_id AND uba.user_id = $1
+    WHERE 1=1
     ${clause}
-    ORDER BY l.created_at DESC
+    ORDER BY ja.created_at DESC
     LIMIT $${limitIndex} OFFSET $${offsetIndex}
   `;
 
   const countQuery = `
     SELECT COUNT(*)::int AS count
-    FROM leads l
-    WHERE l.assigned_user_id = $1
+    FROM job_assignments ja
+    JOIN user_bd_assignments uba ON uba.bd_id = ja.bd_id AND uba.user_id = $1
+    WHERE 1=1
     ${clause}
   `;
 
@@ -189,7 +197,7 @@ export async function listUserLeads(userId, { range, page, limit }) {
 export async function listLeadsForAdmin({ range, page, limit }) {
   const { page: p, limit: l, offset } = parsePagination({ page, limit });
   let params = [];
-  const { clause, params: withFilter } = buildDateRangeFilter('l.created_at', range, params);
+  const { clause, params: withFilter } = buildDateRangeFilter('ja.created_at', range, params);
   params = withFilter;
   const limitIndex = params.length + 1;
   const offsetIndex = params.length + 2;
@@ -197,25 +205,26 @@ export async function listLeadsForAdmin({ range, page, limit }) {
 
   const dataQuery = `
     SELECT
-      l.id,
-      l.job_id,
-      l.job_title,
-      l.company_name,
-      l.job_link,
-      l.status,
-      l.assigned_user_id,
-      l.bd_id,
-      l.created_at
-    FROM leads l
+      ja.id,
+      ja.job_id,
+      j.title AS job_title,
+      j.company_name,
+      j.job_url AS job_link,
+      ja.status,
+      ja.user_id AS assigned_user_id,
+      ja.bd_id,
+      ja.created_at
+    FROM job_assignments ja
+    JOIN jobs j ON j.id = ja.job_id
     WHERE 1=1
     ${clause}
-    ORDER BY l.created_at DESC
+    ORDER BY ja.created_at DESC
     LIMIT $${limitIndex} OFFSET $${offsetIndex}
   `;
 
   const countQuery = `
     SELECT COUNT(*)::int AS count
-    FROM leads l
+    FROM job_assignments ja
     WHERE 1=1
     ${clause}
   `;
@@ -243,7 +252,7 @@ export async function getLeadStats() {
         COUNT(*) FILTER (WHERE status = 'interview')::int AS interview,
         COUNT(*) FILTER (WHERE status = 'rejected')::int AS rejected,
         COUNT(*) FILTER (WHERE status = 'offer')::int AS offer
-      FROM leads
+      FROM job_assignments
     `,
   );
   return res.rows[0] || {
@@ -263,8 +272,8 @@ export async function markLeadAppliedByUser(leadId, userId) {
 
     const leadRes = await client.query(
       `
-        SELECT id, job_id, assigned_user_id, bd_id, status
-        FROM leads
+        SELECT id, job_id, user_id AS assigned_user_id, bd_id, status
+        FROM job_assignments
         WHERE id = $1
         FOR UPDATE
       `,
@@ -278,15 +287,20 @@ export async function markLeadAppliedByUser(leadId, userId) {
     }
 
     const lead = leadRes.rows[0];
-    if (lead.assigned_user_id !== userId) {
-      const err = new Error('You can only mark your own leads as applied');
+    // User can mark as applied if this lead is visible to them (BD is assigned to them via user_bd_assignments)
+    const accessRes = await client.query(
+      'SELECT 1 FROM user_bd_assignments WHERE user_id = $1 AND bd_id = $2',
+      [userId, lead.bd_id],
+    );
+    if (accessRes.rowCount === 0) {
+      const err = new Error('You can only mark leads from your assigned BDs as applied');
       err.statusCode = 403;
       throw err;
     }
 
     await client.query(
       `
-        UPDATE leads
+        UPDATE job_assignments
         SET status = 'applied'
         WHERE id = $1
       `,

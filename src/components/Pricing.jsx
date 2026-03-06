@@ -3,7 +3,6 @@ import { Check, Zap, Star } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import './Pricing.css'
 import api from '../services/api.js'
-import { useAuth } from '../context/AuthContext.jsx'
 
 // Static design data – keeps your original layout/labels exactly the same
 const BASE_PLANS = [
@@ -87,8 +86,8 @@ const BASE_PLANS = [
 
 export default function Pricing() {
     const [plans, setPlans] = useState(BASE_PLANS)
+    const [startingPlan, setStartingPlan] = useState('')
     const navigate = useNavigate()
-    const { user } = useAuth()
 
     useEffect(() => {
         // Fetch plan IDs/prices from backend and merge into static design
@@ -113,7 +112,7 @@ export default function Pricing() {
             })
     }, [])
 
-    const handleGetStarted = (plan) => {
+    const handleGetStarted = async (plan) => {
         // Save plan name always for UI/checkout copy
         localStorage.setItem('selectedPlanName', plan.name)
 
@@ -122,14 +121,21 @@ export default function Pricing() {
             localStorage.setItem('selectedPlanId', plan.apiId)
         } else {
             localStorage.removeItem('selectedPlanId')
-            // Optional heads‑up: backend plan not wired yet
             console.warn('No apiId for selected plan – payments not wired for this plan yet.')
         }
 
-        if (!user) {
-            navigate(`/signup?plan=${encodeURIComponent(plan.name)}`)
-        } else {
+        setStartingPlan(plan.name)
+
+        try {
+            const res = await api.post('/subscriptions/checkout-session', {
+                plan_id: plan.apiId || plan.name,
+            })
+            window.location.href = res.data.url
+        } catch (err) {
+            console.error('Unable to start Stripe checkout', err)
             navigate(`/checkout?plan=${encodeURIComponent(plan.name)}`)
+        } finally {
+            setStartingPlan('')
         }
     }
     return (
@@ -211,10 +217,11 @@ export default function Pricing() {
                             <button
                                 type="button"
                                 className={`btn btn-lg pricing-cta ${plan.popular ? 'pricing-cta--inverted' : 'btn-primary'}`}
+                                disabled={startingPlan === plan.name}
                                 onClick={() => handleGetStarted(plan)}
                             >
                                 <Zap size={16} fill={plan.popular ? '#4F46E5' : 'white'} />
-                                Get Started
+                                {startingPlan === plan.name ? 'Redirecting...' : 'Get Started'}
                             </button>
                         </div>
                     ))}

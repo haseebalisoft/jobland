@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useLocation, useNavigate, Link } from 'react-router-dom'
+import { useLocation, Link } from 'react-router-dom'
 import { ArrowLeft, ShieldCheck, CheckCircle, Lock } from 'lucide-react'
 import api from '../services/api.js'
+import { useAuth } from '../context/AuthContext.jsx'
 
-function CheckoutForm({ planId, price, plan }) {
-    const navigate = useNavigate();
-    const [email, setEmail] = useState('');
+function CheckoutForm({ planId, price, user }) {
     const [message, setMessage] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -16,29 +15,31 @@ function CheckoutForm({ planId, price, plan }) {
 
         try {
             localStorage.setItem('selectedPlanId', planId);
-            const res = await api.post('/subscriptions/checkout-session', { planId });
+            const res = await api.post('/subscriptions/checkout-session', { plan_id: planId });
             window.location.href = res.data.url;
         } catch (err) {
-            setMessage('Unable to start checkout. Please ensure you are logged in and verified.');
+            setMessage(err.response?.data?.message || 'Unable to start checkout right now.');
             setIsLoading(false);
         }
     };
 
     return (
         <form onSubmit={handleSubmit} style={styles.form}>
-            <div style={styles.inputGroup}>
-                <label style={styles.label}>Email</label>
-                <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    style={styles.input}
-                />
+            <div style={styles.summaryCard}>
+                <div style={styles.label}>Account email</div>
+                <div style={styles.readonlyValue}>
+                    {user?.email || 'Collected securely on Stripe Checkout'}
+                </div>
             </div>
 
-            {message && <div style={{ color: 'green', marginTop: '10px', fontSize: '14px' }}>{message}</div>}
+            <div style={styles.summaryCard}>
+                <div style={styles.label}>Payment method</div>
+                <div style={styles.helperText}>
+                    You will be redirected to Stripe&apos;s secure hosted checkout to finish payment and confirm your email.
+                </div>
+            </div>
+
+            {message && <div style={{ color: '#DC2626', marginTop: '10px', fontSize: '14px' }}>{message}</div>}
 
             <button
                 type="submit"
@@ -61,7 +62,7 @@ function CheckoutForm({ planId, price, plan }) {
 
             <p style={styles.secureNote}>
                 <ShieldCheck size={14} />
-                This is a mock checkout – no real payment will be charged.
+                Secure payment powered by Stripe.
             </p>
         </form>
     )
@@ -70,6 +71,10 @@ function CheckoutForm({ planId, price, plan }) {
 export default function Checkout() {
     const location = useLocation()
     const queryParams = new URLSearchParams(location.search)
+    const { user } = useAuth()
+    const [isMobile, setIsMobile] = useState(() =>
+        typeof window !== 'undefined' ? window.innerWidth <= 768 : false,
+    )
     const planName = queryParams.get('plan') || localStorage.getItem('selectedPlanName') || 'Success Pack'
     const [planId] = useState(localStorage.getItem('selectedPlanId') || '')
 
@@ -79,25 +84,42 @@ export default function Checkout() {
         'Success Pack': '$60.00',
         'Elite Pack': '$100.00',
     }
+    const planIdMap = {
+        'Professional Resume': 'professional_resume',
+        'Starter Pack': 'starter_pack',
+        'Success Pack': 'success_pack',
+        'Elite Pack': 'elite_pack',
+    }
     const price = planPrices[planName] || '$60.00'
+    const resolvedPlanId = planId || planIdMap[planName] || 'success_pack'
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768)
+        }
+
+        window.addEventListener('resize', handleResize)
+        return () => window.removeEventListener('resize', handleResize)
+    }, [])
+
     return (
-        <div style={styles.container}>
-            <div style={styles.checkoutWrapper}>
-                <div style={styles.detailsSide}>
-                    <Link to="/#pricing" style={styles.backLink}>
+        <div style={{ ...styles.container, ...(isMobile ? styles.containerMobile : {}) }}>
+            <div style={{ ...styles.checkoutWrapper, ...(isMobile ? styles.checkoutWrapperMobile : {}) }}>
+                <div style={{ ...styles.detailsSide, ...(isMobile ? styles.detailsSideMobile : {}) }}>
+                    <Link to="/#pricing" style={{ ...styles.backLink, ...(isMobile ? styles.backLinkMobile : {}) }}>
                         <ArrowLeft size={16} />
                         Back
                     </Link>
 
-                    <div style={styles.brand}>
+                    <div style={{ ...styles.brand, ...(isMobile ? styles.brandMobile : {}) }}>
                         <div style={styles.logoIcon}></div>
                         JobLand
                     </div>
 
-                    <div style={styles.summary}>
+                    <div style={{ ...styles.summary, ...(isMobile ? styles.summaryMobile : {}) }}>
                         <h2 style={styles.planName}>Subscribe to {planName}</h2>
                         <div style={styles.priceContainer}>
-                            <span style={styles.price}>{price}</span>
+                            <span style={{ ...styles.price, ...(isMobile ? styles.priceMobile : {}) }}>{price}</span>
                         </div>
                     </div>
 
@@ -117,9 +139,9 @@ export default function Checkout() {
                     </div>
                 </div>
 
-                <div style={styles.paymentSide}>
-                    <h3 style={styles.paymentTitle}>Checkout</h3>
-                    <CheckoutForm planId={planId} price={price} plan={planName} />
+                <div style={{ ...styles.paymentSide, ...(isMobile ? styles.paymentSideMobile : {}) }}>
+                    <h3 style={{ ...styles.paymentTitle, ...(isMobile ? styles.paymentTitleMobile : {}) }}>Checkout</h3>
+                    <CheckoutForm planId={resolvedPlanId} price={price} user={user} />
                 </div>
             </div>
         </div>
@@ -136,6 +158,10 @@ const styles = {
         padding: '24px',
         fontFamily: 'var(--font-primary)'
     },
+    containerMobile: {
+        padding: '16px',
+        alignItems: 'stretch',
+    },
     checkoutWrapper: {
         display: 'flex',
         width: '100%',
@@ -147,6 +173,12 @@ const styles = {
         minHeight: '600px',
         border: '1px solid var(--gray-border)'
     },
+    checkoutWrapperMobile: {
+        flexDirection: 'column',
+        maxWidth: '100%',
+        minHeight: 'auto',
+        borderRadius: '20px',
+    },
     detailsSide: {
         width: '45%',
         background: '#F0F4FF',
@@ -154,11 +186,19 @@ const styles = {
         display: 'flex',
         flexDirection: 'column',
     },
+    detailsSideMobile: {
+        width: '100%',
+        padding: '24px',
+    },
     paymentSide: {
         width: '55%',
         padding: '48px',
         display: 'flex',
         flexDirection: 'column',
+    },
+    paymentSideMobile: {
+        width: '100%',
+        padding: '24px',
     },
     backLink: {
         display: 'flex',
@@ -171,6 +211,9 @@ const styles = {
         marginBottom: '48px',
         transition: 'color 0.2s',
     },
+    backLinkMobile: {
+        marginBottom: '24px',
+    },
     brand: {
         display: 'flex',
         alignItems: 'center',
@@ -180,6 +223,9 @@ const styles = {
         color: 'var(--dark)',
         marginBottom: '48px',
     },
+    brandMobile: {
+        marginBottom: '24px',
+    },
     logoIcon: {
         width: '28px',
         height: '28px',
@@ -188,6 +234,9 @@ const styles = {
     },
     summary: {
         marginBottom: '40px',
+    },
+    summaryMobile: {
+        marginBottom: '24px',
     },
     planName: {
         fontSize: '16px',
@@ -206,6 +255,9 @@ const styles = {
         color: 'var(--dark)',
         lineHeight: 1,
         letterSpacing: '-1px',
+    },
+    priceMobile: {
+        fontSize: '40px',
     },
     features: {
         display: 'flex',
@@ -227,11 +279,22 @@ const styles = {
         color: 'var(--dark)',
         marginBottom: '32px',
     },
+    paymentTitleMobile: {
+        marginBottom: '20px',
+        fontSize: '22px',
+    },
     form: {
         display: 'flex',
         flexDirection: 'column',
         gap: '24px',
         maxWidth: '420px',
+        width: '100%',
+    },
+    summaryCard: {
+        border: '1px solid #E5E7EB',
+        borderRadius: '12px',
+        padding: '16px',
+        background: '#F9FAFB',
     },
     inputGroup: {
         display: 'flex',
@@ -252,6 +315,17 @@ const styles = {
         outline: 'none',
         transition: 'all 0.2s',
         boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+    },
+    readonlyValue: {
+        fontSize: '15px',
+        color: 'var(--dark)',
+        fontWeight: '600',
+        wordBreak: 'break-word',
+    },
+    helperText: {
+        color: 'var(--gray)',
+        fontSize: '14px',
+        lineHeight: 1.5,
     },
     payButton: {
         width: '100%',

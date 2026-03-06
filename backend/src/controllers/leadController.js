@@ -58,6 +58,32 @@ export async function updateLeadStatusController(req, res, next) {
   }
 }
 
+/**
+ * GET /api/leads - Returns leads based on logged-in user's role.
+ * - user: leads from BDs assigned to this user (user_bd_assignments).
+ * - bd / admin: leads created by this BD.
+ * Query: range (today|3days|7days|15days|all), page, limit.
+ */
+export async function getLeadsByRole(req, res, next) {
+  try {
+    const actor = req.user;
+    const { range = 'all', page, limit } = req.query;
+
+    if (actor.role === 'user' || !actor.role) {
+      const result = await listUserLeads(actor.id, { range, page, limit });
+      return res.json(result);
+    }
+    if (actor.role === 'bd' || actor.role === 'admin') {
+      const result = await listBdLeads(actor.id, { range, page, limit });
+      return res.json(result);
+    }
+
+    return res.status(403).json({ message: 'Forbidden' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getBdLeads(req, res, next) {
   try {
     const actor = req.user;

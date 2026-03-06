@@ -13,6 +13,7 @@ export default function Dashboard() {
     const [leads, setLeads] = useState({ items: [], total: 0 })
     const [leadsLoading, setLeadsLoading] = useState(false)
     const [applyingId, setApplyingId] = useState(null)
+    const [leadsRange, setLeadsRange] = useState('all')
 
     useEffect(() => {
         let isMounted = true
@@ -34,7 +35,7 @@ export default function Dashboard() {
     const fetchLeads = () => {
         if (!user) return
         setLeadsLoading(true)
-        api.get('/leads/user', { params: { limit: 100 } })
+        api.get('/leads/user', { params: { range: leadsRange, limit: 100 } })
             .then((res) => {
                 setLeads({ items: res.data.items || [], total: res.data.total ?? 0 })
             })
@@ -47,7 +48,7 @@ export default function Dashboard() {
     useEffect(() => {
         if (!user) return
         fetchLeads()
-    }, [user])
+    }, [user, leadsRange])
 
 
     const handleMarkApplied = async (leadId) => {
@@ -196,9 +197,29 @@ export default function Dashboard() {
                         <>
                             <h1 style={styles.welcome}>Applications</h1>
                             <p style={styles.subtitle}>
-                                Leads assigned to you by your BD. Open the job link to apply, then mark as applied when done.
+                                Leads from BDs assigned to you. Open the job link to apply, then mark as applied when done.
                             </p>
-
+                            <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                                <span style={{ fontSize: 14, color: 'var(--gray)' }}>Filter:</span>
+                                {['today', '3days', '7days', '15days', 'all'].map((r) => (
+                                    <button
+                                        key={r}
+                                        type="button"
+                                        onClick={() => setLeadsRange(r)}
+                                        style={{
+                                            padding: '6px 12px',
+                                            borderRadius: 8,
+                                            border: leadsRange === r ? '2px solid var(--primary)' : '1px solid var(--gray-border)',
+                                            background: leadsRange === r ? 'rgba(79, 70, 229, 0.1)' : 'white',
+                                            cursor: 'pointer',
+                                            fontSize: 13,
+                                            fontWeight: leadsRange === r ? 600 : 500,
+                                        }}
+                                    >
+                                        {r === 'all' ? 'All time' : r === '3days' ? 'Last 3 days' : r === '7days' ? 'Last 7 days' : r === '15days' ? 'Last 15 days' : 'Today'}
+                                    </button>
+                                ))}
+                            </div>
                             {leadsLoading ? (
                                 <div style={{ padding: 24 }}>Loading applications...</div>
                             ) : leads.items.length === 0 ? (
@@ -545,6 +566,12 @@ const styles = {
         display: 'flex',
         alignItems: 'center',
         gap: '12px',
+    },
+    leadActions: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        flexShrink: 0,
     },
     linkBtn: {
         display: 'inline-flex',

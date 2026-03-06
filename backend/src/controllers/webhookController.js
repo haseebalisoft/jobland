@@ -1,5 +1,5 @@
 import { config } from '../config/env.js';
-import { stripe } from '../utils/stripe.js';
+import { getStripeClient } from '../utils/stripe.js';
 import { handleStripeEvents } from '../services/subscriptionService.js';
 
 export async function stripeWebhook(req, res) {
@@ -13,7 +13,7 @@ export async function stripeWebhook(req, res) {
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(
+    event = getStripeClient().webhooks.constructEvent(
       req.body,
       sig,
       config.stripe.webhookSecret,

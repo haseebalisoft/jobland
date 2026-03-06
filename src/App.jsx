@@ -11,6 +11,7 @@ import BdSignup from './pages/BdSignup'
 import Checkout from './pages/Checkout'
 import VerifyEmail from './pages/VerifyEmail'
 import CheckoutSuccess from './pages/CheckoutSuccess'
+import SetPassword from './pages/SetPassword'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminLogin from './pages/AdminLogin'
 import { AuthProvider } from './context/AuthContext.jsx'
@@ -30,7 +31,9 @@ function App() {
           <Route path="/bd/signup" element={<BdSignup />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/set-password" element={<SetPassword />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/success" element={<CheckoutSuccess />} />
           <Route path="/checkout-success" element={<CheckoutSuccess />} />
           <Route
             path="/dashboard"

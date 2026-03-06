@@ -21,6 +21,8 @@ export default function BdDashboard() {
   const [creating, setCreating] = useState(false)
   const [updatingId, setUpdatingId] = useState(null)
   const [myUsers, setMyUsers] = useState([])
+  const [myUsersLoading, setMyUsersLoading] = useState(false)
+  const [myUsersError, setMyUsersError] = useState('')
   const [newLead, setNewLead] = useState({
     job_title: '',
     company_name: '',
@@ -34,11 +36,24 @@ export default function BdDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, user])
 
-  useEffect(() => {
+  const fetchMyUsers = () => {
     if (!user || (user.role !== 'bd' && user.role !== 'admin')) return
+    setMyUsersLoading(true)
+    setMyUsersError('')
     api.get('/bd/my-users')
-      .then((res) => setMyUsers(res.data || []))
-      .catch(() => setMyUsers([]))
+      .then((res) => setMyUsers(Array.isArray(res.data) ? res.data : []))
+      .catch((err) => {
+        console.error(err)
+        setMyUsers([])
+        setMyUsersError('Could not load assigned users. Please try again.')
+      })
+      .finally(() => {
+        setMyUsersLoading(false)
+      })
+  }
+
+  useEffect(() => {
+    fetchMyUsers()
   }, [user])
 
   const fetchLeads = async (r) => {
@@ -244,19 +259,49 @@ export default function BdDashboard() {
                 onChange={handleNewLeadChange}
                 style={styles.input}
               />
-              <select
-                name="assigned_user_id"
-                value={newLead.assigned_user_id}
-                onChange={handleNewLeadChange}
-                style={styles.input}
-              >
-                <option value="">Select user (assigned by admin)</option>
-                {myUsers.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.full_name || u.email} ({u.email})
-                  </option>
-                ))}
-              </select>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <select
+                    name="assigned_user_id"
+                    value={newLead.assigned_user_id}
+                    onChange={handleNewLeadChange}
+                    style={styles.input}
+                  >
+                    <option value="">Select user (assigned by admin)</option>
+                    {myUsers.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.full_name || u.email} ({u.email})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={fetchMyUsers}
+                    disabled={myUsersLoading}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: 8,
+                      border: '1px solid var(--gray-border)',
+                      background: myUsersLoading ? '#f3f4f6' : '#fff',
+                      cursor: myUsersLoading ? 'default' : 'pointer',
+                      fontSize: 13,
+                      opacity: myUsersLoading ? 0.7 : 1,
+                    }}
+                  >
+                    {myUsersLoading ? 'Refreshing…' : 'Refresh list'}
+                  </button>
+                </div>
+                {myUsers.length === 0 && (
+                  <p style={{ margin: 0, fontSize: 13, color: 'var(--gray)' }}>
+                    No users assigned to you yet. Ask an admin to assign users to you from the Admin Dashboard (Users → Assign BD), then click Refresh list.
+                  </p>
+                )}
+                {myUsersError && (
+                  <p style={{ margin: 0, fontSize: 13, color: '#b91c1c' }}>
+                    {myUsersError}
+                  </p>
+                )}
+              </div>
               <button type="submit" disabled={creating} style={styles.primaryBtn}>
                 {creating ? 'Creating...' : 'Add lead'}
               </button>
@@ -297,47 +342,54 @@ export default function BdDashboard() {
                     <tr>
                       <th>Job</th>
                       <th>Company</th>
+                      <th>Assigned user</th>
                       <th>Created</th>
                       <th>Status</th>
                       <th>Job link</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {leads.map((lead) => (
-                      <tr key={lead.id}>
-                        <td>{lead.job_title || '—'}</td>
-                        <td>{lead.company_name || '—'}</td>
-                        <td>{lead.created_at ? new Date(lead.created_at).toLocaleDateString() : '—'}</td>
-                        <td>
-                          <select
-                            value={lead.status || 'pending'}
-                            onChange={(e) => handleStatusChange(lead.id, e.target.value)}
-                            disabled={updatingId === lead.id}
-                            style={styles.statusSelect}
-                          >
-                            {STATUS_OPTIONS.map((s) => (
-                              <option key={s} value={s}>
-                                {s}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td>
-                          {lead.job_link ? (
-                            <a
-                              href={lead.job_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={styles.linkBtn}
+                    {leads.map((lead) => {
+                      const assignedUser = lead.assigned_user_id
+                        ? myUsers.find((u) => u.id === lead.assigned_user_id)
+                        : null
+                      return (
+                        <tr key={lead.id}>
+                          <td>{lead.job_title || '—'}</td>
+                          <td>{lead.company_name || '—'}</td>
+                          <td>{assignedUser ? (assignedUser.full_name || assignedUser.email) : '—'}</td>
+                          <td>{lead.created_at ? new Date(lead.created_at).toLocaleDateString() : '—'}</td>
+                          <td>
+                            <select
+                              value={lead.status || 'pending'}
+                              onChange={(e) => handleStatusChange(lead.id, e.target.value)}
+                              disabled={updatingId === lead.id}
+                              style={styles.statusSelect}
                             >
-                              <ExternalLink size={14} /> Open
-                            </a>
-                          ) : (
-                            <span style={{ color: 'var(--gray-light)', fontSize: 13 }}>N/A</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                              {STATUS_OPTIONS.map((s) => (
+                                <option key={s} value={s}>
+                                  {s}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            {lead.job_link ? (
+                              <a
+                                href={lead.job_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={styles.linkBtn}
+                              >
+                                <ExternalLink size={14} /> Open
+                              </a>
+                            ) : (
+                              <span style={{ color: 'var(--gray-light)', fontSize: 13 }}>N/A</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

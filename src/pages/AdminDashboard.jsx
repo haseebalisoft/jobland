@@ -115,6 +115,16 @@ export default function AdminDashboard() {
     setPlans((list) => list.map((p) => (p._id === res.data._id ? res.data : p)));
   };
 
+  const getSelectedBdLabel = () => {
+    if (bds.length === 0) return 'No BDs registered yet';
+    const selected = bds.filter((b) => selectedBdIds.includes(b.id));
+    if (selected.length === 0) return 'Select BDs…';
+    const names = selected.map((b) => b.full_name || b.email);
+    if (names.length <= 2) return names.join(', ');
+    const [first, second, ...rest] = names;
+    return `${first}, ${second} + ${rest.length} more`;
+  };
+
   return (
     <div style={{ padding: 24 }}>
       <h2>Admin Dashboard</h2>
@@ -208,103 +218,127 @@ export default function AdminDashboard() {
                   <span style={{ color: '#999' }}>—</span>
                 )}
               </td>
-              <td style={{ padding: 12 }}>
-                <button type="button" onClick={() => openAssignModal(u)} style={{ marginRight: 8 }}>
-                  Assign BD
-                </button>
-                <button type="button" onClick={() => toggleBlock(u)}>
-                  {u.isBlocked ? 'Unblock' : 'Block'}
-                </button>
+              <td style={{ padding: 12, position: 'relative' }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => openAssignModal(u)}
+                    style={{ padding: '4px 10px' }}
+                  >
+                    {(u.assigned_bds || []).length ? 'Edit BDs' : 'Assign BD'}
+                  </button>
+                  <button type="button" onClick={() => toggleBlock(u)}>
+                    {u.isBlocked ? 'Unblock' : 'Block'}
+                  </button>
+                </div>
+
+                {assignModal && (assignModal.id === (u.id || u._id)) && (
+                  <div style={inlineAssignPanel} onClick={(e) => e.stopPropagation()}>
+                    <h4 style={{ marginTop: 0, marginBottom: 6 }}>Assign BD</h4>
+                    <p style={{ marginBottom: 10, color: '#444', fontSize: 13 }}>
+                      Only selected BDs can assign leads to this user.
+                    </p>
+                    <div ref={dropdownRef} style={{ position: 'relative', marginBottom: 10 }}>
+                      <button
+                        type="button"
+                        style={dropdownTrigger}
+                        onClick={() => setBdDropdownOpen((o) => !o)}
+                        aria-expanded={bdDropdownOpen}
+                        aria-haspopup="listbox"
+                      >
+                        <span>{getSelectedBdLabel()}</span>
+                        <span style={{ marginLeft: 'auto', fontSize: 12 }}>
+                          {bdDropdownOpen ? '▲' : '▼'}
+                        </span>
+                      </button>
+                      {bdDropdownOpen && (
+                        <div style={dropdownPanel} role="listbox">
+                          {bds.length === 0 ? (
+                            <div style={{ padding: 12, color: '#888', fontSize: 13 }}>
+                              No BDs yet. BDs sign up at <strong>/bd/signup</strong>.
+                            </div>
+                          ) : (
+                            bds.map((bd) => (
+                              <label
+                                key={bd.id}
+                                style={dropdownOption}
+                                role="option"
+                                aria-selected={selectedBdIds.includes(bd.id)}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedBdIds.includes(bd.id)}
+                                  onChange={() => toggleBdSelection(bd.id)}
+                                  style={{ marginRight: 10 }}
+                                />
+                                <span>
+                                  <strong>{bd.full_name || bd.email}</strong>
+                                </span>
+                                <span style={{ color: '#666', fontSize: 12 }}> {bd.email}</span>
+                              </label>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginBottom: 8, marginTop: 4 }}>
+                      <button
+                        type="button"
+                        onClick={() => setAssignModal(null)}
+                        disabled={assignSaving}
+                        style={{ padding: '4px 10px' }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveAssignBd}
+                        disabled={assignSaving}
+                        style={{ padding: '4px 10px' }}
+                      >
+                        {assignSaving ? 'Saving…' : 'Save assignment'}
+                      </button>
+                    </div>
+
+                    {assignError && (
+                      <p style={{ color: '#c00', fontSize: 12, marginBottom: 8 }}>{assignError}</p>
+                    )}
+
+                    {selectedBdIds.length > 0 && (
+                      <div
+                        style={{
+                          marginTop: 2,
+                          marginBottom: 4,
+                          flexWrap: 'wrap',
+                          display: 'flex',
+                          gap: 6,
+                        }}
+                      >
+                        {bds
+                          .filter((b) => selectedBdIds.includes(b.id))
+                          .map((b) => (
+                            <span key={b.id} style={selectedTag}>
+                              {b.full_name || b.email}
+                              <button
+                                type="button"
+                                aria-label={`Remove ${b.full_name || b.email}`}
+                                style={selectedTagRemove}
+                                onClick={() => toggleBdSelection(b.id)}
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-
-      {assignModal && (
-        <div style={modalOverlay} onClick={() => !assignSaving && setAssignModal(null)}>
-          <div style={modalBox} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0, marginBottom: 4 }}>Assign BD to user</h3>
-            <p style={{ marginBottom: 16, color: '#444' }}>
-              <strong>{assignModal.name || assignModal.full_name}</strong> — {assignModal.email}
-            </p>
-            <p style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>
-              Only selected BDs can assign leads to this user. All BDs below signed up via BD Portal.
-            </p>
-            <div ref={dropdownRef} style={{ position: 'relative', marginBottom: 16 }}>
-              <button
-                type="button"
-                style={dropdownTrigger}
-                onClick={() => setBdDropdownOpen((o) => !o)}
-                aria-expanded={bdDropdownOpen}
-                aria-haspopup="listbox"
-              >
-                <span>
-                  {bds.length === 0
-                    ? 'No BDs registered yet'
-                    : selectedBdIds.length === 0
-                      ? 'Select BDs…'
-                      : `${selectedBdIds.length} BD${selectedBdIds.length > 1 ? 's' : ''} selected`}
-                </span>
-                <span style={{ marginLeft: 'auto', fontSize: 12 }}>{bdDropdownOpen ? '▲' : '▼'}</span>
-              </button>
-              {bdDropdownOpen && (
-                <div style={dropdownPanel} role="listbox">
-                  {bds.length === 0 ? (
-                    <div style={{ padding: 12, color: '#888', fontSize: 13 }}>
-                      No BDs yet. BDs sign up at <strong>/bd/signup</strong>.
-                    </div>
-                  ) : (
-                    bds.map((bd) => (
-                      <label
-                        key={bd.id}
-                        style={dropdownOption}
-                        role="option"
-                        aria-selected={selectedBdIds.includes(bd.id)}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedBdIds.includes(bd.id)}
-                          onChange={() => toggleBdSelection(bd.id)}
-                          style={{ marginRight: 10 }}
-                        />
-                        <span><strong>{bd.full_name || bd.email}</strong></span>
-                        <span style={{ color: '#666', fontSize: 12 }}> {bd.email}</span>
-                      </label>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-            {selectedBdIds.length > 0 && (
-              <div style={{ marginBottom: 16, flexWrap: 'wrap', display: 'flex', gap: 6 }}>
-                {(bds.filter((b) => selectedBdIds.includes(b.id))).map((b) => (
-                  <span key={b.id} style={selectedTag}>
-                    {b.full_name || b.email}
-                    <button
-                      type="button"
-                      aria-label={`Remove ${b.full_name || b.email}`}
-                      style={selectedTagRemove}
-                      onClick={() => toggleBdSelection(b.id)}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            {assignError && <p style={{ color: '#c00', fontSize: 13, marginBottom: 12 }}>{assignError}</p>}
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button type="button" onClick={() => setAssignModal(null)} disabled={assignSaving}>
-                Cancel
-              </button>
-              <button type="button" onClick={saveAssignBd} disabled={assignSaving}>
-                {assignSaving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <h3>Subscriptions</h3>
       <ul>
@@ -319,27 +353,19 @@ export default function AdminDashboard() {
   );
 }
 
-const modalOverlay = {
-  position: 'fixed',
-  top: 0,
-  left: 0,
+const inlineAssignPanel = {
+  position: 'absolute',
+  top: '100%',
   right: 0,
-  bottom: 0,
-  background: 'rgba(0,0,0,0.4)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  zIndex: 1000,
-};
-const modalBox = {
+  marginTop: 6,
   background: 'white',
-  padding: 24,
-  borderRadius: 12,
-  maxWidth: 460,
-  width: '100%',
-  maxHeight: '90vh',
-  overflow: 'auto',
-  boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+  padding: 12,
+  borderRadius: 10,
+  minWidth: 260,
+  maxWidth: 340,
+  boxShadow: '0 12px 30px rgba(0,0,0,0.18)',
+  border: '1px solid #e5e7eb',
+  zIndex: 20,
 };
 const dropdownTrigger = {
   width: '100%',

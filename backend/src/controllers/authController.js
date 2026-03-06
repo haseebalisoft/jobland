@@ -7,6 +7,7 @@ import {
   verifyEmail,
   loginUser,
   refreshTokens,
+  setPasswordFromToken,
 } from '../services/authService.js';
 import { signAccessToken } from '../utils/jwt.js';
 
@@ -149,6 +150,44 @@ export async function refreshTokenController(req, res, next) {
         maxAge: 7 * 24 * 60 * 60 * 1000,
       })
       .json({ accessToken });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function setPasswordController(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { token, password } = req.body;
+    const { user, accessToken, refreshToken } = await setPasswordFromToken({
+      token,
+      password,
+    });
+
+    res
+      .cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      })
+      .json({
+        message: 'Password set successfully.',
+        accessToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          emailVerified: user.emailVerified,
+          isActive: user.isActive,
+          subscription_plan: user.subscription_plan,
+        },
+      });
   } catch (err) {
     next(err);
   }

@@ -31,6 +31,14 @@ export const config = {
     expiresIn: process.env.EMAIL_VERIFICATION_EXPIRES || "1d",
   },
 
+  passwordSetup: {
+    secret:
+      process.env.PASSWORD_SETUP_SECRET ||
+      process.env.JWT_ACCESS_SECRET ||
+      "change_me_password_setup",
+    expiresIn: process.env.PASSWORD_SETUP_EXPIRES || "1d",
+  },
+
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY || "",
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
