@@ -1,8 +1,114 @@
-import React from 'react'
-import { Bell, Search, User, FileText, CheckCircle, Clock, Settings, LogOut } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { Bell, Search, User, FileText, CheckCircle, Clock, Settings, LogOut, ExternalLink } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import api from '../services/api.js'
+import { useAuth } from '../context/AuthContext.jsx'
 
 export default function Dashboard() {
+    const { user, logout } = useAuth()
+    const navigate = useNavigate()
+    const [summary, setSummary] = useState(null)
+    const [loading, setLoading] = useState(true)
+    const [activeSection, setActiveSection] = useState('overview')
+    const [leads, setLeads] = useState({ items: [], total: 0 })
+    const [leadsLoading, setLeadsLoading] = useState(false)
+    const [applyingId, setApplyingId] = useState(null)
+
+    useEffect(() => {
+        let isMounted = true
+        api.get('/dashboard')
+            .then((res) => {
+                if (isMounted) setSummary(res.data)
+            })
+            .catch(() => {
+                if (isMounted) setSummary(null)
+            })
+            .finally(() => {
+                if (isMounted) setLoading(false)
+            })
+        return () => {
+            isMounted = false
+        }
+    }, [])
+
+    const fetchLeads = () => {
+        if (!user) return
+        setLeadsLoading(true)
+        api.get('/leads/user', { params: { limit: 100 } })
+            .then((res) => {
+                setLeads({ items: res.data.items || [], total: res.data.total ?? 0 })
+            })
+            .catch(() => {
+                setLeads({ items: [], total: 0 })
+            })
+            .finally(() => setLeadsLoading(false))
+    }
+
+    useEffect(() => {
+        if (!user) return
+        fetchLeads()
+    }, [user])
+
+
+    const handleMarkApplied = async (leadId) => {
+        setApplyingId(leadId)
+        try {
+            await api.post(`/leads/${leadId}/applied`)
+            setLeads((prev) => ({
+                ...prev,
+                items: prev.items.map((l) => (l.id === leadId ? { ...l, status: 'applied' } : l)),
+            }))
+        } catch (err) {
+            console.error(err)
+        } finally {
+            setApplyingId(null)
+        }
+    }
+
+    if (!user) return null
+
+    if (!user.emailVerified) {
+        return <div style={{ padding: 40 }}>Please verify your email to access the dashboard.</div>
+    }
+
+    if (!user.isActive) {
+        return (
+            <div style={{ padding: 40 }}>
+                No active subscription. Please choose a plan on the home page.
+                <div style={{ marginTop: 16 }}>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/#pricing')}
+                        style={{ padding: '8px 16px' }}
+                    >
+                        Go to pricing
+                    </button>
+                </div>
+            </div>
+        )
+    }
+
+    if (loading || !summary) {
+        return <div style={{ padding: 40 }}>Loading dashboard...</div>
+    }
+
+    const { subscription, stats, profile } = summary
+    const initials =
+        (user.name || '')
+            .split(' ')
+            .filter(Boolean)
+            .map((part) => part[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase() || 'U'
+    const currentPlanLabel =
+        subscription?.plan_id || summary.user.subscription_plan || 'No active plan'
+    const renewLabel = subscription?.current_period_end
+        ? new Date(subscription.current_period_end).toLocaleDateString()
+        : 'N/A'
+    const totalApplications = leads.total > 0 ? leads.total : (stats?.total_applications ?? 0)
+    const totalInterviews = stats?.total_interviews ?? 0
+
     return (
         <div style={styles.layout}>
             <aside style={styles.sidebar}>
@@ -11,16 +117,20 @@ export default function Dashboard() {
                     JobLand
                 </div>
                 <nav style={styles.nav}>
-                    <NavItem icon={<User size={20} />} label="Overview" active />
-                    <NavItem icon={<FileText size={20} />} label="My Resumes" />
-                    <NavItem icon={<CheckCircle size={20} />} label="Applications" />
-                    <NavItem icon={<Settings size={20} />} label="Settings" />
+                    <NavItem icon={<User size={20} />} label="Overview" active={activeSection === 'overview'} onClick={() => setActiveSection('overview')} />
+                    <NavItem icon={<FileText size={20} />} label="My Resumes" to="/profile" />
+                    <NavItem icon={<CheckCircle size={20} />} label="Applications" active={activeSection === 'applications'} onClick={() => setActiveSection('applications')} />
+                    <NavItem icon={<Settings size={20} />} label="Settings" to="/settings" />
                 </nav>
                 <div style={{ marginTop: 'auto' }}>
-                    <Link to="/" style={{ ...styles.navItem, color: 'var(--gray)' }}>
+                    <button
+                        type="button"
+                        onClick={logout}
+                        style={{ ...styles.navItem, color: 'var(--gray)', background: 'transparent', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+                    >
                         <LogOut size={20} />
                         Logout
-                    </Link>
+                    </button>
                 </div>
             </aside>
 
@@ -35,45 +145,145 @@ export default function Dashboard() {
                             <Bell size={20} />
                         </button>
                         <div style={styles.avatar}>
-                            JD
+                            {initials}
                         </div>
                     </div>
                 </header>
 
                 <div style={styles.content}>
-                    <h1 style={styles.welcome}>Welcome back, John! 👋</h1>
-                    <p style={styles.subtitle}>Here is what's happening with your job search today.</p>
+                    {activeSection === 'overview' && (
+                        <>
+                            <h1 style={styles.welcome}>Welcome back, {user.name}! 👋</h1>
+                            <p style={styles.subtitle}>
+                                {profile
+                                    ? `Your profile: ${profile.title || 'No title'} · ${profile.experience_years || 0} years experience`
+                                    : "Here is what's happening with your job search today."}
+                            </p>
 
-                    <div style={styles.statsGrid}>
-                        <StatCard number="3" label="Active Applications" color="#4F46E5" icon={<Clock />} />
-                        <StatCard number="1" label="Interviews Scheduled" color="#22C55E" icon={<CheckCircle />} />
-                        <StatCard number="2" label="Resumes Generated" color="#F59E0B" icon={<FileText />} />
-                    </div>
-
-                    <div style={styles.recentActivity}>
-                        <h3 style={styles.activityTitle}>Recent Activity</h3>
-                        <div style={styles.activityCard}>
-                            <div style={styles.activityList}>
-                                <ActivityItem title="Application updated" desc="Google - Frontend Developer role moved to Interview" time="2h ago" />
-                                <ActivityItem title="Resume downloaded" desc="Professional_Resume_John_Doe.pdf" time="5h ago" />
-                                <ActivityItem title="Account created" desc="Successfully upgraded to Success Pack" time="1d ago" />
+                            <div style={styles.statsGrid}>
+                                <StatCard number={currentPlanLabel} label="Current Plan" color="#4F46E5" icon={<FileText />} />
+                                <StatCard number={renewLabel} label="Renews on" color="#22C55E" icon={<Clock />} />
+                                <StatCard number={totalApplications} label="Total Applications" color="#F59E0B" icon={<CheckCircle />} />
                             </div>
-                        </div>
-                    </div>
+
+                            <div style={styles.recentActivity}>
+                                <h3 style={styles.activityTitle}>Recent Activity</h3>
+                                <div style={styles.activityCard}>
+                                    <div style={styles.activityList}>
+                                        {leads.items.length > 0 ? (
+                                            leads.items.slice(0, 3).map((lead) => (
+                                                <ActivityItem
+                                                    key={lead.id}
+                                                    title={lead.job_title || 'Job'}
+                                                    desc={`${lead.company_name || ''} · ${lead.status || 'pending'}`}
+                                                    time={lead.created_at ? new Date(lead.created_at).toLocaleDateString() : ''}
+                                                />
+                                            ))
+                                        ) : (
+                                            <>
+                                                <ActivityItem title="Application updated" desc="Google - Frontend Developer role moved to Interview" time="2h ago" />
+                                                <ActivityItem title="Resume downloaded" desc="Professional_Resume_John_Doe.pdf" time="5h ago" />
+                                                <ActivityItem title="Account created" desc="Successfully upgraded to Success Pack" time="1d ago" />
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {activeSection === 'applications' && (
+                        <>
+                            <h1 style={styles.welcome}>Applications</h1>
+                            <p style={styles.subtitle}>
+                                Leads assigned to you by your BD. Open the job link to apply, then mark as applied when done.
+                            </p>
+
+                            {leadsLoading ? (
+                                <div style={{ padding: 24 }}>Loading applications...</div>
+                            ) : leads.items.length === 0 ? (
+                                <div style={styles.activityCard}>
+                                    <p style={{ color: 'var(--gray)', margin: 0 }}>No leads assigned yet. Your BD will assign job leads here.</p>
+                                </div>
+                            ) : (
+                                <div style={styles.leadsList}>
+                                    {leads.items.map((lead) => (
+                                        <div key={lead.id} style={styles.leadCard}>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={styles.leadTitle}>{lead.job_title || 'Untitled role'}</div>
+                                                <div style={styles.leadCompany}>{lead.company_name || '—'}</div>
+                                                <div style={styles.leadMeta}>
+                                                    <span style={statusBadgeStyle(lead.status)}>{lead.status}</span>
+                                                    {lead.created_at && (
+                                                        <span style={{ color: 'var(--gray)', fontSize: 13 }}>
+                                                            Added {new Date(lead.created_at).toLocaleDateString()}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div style={styles.leadActions}>
+                                                {lead.job_link && (
+                                                    <a
+                                                        href={lead.job_link}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        style={styles.linkBtn}
+                                                    >
+                                                        <ExternalLink size={16} /> Job link
+                                                    </a>
+                                                )}
+                                                {lead.status === 'pending' && (
+                                                    <button
+                                                        type="button"
+                                                        disabled={!!applyingId}
+                                                        onClick={() => handleMarkApplied(lead.id)}
+                                                        style={styles.primaryBtn}
+                                                    >
+                                                        {applyingId === lead.id ? 'Applying...' : 'Mark as applied'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
             </main>
         </div>
     )
 }
 
-function NavItem({ icon, label, active }) {
+function statusBadgeStyle(status) {
+    const colors = { pending: '#F59E0B', applied: '#3B82F6', interview: '#8B5CF6', rejected: '#EF4444', offer: '#22C55E' }
+    return {
+        padding: '4px 10px',
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 600,
+        background: `${colors[status] || '#6B7280'}20`,
+        color: colors[status] || '#6B7280',
+    }
+}
+
+function NavItem({ icon, label, active, to, onClick }) {
+    const style = {
+        ...styles.navItem,
+        background: active ? 'rgba(79, 70, 229, 0.1)' : 'transparent',
+        color: active ? 'var(--primary)' : 'var(--gray)',
+        fontWeight: active ? '600' : '500',
+    }
+    if (onClick) {
+        return (
+            <button type="button" onClick={onClick} style={{ ...style, border: 'none', background: style.background, cursor: 'pointer', width: '100%', textAlign: 'left' }}>
+                {icon}
+                {label}
+            </button>
+        )
+    }
     return (
-        <a href="#" style={{
-            ...styles.navItem,
-            background: active ? 'rgba(79, 70, 229, 0.1)' : 'transparent',
-            color: active ? 'var(--primary)' : 'var(--gray)',
-            fontWeight: active ? '600' : '500'
-        }}>
+        <a href={to || '#'} style={style}>
             {icon}
             {label}
         </a>
@@ -303,5 +513,60 @@ const styles = {
     actDesc: {
         color: 'var(--gray)',
         fontSize: '14px',
-    }
+    },
+    leadsList: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px',
+    },
+    leadCard: {
+        background: 'white',
+        borderRadius: '16px',
+        border: '1px solid var(--gray-border)',
+        boxShadow: 'var(--shadow-sm)',
+        padding: '20px 24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '20px',
+    },
+    leadTitle: {
+        fontSize: '18px',
+        fontWeight: 700,
+        color: 'var(--dark)',
+        marginBottom: '4px',
+    },
+    leadCompany: {
+        fontSize: '14px',
+        color: 'var(--gray)',
+        marginBottom: '8px',
+    },
+    leadMeta: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+    },
+    linkBtn: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '8px 14px',
+        borderRadius: 8,
+        border: '1px solid var(--gray-border)',
+        background: 'white',
+        color: 'var(--primary)',
+        textDecoration: 'none',
+        fontSize: 14,
+        fontWeight: 500,
+    },
+    primaryBtn: {
+        padding: '8px 16px',
+        borderRadius: 8,
+        border: 'none',
+        background: 'var(--primary)',
+        color: 'white',
+        fontSize: 14,
+        fontWeight: 600,
+        cursor: 'pointer',
+    },
 }

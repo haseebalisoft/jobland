@@ -1,46 +1,47 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Mail, Lock, User, ArrowRight } from 'lucide-react'
+import { useState } from 'react'
+import api from '../services/api.js'
 
 export default function Signup() {
     const location = useLocation();
-    const navigate = useNavigate();
     const queryParams = new URLSearchParams(location.search);
     const plan = queryParams.get('plan');
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
 
     const handleSignup = async (e) => {
         e.preventDefault();
+        setError('');
+        setSuccess('');
 
-        // Mock user based on the signup form inputs
-        const user = {
-            name: e.target.name.value,
-            email: e.target.email.value
-        };
+        const full_name = e.target.name.value;
+        const email = e.target.email.value;
+        const password = e.target.password.value;
+        const confirmPassword = e.target.confirmPassword.value;
 
-        // Prevent duplicate messages by checking session
-        if (!sessionStorage.getItem('welcomeSent')) {
-            try {
-                console.log("Sending welcome email request to backend from Signup...");
-                const response = await fetch('http://localhost:5000/api/send-welcome', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: user.name, email: user.email })
-                });
-
-                if (response.ok) {
-                    console.log("Email request successful.");
-                    sessionStorage.setItem('welcomeSent', 'true');
-                } else {
-                    console.error("Failed to send email. Backend returned status:", response.status);
-                }
-            } catch (err) {
-                console.error("Failed to make welcome email API request", err);
-            }
+        if (password !== confirmPassword) {
+            setError('Passwords do not match');
+            return;
         }
 
-        if (plan) {
-            navigate(`/checkout?plan=${encodeURIComponent(plan)}`);
-        } else {
-            navigate('/dashboard');
+        try {
+            await api.post('/auth/signup', {
+                full_name,
+                email,
+                password,
+                confirm_password: confirmPassword,
+            });
+            if (plan) {
+                localStorage.setItem('selectedPlanName', plan);
+            }
+            setSuccess('Account created. Please check your email to verify your account before logging in.');
+        } catch (err) {
+            const message =
+                err.response?.data?.message ||
+                (Array.isArray(err.response?.data?.errors) && err.response.data.errors[0]?.msg) ||
+                'Signup failed';
+            setError(message);
         }
     };
 
@@ -81,9 +82,20 @@ export default function Signup() {
                         <label style={styles.label}>Password</label>
                         <div style={styles.inputWrapper}>
                             <Lock size={18} style={styles.inputIcon} />
-                            <input type="password" placeholder="••••••••" style={styles.input} required />
+                            <input type="password" name="password" placeholder="••••••••" style={styles.input} required />
                         </div>
                     </div>
+
+                    <div style={styles.inputGroup}>
+                        <label style={styles.label}>Confirm Password</label>
+                        <div style={styles.inputWrapper}>
+                            <Lock size={18} style={styles.inputIcon} />
+                            <input type="password" name="confirmPassword" placeholder="••••••••" style={styles.input} required />
+                        </div>
+                    </div>
+
+                    {error && <p style={{ color: 'red', fontSize: '14px' }}>{error}</p>}
+                    {success && <p style={{ color: 'green', fontSize: '14px' }}>{success}</p>}
 
                     <button type="submit" className="btn btn-primary" style={styles.button}>
                         Sign up <ArrowRight size={18} />

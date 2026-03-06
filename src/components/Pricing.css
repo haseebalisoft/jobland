@@ -86,11 +86,11 @@
 }
 
 .pricing-original-strike {
-    font-size: 15px;
-    color: var(--gray-light);
+    font-size: 24px;
+    color: var(--gray);
     text-decoration: line-through;
-    margin-bottom: 2px;
-    font-weight: 500;
+    margin-bottom: 4px;
+    font-weight: 700;
 }
 
 .pricing-main-row {

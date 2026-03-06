@@ -1,8 +1,12 @@
+import { useEffect, useState } from 'react'
 import { Check, Zap, Star } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import './Pricing.css'
+import api from '../services/api.js'
+import { useAuth } from '../context/AuthContext.jsx'
 
-const plans = [
+// Static design data – keeps your original layout/labels exactly the same
+const BASE_PLANS = [
     {
         name: 'Professional Resume',
         now: '$15',
@@ -82,6 +86,52 @@ const plans = [
 ]
 
 export default function Pricing() {
+    const [plans, setPlans] = useState(BASE_PLANS)
+    const navigate = useNavigate()
+    const { user } = useAuth()
+
+    useEffect(() => {
+        // Fetch plan IDs/prices from backend and merge into static design
+        api.get('/plans')
+            .then((res) => {
+                const apiPlans = res.data || []
+                setPlans(
+                    BASE_PLANS.map((p) => {
+                        const match = apiPlans.find((ap) => ap.name === p.name)
+                        return match
+                            ? {
+                                ...p,
+                                apiId: match.id,
+                                apiPrice: match.priceCents,
+                            }
+                            : p
+                    }),
+                )
+            })
+            .catch(() => {
+                setPlans(BASE_PLANS)
+            })
+    }, [])
+
+    const handleGetStarted = (plan) => {
+        // Save plan name always for UI/checkout copy
+        localStorage.setItem('selectedPlanName', plan.name)
+
+        // Save backend plan id only if it exists
+        if (plan.apiId) {
+            localStorage.setItem('selectedPlanId', plan.apiId)
+        } else {
+            localStorage.removeItem('selectedPlanId')
+            // Optional heads‑up: backend plan not wired yet
+            console.warn('No apiId for selected plan – payments not wired for this plan yet.')
+        }
+
+        if (!user) {
+            navigate(`/signup?plan=${encodeURIComponent(plan.name)}`)
+        } else {
+            navigate(`/checkout?plan=${encodeURIComponent(plan.name)}`)
+        }
+    }
     return (
         <section id="pricing" className="pricing-section section">
             <div className="container">
@@ -112,25 +162,28 @@ export default function Pricing() {
                                 </h3>
                                 <div className="pricing-price-area">
                                     <div className="pricing-top-right-badge">
-                                        <span className="discount-badge" style={{
-                                            background: plan.popular ? 'rgba(255,255,255,0.2)' : '#E8F7ED',
-                                            color: plan.popular ? 'white' : '#22C55E'
-                                        }}>
+                                        <span
+                                            className="discount-badge"
+                                            style={{
+                                                background: 'linear-gradient(135deg, #2563EB 0%, #22C55E 100%)',
+                                                color: '#FFFFFF',
+                                            }}
+                                        >
                                             {plan.discount}
                                         </span>
                                     </div>
-                                    <div className="pricing-original-strike" style={{ color: plan.popular ? 'rgba(255,255,255,0.6)' : '#9CA3AF' }}>
+                                    <div className="pricing-original-strike">
                                         {plan.original}
                                     </div>
                                     <div className="pricing-main-row">
-                                        <span className="pricing-now" style={{ color: plan.color }}>{plan.now}</span>
+                                        <span className="pricing-now" style={{ color: plan.popular ? 'white' : 'var(--dark)' }}>
+                                            {plan.now}
+                                        </span>
                                         <span className="pricing-period-meta" style={{ color: plan.popular ? 'rgba(255,255,255,0.7)' : 'var(--gray)' }}>
                                             {plan.period}
                                         </span>
                                     </div>
-                                    <div className="pricing-savings-text" style={{ color: plan.popular ? '#A7F3D0' : '#22C55E' }}>
-                                        {plan.savings}
-                                    </div>
+                                    {/* Savings text can be computed on backend if needed */}
                                 </div>
                                 <p className="pricing-desc" style={{ color: plan.popular ? 'rgba(255,255,255,0.75)' : 'var(--gray)' }}>
                                     {plan.description}
@@ -155,13 +208,14 @@ export default function Pricing() {
                                 ))}
                             </ul>
 
-                            <Link
-                                to={`/signup?plan=${encodeURIComponent(plan.name)}`}
+                            <button
+                                type="button"
                                 className={`btn btn-lg pricing-cta ${plan.popular ? 'pricing-cta--inverted' : 'btn-primary'}`}
+                                onClick={() => handleGetStarted(plan)}
                             >
                                 <Zap size={16} fill={plan.popular ? '#4F46E5' : 'white'} />
-                                {plan.cta}
-                            </Link>
+                                Get Started
+                            </button>
                         </div>
                     ))}
                 </div>

@@ -1,41 +1,44 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Mail, Lock, ArrowRight } from 'lucide-react'
-import '../index.css' // Import global css if needed
+import '../index.css'
+import { useState } from 'react'
+import { useAuth } from '../context/AuthContext.jsx'
 
 export default function Login() {
     const navigate = useNavigate();
+    const { login } = useAuth();
+    const [error, setError] = useState('');
 
     const handleLogin = async (e) => {
         e.preventDefault();
+        setError('');
+        const email = e.target.email.value;
+        const password = e.target.password.value;
 
-        // Mock existing user object based on given instructions
-        const user = {
-            name: "John",
-            email: e.target.email.value
-        };
+        try {
+            const loggedInUser = await login(email, password);
 
-        // Prevent duplicate messages by checking session
-        if (!sessionStorage.getItem('welcomeSent')) {
-            try {
-                console.log("Sending welcome email request to backend...");
-                const response = await fetch('http://localhost:5000/api/send-welcome', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: user.name, email: user.email })
-                });
-
-                if (response.ok) {
-                    console.log("Email request successful.");
-                    sessionStorage.setItem('welcomeSent', 'true');
-                } else {
-                    console.error("Failed to send email. Backend returned status:", response.status);
-                }
-            } catch (err) {
-                console.error("Failed to make welcome email API request", err);
+            // BD or Admin → always go to BD portal (leads dashboard)
+            if (loggedInUser.role === 'bd' || loggedInUser.role === 'admin') {
+                navigate('/bd');
+                return;
             }
-        }
 
-        navigate('/dashboard');
+            const planName = localStorage.getItem('selectedPlanName');
+
+            if (!loggedInUser.isActive) {
+                // No active subscription: send to checkout for the selected plan or pricing
+                if (planName) {
+                    navigate(`/checkout?plan=${encodeURIComponent(planName)}`);
+                } else {
+                    navigate('/checkout');
+                }
+            } else {
+                navigate('/dashboard');
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Login failed');
+        }
     };
 
     return (
@@ -66,9 +69,11 @@ export default function Login() {
                         </div>
                         <div style={styles.inputWrapper}>
                             <Lock size={18} style={styles.inputIcon} />
-                            <input type="password" placeholder="••••••••" style={styles.input} required />
+                            <input type="password" name="password" placeholder="••••••••" style={styles.input} required />
                         </div>
                     </div>
+
+                    {error && <p style={{ color: 'red', fontSize: '14px' }}>{error}</p>}
 
                     <button type="submit" className="btn btn-primary" style={styles.button}>
                         Sign in <ArrowRight size={18} />
@@ -77,6 +82,9 @@ export default function Login() {
 
                 <p style={styles.footer}>
                     Don't have an account? <Link to="/signup" style={styles.link}>Sign up</Link>
+                </p>
+                <p style={styles.footer}>
+                    BD? <Link to="/bd/login" style={styles.link}>Sign in to BD Portal</Link>
                 </p>
             </div>
         </div>

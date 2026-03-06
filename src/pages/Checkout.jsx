@@ -1,25 +1,27 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, ShieldCheck, CheckCircle, Lock } from 'lucide-react'
+import api from '../services/api.js'
 
-function CheckoutForm({ price, plan }) {
+function CheckoutForm({ planId, price, plan }) {
     const navigate = useNavigate();
-
     const [email, setEmail] = useState('');
     const [message, setMessage] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
         setIsLoading(true);
+        setMessage(null);
 
-        // Mock checkout: no real payment, just redirect
-        setTimeout(() => {
-            setMessage("Checkout completed (no real payment processed).");
-            navigate('/dashboard');
+        try {
+            localStorage.setItem('selectedPlanId', planId);
+            const res = await api.post('/subscriptions/checkout-session', { planId });
+            window.location.href = res.data.url;
+        } catch (err) {
+            setMessage('Unable to start checkout. Please ensure you are logged in and verified.');
             setIsLoading(false);
-        }, 1000);
+        }
     };
 
     return (
@@ -68,7 +70,8 @@ function CheckoutForm({ price, plan }) {
 export default function Checkout() {
     const location = useLocation()
     const queryParams = new URLSearchParams(location.search)
-    const plan = queryParams.get('plan') || 'Success Pack'
+    const planName = queryParams.get('plan') || localStorage.getItem('selectedPlanName') || 'Success Pack'
+    const [planId] = useState(localStorage.getItem('selectedPlanId') || '')
 
     const planPrices = {
         'Professional Resume': '$15.00',
@@ -76,20 +79,7 @@ export default function Checkout() {
         'Success Pack': '$60.00',
         'Elite Pack': '$100.00',
     }
-    const price = planPrices[plan] || '$60.00'
-
-    const appearance = {
-        theme: 'stripe',
-        variables: {
-            colorPrimary: '#4F46E5',
-            colorBackground: '#ffffff',
-            colorText: '#30313d',
-            colorDanger: '#df1b41',
-            fontFamily: 'Inter, system-ui, sans-serif',
-            spacingUnit: '4px',
-            borderRadius: '8px',
-        }
-    };
+    const price = planPrices[planName] || '$60.00'
     return (
         <div style={styles.container}>
             <div style={styles.checkoutWrapper}>
@@ -105,7 +95,7 @@ export default function Checkout() {
                     </div>
 
                     <div style={styles.summary}>
-                        <h2 style={styles.planName}>Subscribe to {plan}</h2>
+                        <h2 style={styles.planName}>Subscribe to {planName}</h2>
                         <div style={styles.priceContainer}>
                             <span style={styles.price}>{price}</span>
                         </div>
@@ -129,7 +119,7 @@ export default function Checkout() {
 
                 <div style={styles.paymentSide}>
                     <h3 style={styles.paymentTitle}>Checkout</h3>
-                    <CheckoutForm price={price} plan={plan} />
+                    <CheckoutForm planId={planId} price={price} plan={planName} />
                 </div>
             </div>
         </div>
