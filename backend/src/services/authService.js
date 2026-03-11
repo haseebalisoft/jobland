@@ -796,7 +796,9 @@ export async function setPasswordForPaidUser({ email, password }) {
   );
 
   if (userRes.rowCount === 0) {
-    const err = new Error('Payment not found for this email');
+    const err = new Error(
+      'No account found for this email. Complete checkout first, or use the same email you used when paying.',
+    );
     err.statusCode = 400;
     throw err;
   }
@@ -805,14 +807,16 @@ export async function setPasswordForPaidUser({ email, password }) {
 
   // Enforce user-only flow – admins/BDs are handled elsewhere.
   if (row.role && row.role !== 'user') {
-    const err = new Error('Payment not found for this email');
+    const err = new Error('This email is not a customer account. Use the correct login page.');
     err.statusCode = 400;
     throw err;
   }
 
   // Ensure payment has completed – subscription_plan should not be null/'free'
   if (!row.subscription_plan || row.subscription_plan === 'free') {
-    const err = new Error('Payment has not completed for this email');
+    const err = new Error(
+      'Payment has not completed for this email. Finish checkout or wait a moment and try again.',
+    );
     err.statusCode = 400;
     throw err;
   }
@@ -830,6 +834,62 @@ export async function setPasswordForPaidUser({ email, password }) {
     `,
     [row.id, passwordHash],
   );
+
+  const updated = mapRowToUser(updateRes.rows[0]);
+  const accessToken = signAccessToken(updated);
+  const refreshToken = signRefreshToken(updated);
+
+  const decoded = jwt.decode(refreshToken);
+  const expiresAt = decoded?.exp
+    ? new Date(decoded.exp * 1000)
+    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  await query(
+    `
+      INSERT INTO refresh_tokens (user_id, token, expires_at)
+      VALUES ($1, $2, $3)
+    `,
+    [updated.id, refreshToken, expiresAt],
+  );
+
+  return { user: updated, accessToken, refreshToken };
+}
+
+/**
+ * Set password for a user by id (e.g. after getOrCreateUserFromCheckoutSession).
+ * Updates password, sets is_verified and is_active, returns tokens.
+ */
+export async function setPasswordForUserId(userId, password) {
+  if (!userId) {
+    const err = new Error('User ID is required');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!password || password.length < 8) {
+    const err = new Error('Password must be at least 8 characters');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const updateRes = await query(
+    `
+      UPDATE users
+      SET password_hash = $2,
+          is_verified = true,
+          is_active = true,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, full_name, email, role, is_verified, subscription_plan, is_active
+    `,
+    [userId, passwordHash],
+  );
+
+  if (updateRes.rowCount === 0) {
+    const err = new Error('User not found');
+    err.statusCode = 404;
+    throw err;
+  }
 
   const updated = mapRowToUser(updateRes.rows[0]);
   const accessToken = signAccessToken(updated);

@@ -284,6 +284,121 @@ const swaggerDefinition = {
         },
       },
     },
+    '/auth/set-password': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Set password (by email)',
+        description: 'For paid users who completed checkout. Look up user by email and set password. Use when the set-password page has no session_id in the URL.',
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['email', 'password', 'confirm_password'],
+                properties: {
+                  email: { type: 'string', format: 'email' },
+                  password: {
+                    type: 'string',
+                    minLength: 8,
+                    description: 'Min 8 chars, uppercase, lowercase, number, special character',
+                  },
+                  confirm_password: { type: 'string', description: 'Must match password' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Password set, returns accessToken and user',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    message: { type: 'string' },
+                    accessToken: { type: 'string' },
+                    user: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'string', format: 'uuid' },
+                        name: { type: 'string' },
+                        email: { type: 'string' },
+                        role: { type: 'string' },
+                        emailVerified: { type: 'boolean' },
+                        isActive: { type: 'boolean' },
+                        subscription_plan: { type: 'string' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error, no account for email, or payment not completed' },
+        },
+      },
+    },
+    '/auth/set-password-by-session': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Set password (by checkout session_id)',
+        description: 'Preferred after Stripe checkout. Pass session_id from URL (?session_id=cs_xxx). Backend creates/updates user from session then sets password. No email needed.',
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['session_id', 'password', 'confirm_password'],
+                properties: {
+                  session_id: { type: 'string', description: 'Stripe checkout session ID from redirect URL' },
+                  password: {
+                    type: 'string',
+                    minLength: 8,
+                    description: 'Min 8 chars, uppercase, lowercase, number, special character',
+                  },
+                  confirm_password: { type: 'string', description: 'Must match password' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Password set, returns accessToken and user',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    message: { type: 'string' },
+                    accessToken: { type: 'string' },
+                    user: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'string', format: 'uuid' },
+                        name: { type: 'string' },
+                        email: { type: 'string' },
+                        role: { type: 'string' },
+                        emailVerified: { type: 'boolean' },
+                        isActive: { type: 'boolean' },
+                        subscription_plan: { type: 'string' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Validation error or session not found' },
+          500: { description: 'Stripe or DB error' },
+        },
+      },
+    },
     '/auth/bd/signup': {
       post: {
         tags: ['Auth'],

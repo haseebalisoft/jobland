@@ -35,6 +35,16 @@ const PLAN_CONFIG = {
 };
 
 let subscriptionsTableEnsured = false;
+let usersStripeColumnEnsured = false;
+
+async function ensureUsersStripeCustomerIdColumn() {
+  if (usersStripeColumnEnsured) return;
+  await query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT
+  `);
+  usersStripeColumnEnsured = true;
+}
 
 function getPlanConfig(planId) {
   const plan = PLAN_CONFIG[planId];
@@ -98,6 +108,15 @@ async function ensureSubscriptionsTable() {
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     )
+  `);
+
+  await query(`
+    ALTER TABLE subscriptions
+      ADD COLUMN IF NOT EXISTS stripe_checkout_session_id TEXT,
+      ADD COLUMN IF NOT EXISTS plan_id VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS status VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()
   `);
 
   subscriptionsTableEnsured = true;
@@ -352,6 +371,7 @@ async function upsertUserFromCompletedCheckout({
   status = 'active',
   currentPeriodEnd = null,
 }) {
+  await ensureUsersStripeCustomerIdColumn();
   const client = await pool.connect();
 
   try {
@@ -574,6 +594,45 @@ export async function confirmCheckoutSession(userId, sessionId) {
   }
 
   return finalizeCheckoutSession(session);
+}
+
+/**
+ * Get or create user from checkout session (no auth required).
+ * Used when user lands on set-password with session_id: we ensure the account
+ * exists (creating it from Stripe session if needed) then caller can set password.
+ */
+export async function getOrCreateUserFromCheckoutSession(sessionId) {
+  if (!sessionId || typeof sessionId !== 'string' || !sessionId.trim()) {
+    const err = new Error('Checkout session ID is required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (config.stripe.mockMode) {
+    await ensureSubscriptionsTable();
+    const row = await query(
+      `SELECT user_id FROM subscriptions WHERE stripe_checkout_session_id = $1 LIMIT 1`,
+      [sessionId.trim()],
+    );
+    if (row.rowCount === 0) {
+      const err = new Error('Session not found. Complete checkout first.');
+      err.statusCode = 400;
+      throw err;
+    }
+    const user = await getUserSnapshot(row.rows[0].user_id);
+    if (!user) {
+      const err = new Error('Account not found for this session.');
+      err.statusCode = 400;
+      throw err;
+    }
+    return user;
+  }
+
+  const session = await getStripeClient().checkout.sessions.retrieve(sessionId.trim(), {
+    expand: ['subscription'],
+  });
+  const result = await finalizeCheckoutSession(session);
+  return result.user;
 }
 
 async function updateSubscriptionStatus({

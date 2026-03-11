@@ -9,9 +9,11 @@ import {
   verifyEmail,
   setPasswordFromToken,
   setPasswordForPaidUser,
+  setPasswordForUserId,
   registerBd,
   loginBd,
 } from '../services/authService.js';
+import { getOrCreateUserFromCheckoutSession } from '../services/subscriptionService.js';
 
 const REFRESH_COOKIE_NAME = 'refreshToken';
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -97,6 +99,38 @@ export async function setPassword(req, res, next) {
           emailVerified: user.emailVerified,
           isActive: user.isActive,
           subscription_plan: user.subscription_plan,
+        },
+      });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Set password using checkout session_id (no email needed). Creates user from session if needed. */
+export async function setPasswordBySession(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { session_id, password } = req.body;
+    const user = await getOrCreateUserFromCheckoutSession(session_id);
+    const { user: updated, accessToken, refreshToken } = await setPasswordForUserId(user.id, password);
+
+    res
+      .cookie(REFRESH_COOKIE_NAME, refreshToken, buildRefreshCookieOptions())
+      .json({
+        message: 'Password set successfully.',
+        accessToken,
+        user: {
+          id: updated._id,
+          name: updated.name,
+          email: updated.email,
+          role: updated.role,
+          emailVerified: updated.emailVerified,
+          isActive: updated.isActive,
+          subscription_plan: updated.subscription_plan,
         },
       });
   } catch (err) {

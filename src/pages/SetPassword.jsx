@@ -1,15 +1,19 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useMemo } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Lock } from 'lucide-react'
 import api, { setAccessToken } from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
 export default function SetPassword() {
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
     const { setUser } = useAuth()
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
     const [email, setEmail] = useState('')
+
+    const sessionId = useMemo(() => searchParams.get('session_id') || '', [searchParams])
+    const useSession = Boolean(sessionId.trim())
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -26,11 +30,11 @@ export default function SetPassword() {
         setLoading(true)
 
         try {
-            const res = await api.post('/auth/set-password', {
-                email,
-                password,
-                confirm_password: confirmPassword,
-            })
+            const payload = useSession
+                ? { session_id: sessionId, password, confirm_password: confirmPassword }
+                : { email, password, confirm_password: confirmPassword }
+            const endpoint = useSession ? '/auth/set-password-by-session' : '/auth/set-password'
+            const res = await api.post(endpoint, payload)
 
             setAccessToken(res.data.accessToken)
             setUser(res.data.user)
@@ -60,20 +64,22 @@ export default function SetPassword() {
                 </div>
 
                 <form style={styles.form} onSubmit={handleSubmit}>
-                    <div style={styles.inputGroup}>
-                        <label style={styles.label}>Email Address</label>
-                        <div style={styles.inputWrapper}>
-                            <input
-                                type="email"
-                                name="email"
-                                placeholder="you@example.com"
-                                style={styles.input}
-                                required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                            />
+                    {!useSession && (
+                        <div style={styles.inputGroup}>
+                            <label style={styles.label}>Email Address</label>
+                            <div style={styles.inputWrapper}>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    placeholder="you@example.com"
+                                    style={styles.input}
+                                    required
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                />
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <div style={styles.inputGroup}>
                         <label style={styles.label}>New Password</label>
