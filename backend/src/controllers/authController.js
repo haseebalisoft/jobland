@@ -9,6 +9,8 @@ import {
   verifyEmail,
   setPasswordFromToken,
   setPasswordForPaidUser,
+  registerBd,
+  loginBd,
 } from '../services/authService.js';
 
 const REFRESH_COOKIE_NAME = 'refreshToken';
@@ -126,6 +128,49 @@ export async function login(req, res, next) {
           subscription_plan: user.subscription_plan,
         },
       });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function bdSignup(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password } = req.body;
+    await registerBd({ email, password });
+
+    res.status(201).json({
+      message: 'BD account created. You can sign in now.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function bdLogin(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password } = req.body;
+    const bd = await loginBd({ email, password });
+
+    res.json({
+      accessToken: '', // JWT is created by auth middleware utilities for standard users; for BD we can rely on same JWT utils if needed later.
+      user: {
+        id: bd._id,
+        name: bd.name,
+        email: bd.email,
+        role: bd.role,
+        isActive: bd.isActive,
+      },
+    });
   } catch (err) {
     next(err);
   }

@@ -11,6 +11,8 @@ import {
   me,
   verifyEmailController,
   setPasswordController,
+  bdSignup,
+  bdLogin,
 } from '../controllers/authController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import {
@@ -78,6 +80,31 @@ router.post(
     body('password').isString().notEmpty().withMessage('Password is required'),
   ],
   login,
+);
+
+// BD signup
+router.post(
+  '/bd/signup',
+  [
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('password')
+      .isLength({ min: 6 })
+      .withMessage('Password must be at least 6 characters'),
+    body('confirm_password')
+      .custom((value, { req }) => value === req.body.password)
+      .withMessage('Passwords do not match'),
+  ],
+  bdSignup,
+);
+
+// BD login
+router.post(
+  '/bd/login',
+  [
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('password').isString().notEmpty().withMessage('Password is required'),
+  ],
+  bdLogin,
 );
 
 router.post('/refresh-token', refreshToken);
