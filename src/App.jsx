@@ -11,6 +11,7 @@ import BdSignup from './pages/BdSignup'
 import Checkout from './pages/Checkout'
 import VerifyEmail from './pages/VerifyEmail'
 import CheckoutSuccess from './pages/CheckoutSuccess'
+import Start from './pages/Start'
 import SetPassword from './pages/SetPassword'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminLogin from './pages/AdminLogin'
@@ -32,6 +33,7 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/set-password" element={<SetPassword />} />
+          <Route path="/start" element={<Start />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/success" element={<CheckoutSuccess />} />
           <Route path="/checkout-success" element={<CheckoutSuccess />} />

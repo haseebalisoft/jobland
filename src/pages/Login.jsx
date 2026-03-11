@@ -81,7 +81,7 @@ export default function Login() {
                 </form>
 
                 <p style={styles.footer}>
-                    Don't have an account? <Link to="/signup" style={styles.link}>Sign up</Link>
+                    Don't have an account? <Link to="/#pricing" style={styles.link}>View pricing & get started</Link>
                 </p>
                 <p style={styles.footer}>
                     BD? <Link to="/bd/login" style={styles.link}>Sign in to BD Portal</Link>

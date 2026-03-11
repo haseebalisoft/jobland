@@ -3,6 +3,7 @@ import { Check, Zap, Star } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import './Pricing.css'
 import api from '../services/api.js'
+import { useAuth } from '../context/AuthContext.jsx'
 
 // Static design data – keeps your original layout/labels exactly the same
 const BASE_PLANS = [
@@ -85,6 +86,7 @@ const BASE_PLANS = [
 ]
 
 export default function Pricing() {
+    const { user } = useAuth()
     const [plans, setPlans] = useState(BASE_PLANS)
     const [startingPlan, setStartingPlan] = useState('')
     const navigate = useNavigate()
@@ -113,30 +115,27 @@ export default function Pricing() {
     }, [])
 
     const handleGetStarted = async (plan) => {
-        // Save plan name always for UI/checkout copy
+        // Save plan name for any legacy flows that still use it
         localStorage.setItem('selectedPlanName', plan.name)
-
-        // Save backend plan id only if it exists
-        if (plan.apiId) {
-            localStorage.setItem('selectedPlanId', plan.apiId)
-        } else {
-            localStorage.removeItem('selectedPlanId')
-            console.warn('No apiId for selected plan – payments not wired for this plan yet.')
-        }
-
         setStartingPlan(plan.name)
 
-        try {
-            const res = await api.post('/subscriptions/checkout-session', {
-                plan_id: plan.apiId || plan.name,
-            })
-            window.location.href = res.data.url
-        } catch (err) {
-            console.error('Unable to start Stripe checkout', err)
-            navigate(`/checkout?plan=${encodeURIComponent(plan.name)}`)
-        } finally {
-            setStartingPlan('')
+        // If user is already logged in and is a normal user, skip email/OTP and go straight to Stripe
+        if (user && user.role === 'user') {
+            try {
+                const res = await api.post('/subscriptions/checkout-session', {
+                    plan_id: plan.apiId || plan.name,
+                })
+                window.location.href = res.data.url
+                return
+            } catch (err) {
+                console.error('Unable to start Stripe checkout for logged-in user', err)
+                setStartingPlan('')
+                return
+            }
         }
+
+        // Anonymous flow: send user into full-screen onboarding
+        navigate(`/start?plan=${encodeURIComponent(plan.name)}`)
     }
     return (
         <section id="pricing" className="pricing-section section">

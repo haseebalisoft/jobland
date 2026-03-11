@@ -31,6 +31,18 @@ export const config = {
     expiresIn: process.env.EMAIL_VERIFICATION_EXPIRES || "1d",
   },
 
+  /**
+   * Used for OTP-based signup flow.
+   * verificationToken returned by /auth/verify-otp is signed with this secret.
+   */
+  signupVerification: {
+    secret:
+      process.env.SIGNUP_VERIFICATION_SECRET ||
+      process.env.JWT_ACCESS_SECRET ||
+      "change_me_signup_verification",
+    expiresIn: process.env.SIGNUP_VERIFICATION_EXPIRES || "1h",
+  },
+
   passwordSetup: {
     secret:
       process.env.PASSWORD_SETUP_SECRET ||

@@ -480,7 +480,8 @@ export async function createCheckoutSession({ userId = null, planId, email = nul
   }
 
   const clientBaseUrl = config.clientUrl.replace(/\/$/, '');
-  const successUrl = `${clientBaseUrl}/success?session_id={CHECKOUT_SESSION_ID}`;
+  // After payment, direct users to the password setup page
+  const successUrl = `${clientBaseUrl}/set-password?session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${clientBaseUrl}/checkout?plan=${encodeURIComponent(plan.name)}`;
 
   if (config.stripe.mockMode) {
@@ -514,6 +515,10 @@ export async function createCheckoutSession({ userId = null, planId, email = nul
     line_items: [{ price: plan.priceId, quantity: 1 }],
     success_url: successUrl,
     cancel_url: cancelUrl,
+    // Limit to card payments; Stripe Link UI may still appear
+    // when a customer has Link saved, but they can always choose
+    // "Pay without Link" to go straight to card entry.
+    payment_method_types: ['card'],
     ...(userId ? { client_reference_id: userId } : {}),
     ...(customerEmail ? { customer_email: customerEmail } : {}),
     customer_creation: 'always',

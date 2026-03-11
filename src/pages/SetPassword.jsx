@@ -1,25 +1,19 @@
-import { useMemo, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight, Lock } from 'lucide-react'
 import api, { setAccessToken } from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
 export default function SetPassword() {
     const navigate = useNavigate()
-    const [searchParams] = useSearchParams()
     const { setUser } = useAuth()
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
-    const token = useMemo(() => searchParams.get('token') || '', [searchParams])
+    const [email, setEmail] = useState('')
 
     const handleSubmit = async (e) => {
         e.preventDefault()
         setError('')
-
-        if (!token) {
-            setError('Missing password setup token.')
-            return
-        }
 
         const password = e.target.password.value
         const confirmPassword = e.target.confirmPassword.value
@@ -33,7 +27,7 @@ export default function SetPassword() {
 
         try {
             const res = await api.post('/auth/set-password', {
-                token,
+                email,
                 password,
                 confirm_password: confirmPassword,
             })
@@ -66,6 +60,21 @@ export default function SetPassword() {
                 </div>
 
                 <form style={styles.form} onSubmit={handleSubmit}>
+                    <div style={styles.inputGroup}>
+                        <label style={styles.label}>Email Address</label>
+                        <div style={styles.inputWrapper}>
+                            <input
+                                type="email"
+                                name="email"
+                                placeholder="you@example.com"
+                                style={styles.input}
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
                     <div style={styles.inputGroup}>
                         <label style={styles.label}>New Password</label>
                         <div style={styles.inputWrapper}>

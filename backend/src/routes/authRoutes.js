@@ -1,14 +1,15 @@
 import express from 'express';
 import { body } from 'express-validator';
 import {
-  signup,
-  bdSignup,
-  bdLogin,
-  adminLogin,
-  verifyEmailController,
+  startSignupController,
+  startEmailVerificationController,
+  verifyOtpController,
+  setPassword,
   login,
-  refreshTokenController,
+  refreshToken,
+  logout,
   me,
+  verifyEmailController,
   setPasswordController,
 } from '../controllers/authController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
@@ -20,37 +21,37 @@ import {
 
 const router = express.Router();
 
+// Legacy OTP-based signup flow (pre-payment password) – kept for backwards compatibility
 router.post(
-  '/bd/signup',
+  '/start-signup',
+  signupRateLimiter,
+  [body('email').isEmail().withMessage('Valid email is required')],
+  startSignupController,
+);
+
+// New user onboarding: email verification before Stripe
+router.post(
+  '/start-email-verification',
+  signupRateLimiter,
+  [body('email').isEmail().withMessage('Valid email is required')],
+  startEmailVerificationController,
+);
+
+router.post(
+  '/verify-otp',
   signupRateLimiter,
   [
     body('email').isEmail().withMessage('Valid email is required'),
-    body('password')
-      .isLength({ min: 6 })
-      .withMessage('Password must be at least 6 characters'),
-    body('confirm_password')
-      .custom((value, { req }) => value === req.body.password)
-      .withMessage('Passwords do not match'),
+    body('otp').isLength({ min: 4, max: 10 }).withMessage('OTP is required'),
   ],
-  bdSignup,
+  verifyOtpController,
 );
 
-router.post('/bd/login', loginRateLimiter, bdLogin);
-
-router.post('/admin/login', loginRateLimiter, adminLogin);
-
+// Post-payment password setup for USERS
 router.post(
-  '/signup',
-  signupRateLimiter,
+  '/set-password',
+  passwordSetupRateLimiter,
   [
-    body('full_name')
-      .optional()
-      .isLength({ min: 3 })
-      .withMessage('Full name must be at least 3 characters'),
-    body('name')
-      .optional()
-      .isLength({ min: 3 })
-      .withMessage('Name must be at least 3 characters'),
     body('email').isEmail().withMessage('Valid email is required'),
     body('password')
       .isLength({ min: 8 })
@@ -65,17 +66,30 @@ router.post(
       .custom((value, { req }) => value === req.body.password)
       .withMessage('Passwords do not match'),
   ],
-  signup,
+  setPassword,
 );
 
-// Support both query and path token styles for verification
+// Unified USER login – admin/BD use separate flows
+router.post(
+  '/login',
+  loginRateLimiter,
+  [
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('password').isString().notEmpty().withMessage('Password is required'),
+  ],
+  login,
+);
+
+router.post('/refresh-token', refreshToken);
+router.post('/logout', logout);
+
+// Support both query and path token styles for legacy email verification links
 router.get('/verify-email', verifyEmailController);
 router.get('/verify-email/:token', verifyEmailController);
 
-router.post('/login', loginRateLimiter, login);
-router.post('/refresh-token', refreshTokenController);
+// Legacy password-setup endpoint for Stripe-provisioned accounts
 router.post(
-  '/set-password',
+  '/set-password-legacy',
   passwordSetupRateLimiter,
   [
     body('token').isString().notEmpty().withMessage('Token is required'),
@@ -94,6 +108,7 @@ router.post(
   ],
   setPasswordController,
 );
+
 router.get('/me', authMiddleware, me);
 
 export default router;
