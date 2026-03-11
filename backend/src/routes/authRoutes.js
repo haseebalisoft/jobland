@@ -5,6 +5,7 @@ import {
   startEmailVerificationController,
   verifyOtpController,
   setPassword,
+  setPasswordBySession,
   login,
   refreshToken,
   logout,
@@ -49,7 +50,7 @@ router.post(
   verifyOtpController,
 );
 
-// Post-payment password setup for USERS
+// Post-payment password setup for USERS (by email – use when no session_id in URL)
 router.post(
   '/set-password',
   passwordSetupRateLimiter,
@@ -69,6 +70,28 @@ router.post(
       .withMessage('Passwords do not match'),
   ],
   setPassword,
+);
+
+// Post-payment password setup by checkout session_id (preferred when user has session_id in URL)
+router.post(
+  '/set-password-by-session',
+  passwordSetupRateLimiter,
+  [
+    body('session_id').isString().notEmpty().withMessage('Session ID is required'),
+    body('password')
+      .isLength({ min: 8 })
+      .matches(/[A-Z]/)
+      .matches(/[a-z]/)
+      .matches(/[0-9]/)
+      .matches(/[^A-Za-z0-9]/)
+      .withMessage(
+        'Password must be at least 8 characters and include uppercase, lowercase, number, and special character',
+      ),
+    body('confirm_password')
+      .custom((value, { req }) => value === req.body.password)
+      .withMessage('Passwords do not match'),
+  ],
+  setPasswordBySession,
 );
 
 // Unified USER login – admin/BD use separate flows
