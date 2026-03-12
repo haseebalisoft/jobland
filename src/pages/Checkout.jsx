@@ -113,7 +113,7 @@ export default function Checkout() {
 
                     <div style={{ ...styles.brand, ...(isMobile ? styles.brandMobile : {}) }}>
                         <div style={styles.logoIcon}></div>
-                        JobLand
+                        Hiredlogic
                     </div>
 
                     <div style={{ ...styles.summary, ...(isMobile ? styles.summaryMobile : {}) }}>

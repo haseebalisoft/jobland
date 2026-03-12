@@ -51,7 +51,7 @@ export default function Signup() {
                 <div style={styles.header}>
                     <Link to="/" style={styles.logo}>
                         <div style={styles.logoIcon}></div>
-                        JobLand
+                        Hiredlogic
                     </Link>
                     <h2 style={styles.title}>Create your account</h2>
                     {plan ? (

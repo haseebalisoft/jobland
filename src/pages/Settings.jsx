@@ -106,11 +106,11 @@ export default function Settings() {
       <aside style={styles.sidebar}>
         <div style={styles.logo}>
           <div style={styles.logoIcon}></div>
-          JobLand
+          Hiredlogic
         </div>
         <nav style={styles.nav}>
           <NavItem icon={<User size={20} />} label="Overview" to="/dashboard" />
-          <NavItem icon={<FileText size={20} />} label="My Resumes" to="/profile" />
+          <NavItem icon={<FileText size={20} />} label="Create Skill" to="/onboarding" />
           <NavItem icon={<CheckCircle size={20} />} label="Applications" />
           <NavItem icon={<SettingsIcon size={20} />} label="Settings" active to="/settings" />
         </nav>

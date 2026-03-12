@@ -115,11 +115,11 @@ export default function Dashboard() {
             <aside style={styles.sidebar}>
                 <div style={styles.logo}>
                     <div style={styles.logoIcon}></div>
-                    JobLand
+                    Hiredlogic
                 </div>
                 <nav style={styles.nav}>
                     <NavItem icon={<User size={20} />} label="Overview" active={activeSection === 'overview'} onClick={() => setActiveSection('overview')} />
-                    <NavItem icon={<FileText size={20} />} label="My Resumes" to="/profile" />
+                    <NavItem icon={<FileText size={20} />} label="Create Skill" to="/onboarding" />
                     <NavItem icon={<CheckCircle size={20} />} label="Applications" active={activeSection === 'applications'} onClick={() => setActiveSection('applications')} />
                     <NavItem icon={<Settings size={20} />} label="Settings" to="/settings" />
                 </nav>

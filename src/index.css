@@ -385,3 +385,282 @@ select {
 .fade-in-up {
   animation: fadeInUp 0.6s ease forwards;
 }
+
+
+:root {
+/* Hiredlogic Color Palette */
+  --primary: #4F46E5;
+  --accent: #22C55E;
+  /* Teal/Emerald */
+  --accent-soft: rgba(34, 197, 94, 0.1);
+  --success: #16A34A;
+  --bg: #F0FDF4;
+  /* Light greenish bg */
+  --card-bg: #FFFFFF;
+  --text: #1E293B;
+  --text-dim: #64748B;
+  --border: #E2E8F0;
+
+  /* Layout */
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 8px;
+  --space-4: 32px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(135deg, #F0FDF4 0%, #FFFFFF 100%);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography Matching Hiredlogic */
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 8px;
+}
+
+.subheading {
+  font-size: 18px;
+  color: var(--text-dim);
+  margin-bottom: 32px;
+}
+
+/* Hiredlogic Container Card */
+.orion-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
+  padding: 48px;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Input Styles */
+.orion-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+
+.orion-label span {
+  color: #EF4444;
+  /* Required star */
+}
+
+.orion-input {
+  width: 100%;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #F8FAFC;
+  font-size: 15px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.orion-input:focus {
+  border-color: var(--accent);
+  background: white;
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+/* Job Type Cards */
+.selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.selection-card {
+  padding: 16px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  background: #F8FAFC;
+}
+
+.selection-card.active {
+  border-color: var(--accent);
+  background: white;
+}
+
+.selection-card .checkbox-icon {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selection-card.active .checkbox-icon {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* Buttons */
+.btn-next {
+  background: #000000;
+  color: white;
+  padding: 14px 48px;
+  border-radius: 100px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.btn-next:hover {
+  transform: scale(1.02);
+}
+
+.btn-next:disabled {
+  background: #CBD5E1;
+  cursor: not-allowed;
+}
+
+/* Navigation Dots */
+.nav-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 40px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #CBD5E1;
+}
+
+.dot.active {
+  background: var(--text-dim);
+}
+
+/* Header */
+header {
+  padding: 24px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  header {
+    padding: 16px 20px;
+  }
+
+  .logo-text {
+    font-size: 18px;
+  }
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--accent);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.logo-text {
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  background: white;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.orion-onboarding-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  margin-top: 40px;
+}
+
+.dropdown-item:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Responsive Utilities */
+@media (max-width: 768px) {
+  .orion-card {
+    padding: 24px;
+    border-radius: var(--radius-md);
+  }
+
+  .btn-next {
+    padding: 12px 32px;
+    width: 100% !important;
+  }
+
+  .selection-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-stack {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+  }
+
+  .mobile-hide {
+    display: none !important;
+  }
+
+  .mobile-scroll-x {
+    display: flex !important;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    padding-bottom: 8px;
+  }
+
+  .mobile-scroll-x::-webkit-scrollbar {
+    display: none;
+  }
+}
