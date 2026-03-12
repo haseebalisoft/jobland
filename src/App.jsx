@@ -1,9 +1,10 @@
+import React from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
-import Profile from './pages/Profile'
+// import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import BdDashboard from './pages/BdDashboard'
 import BdLogin from './pages/BdLogin'
@@ -13,12 +14,18 @@ import VerifyEmail from './pages/VerifyEmail'
 import CheckoutSuccess from './pages/CheckoutSuccess'
 import Start from './pages/Start'
 import SetPassword from './pages/SetPassword'
-import AdminDashboard from './pages/AdminDashboard'
 import AdminLogin from './pages/AdminLogin'
 import { AuthProvider } from './context/AuthContext.jsx'
 import ProtectedRoute from './routes/ProtectedRoute.jsx'
 import AdminRoute from './routes/AdminRoute.jsx'
 import BdRoute from './routes/BdRoute.jsx'
+import Onboarding from './pages/Onboarding'
+import ProfileBuilder from './pages/ProfileBuilder'
+import Auth from './pages/Auth'
+import ResumeMaker from './pages/ResumeMaker'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminUsers from './pages/admin/AdminUsers'
+import AdminTemplates from './pages/admin/AdminTemplates'
 
 function App() {
   return (
@@ -26,6 +33,10 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          {/* Both /profile and /profile-builder show ProfileBuilder */}
+          <Route path="/profile-builder" element={<ProfileBuilder />} />
+          <Route path="/resume-maker" element={<ResumeMaker />} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/bd/login" element={<BdLogin />} />
@@ -49,7 +60,7 @@ function App() {
             path="/profile"
             element={
               <ProtectedRoute>
-                <Profile />
+                <ProfileBuilder />
               </ProtectedRoute>
             }
           />
@@ -66,6 +77,22 @@ function App() {
             element={
               <AdminRoute>
                 <AdminDashboard />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <AdminRoute>
+                <AdminUsers />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/templates"
+            element={
+              <AdminRoute>
+                <AdminTemplates />
               </AdminRoute>
             }
           />

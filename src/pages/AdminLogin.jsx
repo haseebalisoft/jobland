@@ -35,7 +35,7 @@ export default function AdminLogin() {
         <div style={styles.header}>
           <Link to="/" style={styles.logo}>
             <div style={styles.logoIcon}></div>
-            JobLand · Admin
+            Hiredlogic · Admin
           </Link>
           <div style={styles.badge}>Admin only</div>
           <h2 style={styles.title}>Admin login</h2>
@@ -81,9 +81,6 @@ export default function AdminLogin() {
 
         <p style={styles.footer}>
           Not admin? <Link to="/login" style={styles.link}>User login</Link>
-        </p>
-        <p style={styles.hint}>
-          Default: admin@jobland.com / admin123 — run <code>npm run seed:admin</code> in backend to create.
         </p>
       </div>
     </div>

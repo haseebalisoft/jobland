@@ -40,7 +40,7 @@ export default function BdSignup() {
         <div style={styles.header}>
           <Link to="/" style={styles.logo}>
             <div style={styles.logoIcon}></div>
-            JobLand · BD Portal
+            Hiredlogic · BD Portal
           </Link>
           <div style={styles.badge}>BD only</div>
           <h2 style={styles.title}>Create BD account</h2>

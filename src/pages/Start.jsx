@@ -115,7 +115,7 @@ export default function Start() {
         <div style={styles.leftPane}>
           <Link to="/" style={styles.logo}>
             <div style={styles.logoIcon}></div>
-            JobLand
+            Hiredlogic
           </Link>
           <h1 style={styles.heading}>Secure your plan in two steps</h1>
           <p style={styles.subheading}>

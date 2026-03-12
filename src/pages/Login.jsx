@@ -34,7 +34,7 @@ export default function Login() {
                     navigate('/checkout');
                 }
             } else {
-                navigate('/dashboard');
+                navigate('/onboarding');
             }
         } catch (err) {
             setError(err.response?.data?.message || 'Login failed');
@@ -47,7 +47,7 @@ export default function Login() {
                 <div style={styles.header}>
                     <Link to="/" style={styles.logo}>
                         <div style={styles.logoIcon}></div>
-                        JobLand
+                        Hiredlogic
                     </Link>
                     <h2 style={styles.title}>Welcome back</h2>
                     <p style={styles.subtitle}>Enter your details to access your dashboard</p>
