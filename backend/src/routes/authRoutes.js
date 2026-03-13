@@ -7,6 +7,7 @@ import {
   setPassword,
   setPasswordBySession,
   login,
+  adminLogin,
   refreshToken,
   logout,
   me,
@@ -103,6 +104,17 @@ router.post(
     body('password').isString().notEmpty().withMessage('Password is required'),
   ],
   login,
+);
+
+// Admin login
+router.post(
+  '/admin/login',
+  loginRateLimiter,
+  [
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('password').isString().notEmpty().withMessage('Password is required'),
+  ],
+  adminLogin,
 );
 
 // BD signup

@@ -19,7 +19,7 @@ export const signupRateLimiter = buildAuthLimiter(
 
 export const loginRateLimiter = buildAuthLimiter(
   'Too many login attempts. Please try again later.',
-  10,
+  Number(process.env.LOGIN_RATE_LIMIT || 10),
 );
 
 export const passwordSetupRateLimiter = buildAuthLimiter(

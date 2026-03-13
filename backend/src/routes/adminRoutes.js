@@ -7,6 +7,7 @@ import {
   getSubscriptions,
   blockUser,
   unblockUser,
+  resetUserPassword,
   cancelSubscription,
   adminStats,
   getPlansAdmin,
@@ -24,6 +25,7 @@ router.post('/assign-bd', assignBdToUser);
 router.get('/subscriptions', getSubscriptions);
 router.post('/users/:id/block', blockUser);
 router.post('/users/:id/unblock', unblockUser);
+router.post('/users/:id/reset-password', resetUserPassword);
 router.post('/subscriptions/:id/cancel', cancelSubscription);
 router.get('/stats', adminStats);
 router.get('/plans', getPlansAdmin);

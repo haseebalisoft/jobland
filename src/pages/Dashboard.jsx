@@ -197,7 +197,7 @@ export default function Dashboard() {
                         <>
                             <h1 style={styles.welcome}>Applications</h1>
                             <p style={styles.subtitle}>
-                                Leads from BDs assigned to you. Open the job link to apply, then mark as applied when done.
+                                Leads from BDs assigned to you. Open the job link to apply; your BD and admin will update statuses in the pipeline.
                             </p>
                             <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                                 <span style={{ fontSize: 14, color: 'var(--gray)' }}>Filter:</span>
@@ -253,16 +253,8 @@ export default function Dashboard() {
                                                         <ExternalLink size={16} /> Job link
                                                     </a>
                                                 )}
-                                                {lead.status === 'pending' && (
-                                                    <button
-                                                        type="button"
-                                                        disabled={!!applyingId}
-                                                        onClick={() => handleMarkApplied(lead.id)}
-                                                        style={styles.primaryBtn}
-                                                    >
-                                                        {applyingId === lead.id ? 'Applying...' : 'Mark as applied'}
-                                                    </button>
-                                                )}
+                                                {/* User no longer marks leads as applied from the dashboard;
+                                                    this is handled via BD/admin updates and applications table. */}
                                             </div>
                                         </div>
                                     ))}

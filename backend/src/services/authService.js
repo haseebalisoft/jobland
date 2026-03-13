@@ -176,9 +176,15 @@ export async function registerBd({ email, password }) {
  * Login BD from users table (role='bd'). Returns bd object for JWT.
  */
 export async function loginBd({ email, password }) {
+  const normalizedEmail = normalizeEmail(email);
+
   const res = await query(
-    `SELECT id, full_name, email, password_hash, is_active FROM users WHERE LOWER(email) = LOWER($1) AND role = 'bd'`,
-    [email],
+    `
+      SELECT id, full_name, email, password_hash, role, is_active, is_verified, subscription_plan
+      FROM users
+      WHERE LOWER(email) = LOWER($1) AND role = 'bd'
+    `,
+    [normalizedEmail],
   );
   if (res.rowCount === 0) {
     const err = new Error('Invalid credentials');
@@ -197,16 +203,25 @@ export async function loginBd({ email, password }) {
     err.statusCode = 403;
     throw err;
   }
-  const bd = {
-    id: row.id,
-    _id: row.id,
-    name: row.full_name,
-    full_name: row.full_name,
-    email: row.email,
-    role: 'bd',
-    isActive: true,
-  };
-  return bd;
+
+  const user = mapRowToUser(row);
+  const accessToken = signAccessToken(user);
+  const refreshToken = signRefreshToken(user);
+
+  const decoded = jwt.decode(refreshToken);
+  const expiresAt = decoded?.exp
+    ? new Date(decoded.exp * 1000)
+    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  await query(
+    `
+      INSERT INTO refresh_tokens (user_id, token, expires_at)
+      VALUES ($1, $2, $3)
+    `,
+    [user.id, refreshToken, expiresAt],
+  );
+
+  return { user, accessToken, refreshToken };
 }
 
 export async function verifyEmail(token) {

@@ -18,6 +18,8 @@ import profileRoutes from './routes/profileRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 import leadRoutes from './routes/leadRoutes.js';
 import bdRoutes from './routes/bdRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import cvRoutes from './routes/cvRoutes.js';
 import { notFound, errorHandler } from './middlewares/errorMiddleware.js';
 
 const app = express();
@@ -54,6 +56,8 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/bd', bdRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/cv', cvRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
 app.use(notFound);

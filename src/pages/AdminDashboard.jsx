@@ -93,6 +93,18 @@ export default function AdminDashboard() {
     setSubs((list) => list.map((x) => (x._id === res.data._id ? res.data : x)));
   };
 
+  const resetPassword = async (u) => {
+    const label = u.name || u.full_name || u.email || 'this user';
+    const pwd = window.prompt(`Enter new password for ${label}:`);
+    if (!pwd) return;
+    try {
+      await api.post(`/admin/users/${u.id || u._id}/reset-password`, { password: pwd });
+      alert('Password reset successfully.');
+    } catch (e) {
+      alert(e.response?.data?.message || 'Failed to reset password');
+    }
+  };
+
   const handleNewPlanChange = (e) => {
     const { name, value } = e.target;
     setNewPlan((prev) => ({ ...prev, [name]: value }));
@@ -230,6 +242,9 @@ export default function AdminDashboard() {
                   <button type="button" onClick={() => toggleBlock(u)}>
                     {u.isBlocked ? 'Unblock' : 'Block'}
                   </button>
+                  <button type="button" onClick={() => resetPassword(u)}>
+                    Reset password
+                  </button>
                 </div>
 
                 {assignModal && (assignModal.id === (u.id || u._id)) && (
@@ -337,6 +352,40 @@ export default function AdminDashboard() {
               </td>
             </tr>
           ))}
+        </tbody>
+      </table>
+
+      <h3>BDs</h3>
+      <p style={{ color: '#666', fontSize: 14, marginBottom: 12 }}>
+        All BD accounts registered via the BD Portal. You can reset their passwords here.
+      </p>
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
+        <thead>
+          <tr style={{ borderBottom: '2px solid #ddd' }}>
+            <th style={{ textAlign: 'left', padding: 12 }}>Name</th>
+            <th style={{ textAlign: 'left', padding: 12 }}>Email</th>
+            <th style={{ textAlign: 'left', padding: 12 }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {bds.map((bd) => (
+            <tr key={bd.id} style={{ borderBottom: '1px solid #eee' }}>
+              <td style={{ padding: 12 }}>{bd.full_name || bd.name || '—'}</td>
+              <td style={{ padding: 12 }}>{bd.email}</td>
+              <td style={{ padding: 12 }}>
+                <button type="button" onClick={() => resetPassword(bd)}>
+                  Reset password
+                </button>
+              </td>
+            </tr>
+          ))}
+          {bds.length === 0 && (
+            <tr>
+              <td colSpan={3} style={{ padding: 12, color: '#999' }}>
+                No BD accounts found yet.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
 

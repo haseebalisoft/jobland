@@ -54,6 +54,17 @@ export default function BdLogin() {
               <Lock size={18} style={styles.inputIcon} />
               <input type="password" name="password" placeholder="••••••••" style={styles.input} required />
             </div>
+            <button
+              type="button"
+              style={styles.forgotButton}
+              onClick={() =>
+                window.alert(
+                  'Forgot your BD password?\n\nAsk an admin to reset it for you in the Admin Dashboard (Users → Reset password). Once you can log in again, you can change it yourself from the BD Portal sidebar.',
+                )
+              }
+            >
+              Forgot password?
+            </button>
           </div>
 
           {error && <p style={styles.error}>{error}</p>}
@@ -185,5 +196,16 @@ const styles = {
     color: 'var(--primary)',
     fontWeight: '600',
     textDecoration: 'none',
+  },
+  forgotButton: {
+    marginTop: 6,
+    padding: 0,
+    border: 'none',
+    background: 'none',
+    color: 'var(--primary)',
+    fontSize: 12,
+    textDecoration: 'underline',
+    cursor: 'pointer',
+    alignSelf: 'flex-end',
   },
 }

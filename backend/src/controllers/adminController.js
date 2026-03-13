@@ -1,4 +1,5 @@
 import { query } from '../config/db.js';
+import bcrypt from 'bcryptjs';
 
 export async function getUsers(req, res, next) {
   try {
@@ -153,6 +154,49 @@ export async function unblockUser(req, res, next) {
       isBlocked: row.is_active === false,
     };
     res.json(user);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function resetUserPassword(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { password } = req.body || {};
+
+    if (!password || typeof password !== 'string' || password.length < 6) {
+      return res
+        .status(400)
+        .json({ message: 'Password must be at least 6 characters long' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const result = await query(
+      `
+        UPDATE users
+        SET password_hash = $2,
+            is_verified = true,
+            is_active = true,
+            updated_at = NOW()
+        WHERE id = $1
+        RETURNING id, full_name AS name, email, role, is_active
+      `,
+      [id, passwordHash],
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const row = result.rows[0];
+    res.json({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: row.role,
+      isActive: row.is_active === true,
+    });
   } catch (err) {
     next(err);
   }

@@ -10,11 +10,14 @@ export async function getProfile(req, res, next) {
                title,
                employment_type,
                experience_years,
+               experience_level,
                earliest_start_date,
                preferred_country,
                preferred_city,
                remote_preference,
                work_authorisation,
+               job_functions,
+               job_types,
                is_active
         FROM profiles
         WHERE user_id = $1
