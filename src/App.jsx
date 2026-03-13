@@ -23,6 +23,7 @@ import Onboarding from './pages/Onboarding'
 import ProfileBuilder from './pages/ProfileBuilder'
 import Auth from './pages/Auth'
 import ResumeMaker from './pages/ResumeMaker'
+import UploadCv from './pages/UploadCv'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminUsers from './pages/admin/AdminUsers'
 import AdminTemplates from './pages/admin/AdminTemplates'
@@ -34,6 +35,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/upload_cv" element={<UploadCv />} />
           {/* Both /profile and /profile-builder show ProfileBuilder */}
           <Route path="/profile-builder" element={<ProfileBuilder />} />
           <Route path="/resume-maker" element={<ResumeMaker />} />

@@ -38,7 +38,7 @@ export async function createLeadForBd(bdId, payload, actorRole = 'bd') {
     }
   }
 
-  return insertLead({
+  const lead = await insertLead({
     job_id: job_id || null,
     job_title,
     company_name,
@@ -47,6 +47,60 @@ export async function createLeadForBd(bdId, payload, actorRole = 'bd') {
     assigned_user_id: allowedUserId,
     bd_id: bdId,
   });
+
+  // If this lead is already assigned to a specific user, also upsert an application
+  // so the user's applications table stays in sync.
+  if (allowedUserId && lead?.job_id) {
+    // Find the latest profile for this user (if any)
+    const profileRes = await query(
+      `
+        SELECT id
+        FROM profiles
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT 1
+      `,
+      [allowedUserId],
+    );
+    const profileId = profileRes.rowCount > 0 ? profileRes.rows[0].id : null;
+
+    await query(
+      `
+        INSERT INTO applications (
+          id,
+          user_id,
+          profile_id,
+          job_id,
+          bd_id,
+          current_status,
+          applied_at,
+          last_status_updated_at,
+          notes,
+          is_active,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          gen_random_uuid(),
+          $1,
+          $2,
+          $3,
+          $4,
+          'applied',
+          NOW(),
+          NOW(),
+          NULL,
+          TRUE,
+          NOW(),
+          NOW()
+        )
+        ON CONFLICT (user_id, job_id) DO NOTHING
+      `,
+      [allowedUserId, profileId, lead.job_id, bdId],
+    );
+  }
+
+  return lead;
 }
 
 export async function assignLead(leadId, bdIdOrAdminId, assignedUserId, actorRole) {
@@ -308,6 +362,19 @@ export async function markLeadAppliedByUser(leadId, userId) {
     );
 
     if (lead.job_id) {
+      // Use the latest profile for this user if it exists
+      const profileRes = await client.query(
+        `
+          SELECT id
+          FROM profiles
+          WHERE user_id = $1
+          ORDER BY created_at DESC
+          LIMIT 1
+        `,
+        [userId],
+      );
+      const profileId = profileRes.rowCount > 0 ? profileRes.rows[0].id : null;
+
       await client.query(
         `
           INSERT INTO applications (
@@ -327,9 +394,9 @@ export async function markLeadAppliedByUser(leadId, userId) {
           VALUES (
             gen_random_uuid(),
             $1,
-            NULL,
             $2,
             $3,
+            $4,
             'applied',
             NOW(),
             NOW(),
@@ -340,7 +407,7 @@ export async function markLeadAppliedByUser(leadId, userId) {
           )
           ON CONFLICT (user_id, job_id) DO NOTHING
         `,
-        [userId, lead.job_id, lead.bd_id],
+        [userId, profileId, lead.job_id, lead.bd_id],
       );
     }
 

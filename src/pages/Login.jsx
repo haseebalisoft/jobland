@@ -34,7 +34,8 @@ export default function Login() {
                     navigate('/checkout');
                 }
             } else {
-                navigate('/onboarding');
+                navigate('/dashboard');
+                return;
             }
         } catch (err) {
             setError(err.response?.data?.message || 'Login failed');

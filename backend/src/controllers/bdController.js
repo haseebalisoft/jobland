@@ -13,7 +13,17 @@ export async function getMyUsers(req, res, next) {
 
     const result = await query(
       `
-      SELECT u.id, u.full_name, u.email
+      SELECT
+        u.id,
+        u.full_name,
+        u.email,
+        (
+          SELECT p.title
+          FROM profiles p
+          WHERE p.user_id = u.id
+          ORDER BY p.created_at DESC
+          LIMIT 1
+        ) AS profile_title
       FROM user_bd_assignments uba
       JOIN users u ON u.id = uba.user_id
       WHERE uba.bd_id = $1

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { BarChart2, Briefcase, CheckCircle, Clock, ExternalLink, Filter, LogOut, Search, Users } from 'lucide-react'
+import { BarChart2, Briefcase, CheckCircle, Clock, ExternalLink, Filter, LogOut, Search, Users, Lock } from 'lucide-react'
 import api from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
@@ -161,7 +161,34 @@ export default function BdDashboard() {
             Leads dashboard
           </div>
         </div>
-        <div style={{ marginTop: 'auto' }}>
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <button
+            type="button"
+            onClick={async () => {
+              const current_password = window.prompt('Enter your current password:');
+              if (!current_password) return;
+              const new_password = window.prompt('Enter your new password (min 6 chars):');
+              if (!new_password) return;
+              try {
+                await api.put('/settings/password', { current_password, new_password });
+                alert('Password updated successfully.');
+              } catch (e) {
+                alert(e.response?.data?.message || 'Failed to update password');
+              }
+            }}
+            style={{
+              ...styles.navItem,
+              color: 'var(--gray)',
+              background: 'transparent',
+              border: 'none',
+              width: '100%',
+              textAlign: 'left',
+              cursor: 'pointer',
+            }}
+          >
+            <Lock size={18} />
+            Change password
+          </button>
           <button
             type="button"
             onClick={logout}
@@ -228,6 +255,40 @@ export default function BdDashboard() {
               value={stats.byStatus.offer || 0}
               accent="#0EA5E9"
             />
+          </section>
+
+          <section style={{ marginTop: 24, marginBottom: 24 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Assigned profiles</h2>
+            {myUsersLoading ? (
+              <div style={{ padding: 12 }}>Loading assigned users…</div>
+            ) : myUsers.length === 0 ? (
+              <div style={styles.emptyCard}>
+                <p style={{ margin: 0, fontSize: 14, color: 'var(--gray)' }}>
+                  No profiles assigned to you yet. Ask an admin to assign users to you from the Admin Dashboard.
+                </p>
+              </div>
+            ) : (
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Email</th>
+                      <th>Primary profile title</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myUsers.map((u) => (
+                      <tr key={u.id}>
+                        <td>{u.full_name || u.name || '—'}</td>
+                        <td>{u.email}</td>
+                        <td>{u.profile_title || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
 
           <section style={{ marginTop: 32, marginBottom: 32 }}>
