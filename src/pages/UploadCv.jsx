@@ -123,7 +123,7 @@ const UploadCv = () => {
                 cursor: 'pointer',
                 textDecoration: 'underline',
               }}
-              onClick={() => navigate('/profile')}
+              onClick={() => navigate('/resume-maker')}
             >
               I don't have a CV / Create Manually
             </button>
