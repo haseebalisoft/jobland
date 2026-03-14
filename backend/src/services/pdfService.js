@@ -24,14 +24,15 @@ export function buildResumePdf(profile) {
     doc.fontSize(11).fillColor(primary).font('Helvetica').text(professional.currentTitle || '', { align: 'center' });
     doc.moveDown(0.5);
 
-    const contact = [personal.email, personal.phone, personal.location].filter(Boolean).join('  •  ');
-    if (contact) {
-      doc.fontSize(9).fillColor(muted).text(contact, { align: 'center' });
-      doc.moveDown(0.5);
+    const contactParts = [personal.email, personal.phone, personal.location].filter(Boolean);
+    if (contactParts.length > 0) {
+      doc.fontSize(10).fillColor(muted).text(contactParts.join('  ·  '), { align: 'center', lineGap: 2 });
+      doc.moveDown(0.6);
     }
-    const linkStr = [links.linkedin, links.github, links.portfolio].filter(Boolean).join('  •  ');
-    if (linkStr) {
-      doc.fontSize(9).fillColor(muted).text(linkStr, { align: 'center' });
+    const linkParts = [links.linkedin, links.github, links.portfolio].filter(Boolean);
+    if (linkParts.length > 0) {
+      doc.fontSize(9).fillColor(muted).text(linkParts.join('  ·  '), { align: 'center', lineGap: 2 });
+      doc.moveDown(0.5);
     }
     doc.moveDown(1);
 

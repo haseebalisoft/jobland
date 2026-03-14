@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { Bell, Search, User, FileText, CheckCircle, Clock, Settings, LogOut, ExternalLink, LayoutDashboard } from 'lucide-react'
+import { Bell, Search, CheckCircle, Clock, ExternalLink, FileText } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import UserSidebar from '../components/UserSidebar.jsx'
 
 const theme = {
   primary: '#0d9488',
@@ -111,31 +112,12 @@ export default function Dashboard() {
 
     return (
         <div style={styles.layout}>
-            <aside style={styles.sidebar}>
-                <div style={styles.logo}>
-                    <div style={styles.logoIcon}></div>
-                    <span style={styles.logoText}>HiredLogics</span>
-                </div>
-                <nav style={styles.nav}>
-                    <NavItem icon={<LayoutDashboard size={20} />} label="Overview" active={activeSection === 'overview'} onClick={() => setActiveSection('overview')} />
-                    <NavItem icon={<FileText size={20} />} label="Preferences" to="/onboarding" />
-                    <NavItem icon={<FileText size={20} />} label="AI Resume Maker" to="/resume-maker" />
-                    <NavItem icon={<CheckCircle size={20} />} label="Applications" active={activeSection === 'applications'} onClick={() => setActiveSection('applications')} />
-                    <NavItem icon={<Settings size={20} />} label="Settings" to="/settings" />
-                </nav>
-                <div style={styles.sidebarFooter}>
-                    <button type="button" onClick={logout} style={styles.logoutBtn}>
-                        <LogOut size={20} />
-                        Logout
-                    </button>
-                </div>
-            </aside>
-
+            <UserSidebar />
             <main style={styles.main}>
                 <header style={styles.header}>
-                    <div style={styles.searchBar}>
-                        <Search size={18} style={{ color: theme.textMuted, flexShrink: 0 }} />
-                        <input type="text" placeholder="Search..." style={styles.searchInput} />
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button type="button" onClick={() => setActiveSection('overview')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: activeSection === 'overview' ? theme.teal : 'transparent', color: activeSection === 'overview' ? 'white' : theme.textMuted, fontWeight: 600, cursor: 'pointer' }}>Overview</button>
+                        <button type="button" onClick={() => setActiveSection('applications')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: activeSection === 'applications' ? theme.teal : 'transparent', color: activeSection === 'applications' ? 'white' : theme.textMuted, fontWeight: 600, cursor: 'pointer' }}>Applications</button>
                     </div>
                     <div style={styles.profileArea}>
                         <button type="button" style={styles.iconBtn} aria-label="Notifications">

@@ -37,16 +37,40 @@ async function geminiChat(systemPrompt, userPrompt, options = {}) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+  const responseText = await res.text();
+
   if (!res.ok) {
-    const err = await res.text();
-    if (res.status === 429 || err.includes('quota') || err.includes('rate')) {
+    console.error('[Gemini] API failed:', {
+      status: res.status,
+      statusText: res.statusText,
+      body: responseText.slice(0, 500),
+      model: GEMINI_MODEL,
+    });
+    if (res.status === 429 || responseText.includes('quota') || responseText.includes('rate')) {
       throw new Error('Gemini rate limit or quota exceeded.');
     }
-    throw new Error(err || `Gemini API error: ${res.status}`);
+    throw new Error(responseText || `Gemini API error: ${res.status}`);
   }
-  const data = await res.json();
+
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch (parseErr) {
+    console.error('[Gemini] Invalid JSON response:', responseText.slice(0, 300));
+    throw new Error('Gemini returned invalid JSON');
+  }
+
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-  if (!text) throw new Error('Empty response from Gemini');
+  if (!text) {
+    const blockReason = data.candidates?.[0]?.finishReason || data.candidates?.[0]?.safetyRatings;
+    console.error('[Gemini] Empty or blocked response:', {
+      hasCandidates: !!data.candidates?.length,
+      candidate: data.candidates?.[0],
+      promptFeedback: data.promptFeedback,
+      blockReason: blockReason || 'no text in parts',
+    });
+    throw new Error('Empty response from Gemini');
+  }
   return text;
 }
 
@@ -103,7 +127,8 @@ async function aiChat(messages, options = {}) {
       });
       return out;
     } catch (e) {
-      console.warn('[AI] Gemini failed, falling back to Groq:', e.message);
+      console.error('[AI] Gemini failed:', e.message);
+      console.log('[AI] Using Groq fallback.');
     }
   }
 

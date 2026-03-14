@@ -47,8 +47,8 @@ export default function Login() {
             <div className="auth-card" style={styles.card}>
                 <div style={styles.header}>
                     <Link to="/" style={styles.logo}>
-                        <div style={styles.logoIcon}></div>
-                        HiredLogics
+                        <img src="/logo.png" alt="HiredLogics" style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 8 }} />
+                        <span>HiredLogics</span>
                     </Link>
                     <h2 style={styles.title}>Welcome back</h2>
                     <p style={styles.subtitle}>Enter your details to access your dashboard</p>

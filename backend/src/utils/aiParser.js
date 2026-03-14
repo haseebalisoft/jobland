@@ -37,10 +37,34 @@ async function geminiJson(systemPrompt, userPrompt) {
       },
     }),
   });
-  if (!res.ok) throw new Error(`Gemini: ${res.status}`);
-  const data = await res.json();
+  const responseText = await res.text();
+
+  if (!res.ok) {
+    console.error('[CV Parse][Gemini] API failed:', {
+      status: res.status,
+      statusText: res.statusText,
+      body: responseText.slice(0, 500),
+      model: GEMINI_MODEL,
+    });
+    throw new Error(`Gemini: ${res.status} - ${responseText.slice(0, 200)}`);
+  }
+
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch (parseErr) {
+    console.error('[CV Parse][Gemini] Invalid JSON:', responseText.slice(0, 300));
+    throw new Error('Gemini invalid JSON');
+  }
+
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-  if (!text) throw new Error('Empty Gemini response');
+  if (!text) {
+    console.error('[CV Parse][Gemini] Empty or blocked:', {
+      promptFeedback: data.promptFeedback,
+      candidate: data.candidates?.[0],
+    });
+    throw new Error('Empty Gemini response');
+  }
   return JSON.parse(text);
 }
 
@@ -91,7 +115,8 @@ export async function parseCVWithAI(text) {
     try {
       parsed = await geminiJson(systemPrompt, userPrompt);
     } catch (e) {
-      console.warn('[CV Parse] Gemini failed, trying Groq:', e.message);
+      console.error('[CV Parse] Gemini failed:', e.message);
+      console.log('[CV Parse] Using Groq fallback.');
     }
   }
 
@@ -99,7 +124,7 @@ export async function parseCVWithAI(text) {
     try {
       parsed = await groqJson(systemPrompt, userPrompt);
     } catch (e) {
-      console.warn('[CV Parse] Groq failed:', e.message);
+      console.error('[CV Parse] Groq failed:', e.message);
     }
   }
 

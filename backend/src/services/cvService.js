@@ -13,7 +13,7 @@ function toBuilderProfile(user, profile, education, workExperience) {
   const professional = {
     currentTitle: profile?.title || '',
     summary: profile?.summary || '',
-    skills: Array.isArray(profile?.job_functions) ? [...profile.job_functions] : [],
+    skills: Array.isArray(profile?.resume_skills)?.length ? [...profile.resume_skills] : (Array.isArray(profile?.job_functions) ? [...profile.job_functions] : []),
     workExperience: (workExperience || []).map((w) => ({
       company: w.company_name || '',
       role: w.job_title || '',
@@ -94,7 +94,7 @@ export async function getResumeProfile(userId) {
 
   const profileRes = await pool.query(
     `
-    SELECT id, title, summary, phone, location, job_functions,
+    SELECT id, title, summary, phone, location, job_functions, resume_skills,
            linkedin_url, portfolio_url, github_url
     FROM profiles
     WHERE user_id = $1
@@ -169,7 +169,7 @@ export async function saveResumeProfile(userId, builderProfile) {
     const summary = professional.summary ?? null;
     const phone = personal.phone ?? null;
     const location = personal.location ?? null;
-    const job_functions = Array.isArray(professional.skills) ? professional.skills : [];
+    const resume_skills = Array.isArray(professional.skills) ? professional.skills : [];
     const linkedin_url = links.linkedin ?? null;
     const portfolio_url = links.portfolio ?? null;
     const github_url = links.github ?? null;
@@ -179,21 +179,21 @@ export async function saveResumeProfile(userId, builderProfile) {
         `
         UPDATE profiles
         SET title = $2, summary = $3, phone = $4, location = $5,
-            job_functions = $6, linkedin_url = $7, portfolio_url = $8, github_url = $9,
+            resume_skills = $6, linkedin_url = $7, portfolio_url = $8, github_url = $9,
             updated_at = NOW()
         WHERE id = $1
         `,
-        [profileId, title, summary, phone, location, job_functions, linkedin_url, portfolio_url, github_url]
+        [profileId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url]
       );
     } else {
       const insertRes = await client.query(
         `
-        INSERT INTO profiles (user_id, title, summary, phone, location, job_functions,
+        INSERT INTO profiles (user_id, title, summary, phone, location, resume_skills,
                               linkedin_url, portfolio_url, github_url, is_active, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, NOW(), NOW())
         RETURNING id
         `,
-        [userId, title, summary, phone, location, job_functions, linkedin_url, portfolio_url, github_url]
+        [userId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url]
       );
       profileId = insertRes.rows[0].id;
     }

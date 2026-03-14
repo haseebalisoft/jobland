@@ -620,6 +620,12 @@ header {
   margin-top: 40px;
 }
 
+/* Wider form on onboarding page */
+.orion-onboarding-container .orion-card {
+  max-width: 960px;
+  width: 100%;
+}
+
 .dropdown-item:hover {
   background: var(--accent-soft);
   color: var(--accent);

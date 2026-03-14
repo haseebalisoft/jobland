@@ -5,8 +5,60 @@ import {
     User as UserIcon, Briefcase, GraduationCap,
     Link as LinkIcon, LogOut, ChevronRight, Check, Pencil, Plus, Trash2
 } from 'lucide-react';
-import API from '../api';
+import api from '../services/api';
 import debounce from 'lodash.debounce';
+import UserSidebar from '../components/UserSidebar';
+import './ProfileBuilder.css';
+
+function formatPeriod(startDate, endDate, isCurrent) {
+  if (!startDate) return '';
+  const d = (x) => x ? new Date(x).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '';
+  if (isCurrent) return `${d(startDate)} – Present`;
+  return endDate ? `${d(startDate)} – ${d(endDate)}` : d(startDate);
+}
+function formatEduPeriod(startDate, endDate) {
+  if (startDate && endDate) return formatPeriod(startDate, endDate, false);
+  if (endDate) return String(new Date(endDate).getFullYear());
+  return '';
+}
+function mapApiToProfileState(data) {
+  const profile = data.profile || {};
+  const user = data.user || {};
+  const education = data.education || [];
+  const work_experience = data.work_experience || [];
+  return {
+    personal: {
+      fullName: user.full_name || '',
+      email: user.email || '',
+      phone: profile.phone || '',
+      location: profile.location || '',
+    },
+    professional: {
+      currentTitle: profile.title || '',
+      summary: profile.summary || '',
+      skills: (Array.isArray(profile.resume_skills) && profile.resume_skills.length) ? profile.resume_skills : (Array.isArray(profile.job_functions) ? profile.job_functions : []),
+      workExperience: work_experience.map((w) => ({
+        company: w.company_name || '',
+        role: w.job_title || '',
+        period: formatPeriod(w.start_date, w.end_date, w.is_current),
+        description: w.description || '',
+      })),
+    },
+    education: education.map((e) => ({
+      degree: e.degree || '',
+      institution: e.institution || '',
+      period: formatEduPeriod(e.start_date, e.end_date) || (e.end_date ? String(new Date(e.end_date).getFullYear()) : ''),
+      year: e.end_date ? String(new Date(e.end_date).getFullYear()) : '',
+      field_of_study: e.field_of_study || '',
+      description: e.description || '',
+    })),
+    links: {
+      linkedin: profile.linkedin_url || '',
+      github: profile.github_url || '',
+      portfolio: profile.portfolio_url || '',
+    },
+  };
+}
 
 const ProfileBuilder = () => {
     const [resumes, setResumes] = useState({ base: {}, customized: [] });
@@ -34,7 +86,7 @@ const ProfileBuilder = () => {
         autoSavePortal: true
     });
 
-    const tabs = ['Personal', 'Education', 'Work Experience', 'Skills', 'Equal Employment', 'Resume'];
+    const tabs = ['Personal', 'Education', 'Work Experience', 'Skills', 'Resume'];
 
     const getProfilePreferredJobTitle = useCallback(() => {
         const currentTitle = profile?.professional?.currentTitle?.trim();
@@ -71,13 +123,9 @@ const ProfileBuilder = () => {
 
     const fetchProfile = async () => {
         try {
-            const { data } = await API.get('/profile');
-            if (data.profile) {
-                setProfile(data.profile);
-                setResumes(data.resumes || { base: {}, customized: [] });
-            } else {
-                setProfile(data);
-            }
+            const { data } = await api.get('/profile');
+            setProfile(mapApiToProfileState(data));
+            setResumes(data.resumes || { base: {}, customized: [] });
             updateStatus();
         } catch (err) {
             console.error(err);
@@ -89,8 +137,8 @@ const ProfileBuilder = () => {
     const generateBaseCV = async () => {
         setSaving(true);
         try {
-            const { data } = await API.post('/cv/generate-base');
-            setResumes(data.resumes);
+            const { data } = await api.post('/cv/generate-base').catch(() => ({}));
+            if (data?.resumes) setResumes(data.resumes);
         } catch (err) {
             console.error(err);
         } finally {
@@ -169,8 +217,8 @@ const ProfileBuilder = () => {
 
     const updateStatus = async () => {
         try {
-            const { data } = await API.get('/profile/status');
-            setStatus(data);
+            const { data } = await api.get('/profile').catch(() => ({}));
+            if (data?.profile) setStatus({ completionPercent: data.profile.title ? 50 : 0 });
         } catch (err) {
             console.error(err);
         }
@@ -179,7 +227,23 @@ const ProfileBuilder = () => {
     const saveChanges = async (updatedProfile = profile) => {
         setSaving(true);
         try {
-            await API.put('/profile', updatedProfile);
+            const payload = {
+                personal: { fullName: updatedProfile.personal?.fullName, email: updatedProfile.personal?.email },
+                links: { linkedin: updatedProfile.links?.linkedin, github: updatedProfile.links?.github, portfolio: updatedProfile.links?.portfolio },
+                profile: {
+                    title: updatedProfile.professional?.currentTitle || '',
+                    summary: updatedProfile.professional?.summary,
+                    phone: updatedProfile.personal?.phone,
+                    location: updatedProfile.personal?.location,
+                    linkedin_url: updatedProfile.links?.linkedin,
+                    portfolio_url: updatedProfile.links?.portfolio,
+                    github_url: updatedProfile.links?.github,
+                    resume_skills: Array.isArray(updatedProfile.professional?.skills) ? updatedProfile.professional.skills : null,
+                },
+                education: (updatedProfile.education || []).map((e) => ({ degree: e.degree, institution: e.institution, period: e.period || e.year, year: e.year, field_of_study: e.field_of_study, description: e.description })),
+                work_experience: (updatedProfile.professional?.workExperience || []).map((w) => ({ company: w.company, role: w.role, period: w.period, description: w.description })),
+            };
+            await api.post('/profile', payload);
             updateStatus();
         } catch (err) {
             console.error(err);
@@ -233,68 +297,35 @@ const ProfileBuilder = () => {
     );
 
     const TimelineItem = ({ title, subtitle, period, description, onEdit, isFirst, isLast }) => (
-        <div style={{ position: 'relative', paddingLeft: '40px', paddingBottom: '32px' }}>
+        <div className="profile-timeline-item">
             {/* Timeline Line */}
-            <div style={{
-                position: 'absolute',
-                left: '7px',
-                top: '24px',
-                bottom: isLast ? 'auto' : '0',
-                width: '2px',
-                background: 'var(--accent)',
-                opacity: 0.2,
-                height: isLast ? '0' : '100%'
-            }} />
+            <div className="profile-timeline-line" style={{ height: isLast ? '0' : '100%' }} />
             {/* Timeline Node */}
-            <div style={{
-                position: 'absolute',
-                left: '0',
-                top: '4px',
-                width: '18px',
-                height: '18px',
-                borderRadius: '50%',
-                border: '3px solid var(--accent)',
-                background: 'white',
-                zIndex: 2,
-                boxShadow: '0 0 0 4px rgba(34, 197, 94, 0.1)'
-            }} />
+            <div className="profile-timeline-node" />
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                    {period && <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '8px', fontWeight: '500' }}>{period}</div>}
-                    <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '4px' }}>{title}</h3>
-                    <div style={{ fontSize: '15px', fontWeight: '500', color: 'var(--text-dim)' }}>{subtitle}</div>
+            <div className="profile-timeline-content">
+                <div className="profile-timeline-body">
+                    {period && <div className="profile-timeline-period">{period}</div>}
+                    <h3 className="profile-timeline-title">{title}</h3>
+                    <div className="profile-timeline-subtitle">{subtitle}</div>
+                    {description && <p className="profile-timeline-description">{description}</p>}
                 </div>
-                <button
-                    onClick={onEdit}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: '8px' }}
-                >
+                <button type="button" onClick={onEdit} className="profile-timeline-edit-btn" aria-label="Edit">
                     <Pencil size={18} />
                 </button>
             </div>
-            {description && <p style={{ marginTop: '12px', color: 'var(--text-dim)', fontSize: '14px', lineHeight: '1.6' }}>{description}</p>}
         </div>
     );
 
     return (
-        <div className="onboarding-page" style={{ background: 'white' }}>
-            <header style={{ borderBottom: '1px solid #f1f5f9', background: 'white' }}>
-                <div className="logo-area">
-                    <div className="logo-icon">
-                        <ChevronRight />
-                    </div>
-                    <div>
-                        <div className="logo-text">HiredLogics</div>
-                    </div>
-                </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <div className="mobile-hide" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-dim)', fontSize: '13px' }}>
-                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} className="text-accent" />}
-                        {saving ? 'Saving...' : 'Syncing'}
-                    </div>
-                    <button className="logout-btn" onClick={() => navigate('/auth')}>
-                        Logout
-                    </button>
+        <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
+            <UserSidebar />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+            <header style={{ borderBottom: '1px solid #e2e8f0', background: 'white', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 18, fontWeight: 600, color: '#0f172a' }}>Profile</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {saving ? <Loader2 size={16} className="animate-spin" style={{ color: '#0d9488' }} /> : <Check size={16} style={{ color: '#0d9488' }} />}
+                    <span style={{ fontSize: 13, color: '#64748b' }}>{saving ? 'Saving...' : 'Synced'}</span>
                 </div>
             </header>
 
@@ -324,7 +355,7 @@ const ProfileBuilder = () => {
                 </div>
             </div>
 
-            <main className="container" style={{ padding: '60px 20px', maxWidth: '900px', margin: '0 auto' }}>
+            <main className="container" style={{ padding: '32px 24px 80px', maxWidth: '900px', margin: '0 auto', flex: 1 }}>
 
                 {activeTab === 'Personal' && (
                     <div className="animate-fade-in" style={{ width: '100%' }}>
@@ -496,10 +527,10 @@ const ProfileBuilder = () => {
                 )}
 
                 {activeTab === 'Education' && (
-                    <div className="animate-fade-in">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '48px' }}>
-                            <h2 style={{ fontSize: '28px', fontWeight: '700' }}>Education</h2>
-                            <button className="logout-btn" onClick={() => {
+                    <div className="animate-fade-in profile-education-section">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+                            <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#0f172a', margin: 0 }}>Education</h2>
+                            <button className="btn-next" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px' }} onClick={() => {
                                 const newEdu = [...profile.education, { degree: '', institution: '', period: '' }];
                                 setProfile({ ...profile, education: newEdu });
                                 setEditingSection(`education-${newEdu.length - 1}`);
@@ -507,10 +538,10 @@ const ProfileBuilder = () => {
                                 <Plus size={18} /> Add
                             </button>
                         </div>
-                        <div style={{ paddingLeft: '8px' }}>
+                        <div className="profile-education-list">
                             {profile.education.map((edu, i) => (
                                 editingSection === `education-${i}` ? (
-                                    <div key={i} className="orion-card" style={{ padding: '24px', marginBottom: '24px', border: '1px solid var(--accent)' }}>
+                                    <div key={i} className="profile-education-card profile-education-card--editing">
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                             <input
                                                 className="orion-input"
@@ -531,30 +562,12 @@ const ProfileBuilder = () => {
                                                 placeholder="Period (e.g. 2018 - 2022)"
                                             />
                                             <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                                                <button
-                                                    className="btn-next"
-                                                    style={{ width: 'fit-content' }}
-                                                    onClick={() => setEditingSection(null)}
-                                                >
+                                                <button className="btn-next" style={{ width: 'fit-content' }} onClick={() => setEditingSection(null)}>
                                                     Done
                                                 </button>
                                                 <button
-                                                    onClick={() => {
-                                                        if (window.confirm('Delete this education entry?')) {
-                                                            removeItem('education', i);
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        background: 'none',
-                                                        border: '1px solid #ef4444',
-                                                        color: '#ef4444',
-                                                        padding: '12px',
-                                                        borderRadius: '100px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        cursor: 'pointer'
-                                                    }}
+                                                    onClick={() => { if (window.confirm('Delete this education entry?')) removeItem('education', i); }}
+                                                    className="profile-education-delete-btn"
                                                 >
                                                     <Trash2 size={18} />
                                                 </button>
@@ -701,21 +714,10 @@ const ProfileBuilder = () => {
                     </div>
                 )}
 
-                {activeTab === 'Equal Employment' && (
-                    <div className="animate-fade-in">
-                        <h2 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '32px' }}>Equal Employment</h2>
-                        <p style={{ color: 'var(--text-dim)' }}>Voluntary self-identification data for job applications.</p>
-                        {/* Placeholder for EEO data */}
-                        <div className="orion-card" style={{ marginTop: '32px', padding: '32px', border: '1px dashed var(--border)', background: '#f8fafc' }}>
-                            <p style={{ textAlign: 'center', color: 'var(--text-dim)' }}>No data yet. These fields will be auto-filled by the extension.</p>
-                        </div>
-                    </div>
-                )}
-
             </main>
 
-            {/* Bottom Finalize Bar */}
-            <div style={{ position: 'fixed', bottom: '0', left: '0', right: '0', background: 'white', borderTop: '1px solid #f1f5f9', padding: '16px 20px', display: 'flex', justifyContent: 'center', zIndex: 10 }}>
+            {/* Bottom Finalize Bar - only over main content so sidebar keeps full height */}
+            <div data-profile-bottom-bar style={{ position: 'fixed', bottom: 0, left: 260, right: 0, background: 'white', borderTop: '1px solid #e2e8f0', padding: '12px 24px', display: 'flex', justifyContent: 'center', zIndex: 10, boxShadow: '0 -2px 10px rgba(0,0,0,0.04)' }}>
                 <div style={{ maxWidth: '1200px', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
                     <div
                         onClick={() => setShowStatusModal(true)}
@@ -1023,6 +1025,7 @@ const ProfileBuilder = () => {
                     </div>
                 </div>
             )}
+            </div>
         </div>
     );
 };

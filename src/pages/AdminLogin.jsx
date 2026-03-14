@@ -34,8 +34,8 @@ export default function AdminLogin() {
       <div className="auth-card" style={styles.card}>
         <div style={styles.header}>
           <Link to="/" style={styles.logo}>
-            <div style={styles.logoIcon}></div>
-            HiredLogics · Admin
+            <img src="/logo.png" alt="HiredLogics" style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 8 }} />
+            <span>HiredLogics · Admin</span>
           </Link>
           <div style={styles.badge}>Admin only</div>
           <h2 style={styles.title}>Admin login</h2>

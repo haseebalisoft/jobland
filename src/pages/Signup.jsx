@@ -50,8 +50,8 @@ export default function Signup() {
             <div style={styles.card}>
                 <div style={styles.header}>
                     <Link to="/" style={styles.logo}>
-                        <div style={styles.logoIcon}></div>
-                        HiredLogics
+                        <img src="/logo.png" alt="HiredLogics" style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 8 }} />
+                        <span>HiredLogics</span>
                     </Link>
                     <h2 style={styles.title}>Create your account</h2>
                     {plan ? (
