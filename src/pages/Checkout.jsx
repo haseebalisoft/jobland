@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 function CheckoutForm({ planId, price, user }) {
     const [message, setMessage] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [email, setEmail] = useState(user?.email || '');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -15,7 +16,10 @@ function CheckoutForm({ planId, price, user }) {
 
         try {
             localStorage.setItem('selectedPlanId', planId);
-            const res = await api.post('/subscriptions/checkout-session', { plan_id: planId });
+            const res = await api.post('/subscriptions/checkout-session', {
+                plan_id: planId,
+                email: email?.trim() || undefined,
+            });
             window.location.href = res.data.url;
         } catch (err) {
             setMessage(err.response?.data?.message || 'Unable to start checkout right now.');
@@ -26,9 +30,22 @@ function CheckoutForm({ planId, price, user }) {
     return (
         <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.summaryCard}>
-                <div style={styles.label}>Account email</div>
-                <div style={styles.readonlyValue}>
-                    {user?.email || 'Collected securely on Stripe Checkout'}
+                <div style={styles.inputGroup}>
+                    <label htmlFor="checkout-email" style={styles.label}>
+                        Email for this purchase
+                    </label>
+                    <input
+                        id="checkout-email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        style={styles.input}
+                        required
+                    />
+                    <div style={styles.helperText}>
+                        Enter the email where you want to receive access. You can use a different email than your account.
+                    </div>
                 </div>
             </div>
 
