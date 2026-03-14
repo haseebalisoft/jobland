@@ -10,9 +10,11 @@ import {
   resetUserPassword,
   cancelSubscription,
   adminStats,
+  getAnalytics,
   getPlansAdmin,
   createPlanAdmin,
   updatePlanAdmin,
+  setUserPlan,
 } from '../controllers/adminController.js';
 
 const router = express.Router();
@@ -28,9 +30,11 @@ router.post('/users/:id/unblock', unblockUser);
 router.post('/users/:id/reset-password', resetUserPassword);
 router.post('/subscriptions/:id/cancel', cancelSubscription);
 router.get('/stats', adminStats);
+router.get('/analytics', getAnalytics);
 router.get('/plans', getPlansAdmin);
 router.post('/plans', createPlanAdmin);
 router.put('/plans/:id', updatePlanAdmin);
+router.put('/users/:id/subscription-plan', setUserPlan);
 
 export default router;
 

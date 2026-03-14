@@ -1,0 +1,40 @@
+/* BD Dashboard – blue/green theme hover and polish */
+
+.bd-sidebar-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
+}
+
+.bd-stat-card:hover {
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.1) !important;
+  border-color: #E2E8F0 !important;
+}
+
+.bd-link-btn:hover {
+  background: rgba(16, 185, 129, 0.14) !important;
+  border-color: #10B981 !important;
+}
+
+.bd-primary-btn:hover:not(:disabled) {
+  background: #0d9668 !important;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35) !important;
+}
+
+.bd-primary-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.bd-table tbody tr:hover {
+  background: #F8FAFC;
+}
+
+.bd-table tbody td {
+  padding: 14px 18px;
+  border-bottom: 1px solid #E2E8F0;
+  color: #0F172A;
+}
+
+.bd-table tbody tr:last-child td {
+  border-bottom: none;
+}
