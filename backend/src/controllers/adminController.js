@@ -89,7 +89,31 @@ export async function assignBdToUser(req, res, next) {
 
 export async function getSubscriptions(req, res, next) {
   try {
-    res.json([]);
+    const result = await query(
+      `
+      SELECT s.id, s.user_id, s.status, s.current_period_end, s.created_at,
+             sp.plan_id, sp.name AS plan_name, sp.price AS plan_price,
+             u.email AS user_email, u.full_name AS user_name
+      FROM subscriptions s
+      JOIN subscription_plans sp ON sp.id = s.subscription_plan_id
+      JOIN users u ON u.id = s.user_id
+      ORDER BY s.created_at DESC
+      `
+    );
+    const subs = (result.rows || []).map((row) => ({
+      _id: row.id,
+      id: row.id,
+      user_id: row.user_id,
+      user_email: row.user_email,
+      user_name: row.user_name,
+      plan_id: row.plan_id,
+      plan_name: row.plan_name,
+      plan_price: Number(row.plan_price),
+      status: row.status,
+      current_period_end: row.current_period_end,
+      created_at: row.created_at,
+    }));
+    res.json(subs);
   } catch (err) {
     next(err);
   }
@@ -204,8 +228,15 @@ export async function resetUserPassword(req, res, next) {
 
 export async function cancelSubscription(req, res, next) {
   try {
-    // No subscriptions table wired – always 404 for now.
-    return res.status(404).json({ message: 'Subscription not found' });
+    const { id } = req.params;
+    const result = await query(
+      `UPDATE subscriptions SET status = 'canceled', updated_at = NOW() WHERE id = $1 RETURNING id, status`,
+      [id]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Subscription not found' });
+    }
+    res.json({ _id: result.rows[0].id, status: result.rows[0].status });
   } catch (err) {
     next(err);
   }
@@ -216,9 +247,15 @@ export async function adminStats(req, res, next) {
     const userCountRes = await query('SELECT COUNT(*)::int AS count FROM users');
     const totalUsers = userCountRes.rows[0]?.count || 0;
 
-    // No subscription tracking – treat activeSubscribers and revenue as 0.
-    const activeSubscribers = 0;
-    const monthlyRevenue = 0;
+    const subRes = await query(
+      `SELECT COUNT(*)::int AS active_count,
+              COALESCE(SUM(sp.price)::numeric, 0) AS revenue
+       FROM subscriptions s
+       JOIN subscription_plans sp ON sp.id = s.subscription_plan_id
+       WHERE s.status = 'active'`
+    );
+    const activeSubscribers = subRes.rows[0]?.active_count ?? 0;
+    const monthlyRevenue = Number(subRes.rows[0]?.revenue ?? 0);
 
     res.json({ totalUsers, activeSubscribers, monthlyRevenue });
   } catch (err) {
@@ -226,9 +263,131 @@ export async function adminStats(req, res, next) {
   }
 }
 
+/**
+ * GET /admin/analytics – rich analytics for admin dashboard overview.
+ * Uses existing indexes; optional indexes in 004_admin_analytics_indexes.sql speed up time-series queries.
+ */
+export async function getAnalytics(req, res, next) {
+  try {
+    const [
+      summaryRes,
+      usersByRoleRes,
+      usersLast7Res,
+      usersLast30Res,
+      leadsByStatusRes,
+      leadsOverTimeRes,
+      subsByPlanRes,
+      applicationsByStatusRes,
+      countsRes,
+    ] = await Promise.all([
+      query(
+        `SELECT
+          (SELECT COUNT(*)::int FROM users) AS total_users,
+          (SELECT COUNT(*)::int FROM users WHERE role = 'user' OR role IS NULL) AS total_candidate_users,
+          (SELECT COUNT(*)::int FROM users WHERE role = 'bd') AS total_bds,
+          (SELECT COUNT(*)::int FROM subscriptions s WHERE s.status = 'active') AS active_subscriptions,
+          (SELECT COALESCE(SUM(sp.price)::numeric, 0) FROM subscriptions s JOIN subscription_plans sp ON sp.id = s.subscription_plan_id WHERE s.status = 'active') AS monthly_revenue`
+      ),
+      query(
+        `SELECT role, COUNT(*)::int AS count FROM users GROUP BY role`
+      ),
+      query(
+        `SELECT COUNT(*)::int AS count FROM users WHERE created_at >= NOW() - INTERVAL '7 days'`
+      ),
+      query(
+        `SELECT COUNT(*)::int AS count FROM users WHERE created_at >= NOW() - INTERVAL '30 days'`
+      ),
+      query(
+        `SELECT status, COUNT(*)::int AS count FROM job_assignments GROUP BY status`
+      ),
+      query(
+        `SELECT date_trunc('day', created_at)::date AS day, COUNT(*)::int AS count
+         FROM job_assignments WHERE created_at >= NOW() - INTERVAL '30 days'
+         GROUP BY date_trunc('day', created_at) ORDER BY day`
+      ),
+      query(
+        `SELECT sp.plan_id, sp.name AS plan_name, COUNT(s.id)::int AS count, COALESCE(SUM(sp.price)::numeric, 0) AS revenue
+         FROM subscription_plans sp
+         LEFT JOIN subscriptions s ON s.subscription_plan_id = sp.id AND s.status = 'active'
+         GROUP BY sp.id, sp.plan_id, sp.name, sp.price ORDER BY sp.price`
+      ),
+      query(
+        `SELECT current_status AS status, COUNT(*)::int AS count FROM applications GROUP BY current_status`
+      ),
+      query(
+        `SELECT
+          (SELECT COUNT(*)::int FROM profiles) AS total_profiles,
+          (SELECT COUNT(*)::int FROM jobs) AS total_jobs,
+          (SELECT COUNT(*)::int FROM job_assignments) AS total_leads,
+          (SELECT COUNT(*)::int FROM applications) AS total_applications`
+      ),
+    ]);
+
+    const summary = summaryRes.rows[0] || {};
+    const usersByRole = (usersByRoleRes.rows || []).reduce((acc, r) => {
+      acc[r.role || 'user'] = r.count;
+      return acc;
+    }, {});
+    const leadsByStatus = (leadsByStatusRes.rows || []).reduce((acc, r) => {
+      acc[r.status] = r.count;
+      return acc;
+    }, { pending: 0, assigned: 0, completed: 0, failed: 0 });
+    const applicationsByStatus = (applicationsByStatusRes.rows || []).reduce((acc, r) => {
+      acc[r.status] = r.count;
+      return acc;
+    }, {});
+
+    res.json({
+      summary: {
+        totalUsers: summary.total_users ?? 0,
+        totalCandidateUsers: summary.total_candidate_users ?? 0,
+        totalBds: summary.total_bds ?? 0,
+        activeSubscriptions: summary.active_subscriptions ?? 0,
+        monthlyRevenue: Number(summary.monthly_revenue ?? 0),
+      },
+      usersByRole,
+      usersCreatedLast7Days: usersLast7Res.rows[0]?.count ?? 0,
+      usersCreatedLast30Days: usersLast30Res.rows[0]?.count ?? 0,
+      leadsByStatus,
+      leadsOverTime: (leadsOverTimeRes.rows || []).map((r) => ({ date: r.day, count: r.count })),
+      subscriptionsByPlan: (subsByPlanRes.rows || []).map((r) => ({
+        plan_id: r.plan_id,
+        plan_name: r.plan_name,
+        count: r.count,
+        revenue: Number(r.revenue ?? 0),
+      })),
+      applicationsByStatus,
+      counts: {
+        totalProfiles: countsRes.rows[0]?.total_profiles ?? 0,
+        totalJobs: countsRes.rows[0]?.total_jobs ?? 0,
+        totalLeads: countsRes.rows[0]?.total_leads ?? 0,
+        totalApplications: countsRes.rows[0]?.total_applications ?? 0,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getPlansAdmin(req, res, next) {
   try {
-    res.json([]);
+    const result = await query(
+      `SELECT id, plan_id, name, price, currency, billing_interval, description, is_active, created_at
+       FROM subscription_plans ORDER BY price ASC`
+    );
+    const plans = (result.rows || []).map((row) => ({
+      _id: row.id,
+      id: row.id,
+      plan_id: row.plan_id,
+      name: row.name,
+      price: Number(row.price),
+      currency: row.currency || 'USD',
+      billing_interval: row.billing_interval || 'monthly',
+      description: row.description || '',
+      isActive: row.is_active === true,
+      created_at: row.created_at,
+    }));
+    res.json(plans);
   } catch (err) {
     next(err);
   }
@@ -236,15 +395,129 @@ export async function getPlansAdmin(req, res, next) {
 
 export async function createPlanAdmin(req, res, next) {
   try {
-    return res.status(400).json({ message: 'Plans are not configurable in the current schema' });
+    const { plan_id, name, price, currency, billing_interval, description } = req.body || {};
+    if (!plan_id || !name || price == null || price === '') {
+      return res.status(400).json({ message: 'plan_id, name, and price are required' });
+    }
+    const result = await query(
+      `INSERT INTO subscription_plans (plan_id, name, price, currency, billing_interval, description)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, plan_id, name, price, currency, billing_interval, description, is_active, created_at`,
+      [
+        String(plan_id).trim().toLowerCase().replace(/\s+/g, '_'),
+        String(name).trim(),
+        Number(price),
+        (currency && String(currency).trim()) || 'USD',
+        (billing_interval && String(billing_interval).trim()) || 'monthly',
+        description != null ? String(description).trim() : null,
+      ]
+    );
+    const row = result.rows[0];
+    res.status(201).json({
+      _id: row.id,
+      id: row.id,
+      plan_id: row.plan_id,
+      name: row.name,
+      price: Number(row.price),
+      currency: row.currency || 'USD',
+      billing_interval: row.billing_interval || 'monthly',
+      description: row.description || '',
+      isActive: row.is_active === true,
+      created_at: row.created_at,
+    });
   } catch (err) {
+    if (err.code === '23505') {
+      return res.status(400).json({ message: 'A plan with this plan_id already exists' });
+    }
     next(err);
   }
 }
 
 export async function updatePlanAdmin(req, res, next) {
   try {
-    return res.status(404).json({ message: 'Plan not found' });
+    const { id } = req.params;
+    const { name, price, currency, billing_interval, description, is_active } = req.body || {};
+    const updates = [];
+    const values = [];
+    let i = 1;
+    if (name !== undefined) {
+      updates.push(`name = $${i++}`);
+      values.push(String(name).trim());
+    }
+    if (price !== undefined) {
+      updates.push(`price = $${i++}`);
+      values.push(Number(price));
+    }
+    if (currency !== undefined) {
+      updates.push(`currency = $${i++}`);
+      values.push(String(currency).trim());
+    }
+    if (billing_interval !== undefined) {
+      updates.push(`billing_interval = $${i++}`);
+      values.push(String(billing_interval).trim());
+    }
+    if (description !== undefined) {
+      updates.push(`description = $${i++}`);
+      values.push(description === '' ? null : String(description).trim());
+    }
+    if (typeof is_active === 'boolean') {
+      updates.push(`is_active = $${i++}`);
+      values.push(is_active);
+    }
+    if (updates.length === 0) {
+      return res.status(400).json({ message: 'No fields to update' });
+    }
+    values.push(id);
+    const result = await query(
+      `UPDATE subscription_plans SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${i} RETURNING id, plan_id, name, price, currency, billing_interval, description, is_active`,
+      values
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Plan not found' });
+    }
+    const row = result.rows[0];
+    res.json({
+      _id: row.id,
+      id: row.id,
+      plan_id: row.plan_id,
+      name: row.name,
+      price: Number(row.price),
+      currency: row.currency || 'USD',
+      billing_interval: row.billing_interval || 'monthly',
+      description: row.description || '',
+      isActive: row.is_active === true,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function setUserPlan(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { plan_id } = req.body || {};
+    if (!plan_id) {
+      return res.status(400).json({ message: 'plan_id is required' });
+    }
+    const planCheck = await query('SELECT id FROM subscription_plans WHERE plan_id = $1', [plan_id]);
+    if (planCheck.rowCount === 0) {
+      return res.status(400).json({ message: 'Invalid plan_id' });
+    }
+    const result = await query(
+      `UPDATE users SET subscription_plan = $1, updated_at = NOW() WHERE id = $2
+       RETURNING id, full_name AS name, email, subscription_plan`,
+      [plan_id, id]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const row = result.rows[0];
+    res.json({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      subscription_plan: row.subscription_plan,
+    });
   } catch (err) {
     next(err);
   }

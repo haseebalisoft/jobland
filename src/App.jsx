@@ -24,9 +24,13 @@ import ProfileBuilder from './pages/ProfileBuilder'
 import Auth from './pages/Auth'
 import ResumeMaker from './pages/ResumeMaker'
 import UploadCv from './pages/UploadCv'
-import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminLayout from './pages/admin/AdminLayout'
+import AdminDashboardOverview from './pages/admin/AdminDashboardOverview'
+import AdminPlans from './pages/admin/AdminPlans'
 import AdminUsers from './pages/admin/AdminUsers'
-import AdminTemplates from './pages/admin/AdminTemplates'
+import AdminLeads from './pages/admin/AdminLeads'
+import AdminBds from './pages/admin/AdminBds'
+import AdminSubscriptions from './pages/admin/AdminSubscriptions'
 
 function App() {
   return (
@@ -74,30 +78,14 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/admin"
-            element={
-              <AdminRoute>
-                <AdminDashboard />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <AdminRoute>
-                <AdminUsers />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/templates"
-            element={
-              <AdminRoute>
-                <AdminTemplates />
-              </AdminRoute>
-            }
-          />
+          <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+            <Route index element={<AdminDashboardOverview />} />
+            <Route path="plans" element={<AdminPlans />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="leads" element={<AdminLeads />} />
+            <Route path="bds" element={<AdminBds />} />
+            <Route path="subscriptions" element={<AdminSubscriptions />} />
+          </Route>
           <Route
             path="/bd"
             element={

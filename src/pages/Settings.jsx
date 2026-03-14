@@ -17,6 +17,7 @@ export default function Settings() {
   const [email, setEmail] = useState('')
   const [createdAt, setCreatedAt] = useState('')
   const [subscription, setSubscription] = useState(null)
+  const [subscriptionPlanName, setSubscriptionPlanName] = useState('')
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -32,6 +33,7 @@ export default function Settings() {
         setEmail(u.email || '')
         setCreatedAt(u.created_at || '')
         setSubscription(sub)
+        setSubscriptionPlanName(u.subscription_plan_name || '')
       })
       .catch((err) => {
         setMessage(err.response?.data?.message || 'Failed to load settings')
@@ -111,7 +113,12 @@ export default function Settings() {
     }
   }
 
-  const currentPlan = subscription?.plan_id || user.subscription_plan || 'free'
+  const currentPlan =
+    subscriptionPlanName ||
+    subscription?.plan_name ||
+    subscription?.plan_id ||
+    user.subscription_plan ||
+    'Free Plan'
   const subscriptionStatus = subscription?.status || (user.isActive ? 'active' : 'inactive')
   const renewDate = subscription?.current_period_end
     ? new Date(subscription.current_period_end).toLocaleDateString()

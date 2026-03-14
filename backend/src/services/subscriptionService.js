@@ -14,23 +14,32 @@ const PLAN_CONFIG = {
       process.env.STRIPE_PRICE_PROFESSIONAL_RESUME_ID ||
       'price_test_professional_resume',
   },
-  starter_pack: {
-    id: 'starter_pack',
+  starter: {
+    id: 'starter',
     name: 'Starter Pack',
-    mode: 'payment',
-    priceId: process.env.STRIPE_PRICE_STARTER_PACK_ID || 'price_test_starter_pack',
+    mode: 'subscription',
+    priceId:
+      process.env.STRIPE_PRICE_STARTER_ID ||
+      process.env.STRIPE_PRICE_STARTER_PACK_ID ||
+      'price_test_starter',
   },
-  success_pack: {
-    id: 'success_pack',
+  success: {
+    id: 'success',
     name: 'Success Pack',
-    mode: 'payment',
-    priceId: process.env.STRIPE_PRICE_SUCCESS_PACK_ID || 'price_test_success_pack',
+    mode: 'subscription',
+    priceId:
+      process.env.STRIPE_PRICE_SUCCESS_ID ||
+      process.env.STRIPE_PRICE_SUCCESS_PACK_ID ||
+      'price_test_success',
   },
-  elite_pack: {
-    id: 'elite_pack',
+  elite: {
+    id: 'elite',
     name: 'Elite Pack',
-    mode: 'payment',
-    priceId: process.env.STRIPE_PRICE_ELITE_PACK_ID || 'price_test_elite_pack',
+    mode: 'subscription',
+    priceId:
+      process.env.STRIPE_PRICE_ELITE_ID ||
+      process.env.STRIPE_PRICE_ELITE_PACK_ID ||
+      'price_test_elite',
   },
 };
 
@@ -50,7 +59,7 @@ function getPlanConfig(planId) {
   const plan = PLAN_CONFIG[planId];
   if (!plan) {
     const err = new Error(
-      'Invalid plan selected. Use one of: professional_resume, starter_pack, success_pack, elite_pack',
+      'Invalid plan selected. Use one of: professional_resume, starter, success, elite',
     );
     err.statusCode = 400;
     throw err;

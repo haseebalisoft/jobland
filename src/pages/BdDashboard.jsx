@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { BarChart2, Briefcase, CheckCircle, Clock, ExternalLink, Filter, LogOut, Search, Users, Lock } from 'lucide-react'
 import api from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import './BdDashboard.css'
 
 const RANGE_OPTIONS = [
   { value: 'today', label: 'Today' },
@@ -15,19 +17,18 @@ const RANGE_OPTIONS = [
 const STATUS_OPTIONS = ['pending', 'assigned', 'completed', 'failed']
 
 const theme = {
-  primary: '#0d9488',
-  primaryDark: '#0f766e',
-  cyan: '#06b6d4',
-  teal: '#14b8a6',
-  slate: '#0f172a',
-  slateLight: '#1e293b',
-  bg: '#f0fdfa',
+  primary: '#10B981',
+  blue: '#2563EB',
+  violet: '#7C3AED',
+  slate: '#0F172A',
+  slateLight: '#1E293B',
+  bg: '#F1F5F9',
   cardBg: '#ffffff',
-  border: '#ccfbf1',
-  amber: '#f59e0b',
-  rose: '#f43f5e',
-  text: '#0f172a',
-  textMuted: '#64748b',
+  border: '#E2E8F0',
+  amber: '#F59E0B',
+  rose: '#F43F5E',
+  text: '#0F172A',
+  textMuted: '#64748B',
 }
 
 export default function BdDashboard() {
@@ -102,8 +103,20 @@ export default function BdDashboard() {
 
   if (user.role !== 'bd' && user.role !== 'admin') {
     return (
-      <div style={{ padding: 40 }}>
-        This BD dashboard is only available for BD or admin roles.
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: theme.bg,
+        color: theme.text,
+        fontFamily: 'var(--font-primary), system-ui, sans-serif',
+        padding: 40,
+        textAlign: 'center',
+      }}>
+        <p style={{ margin: 0, fontSize: 16, color: theme.textMuted }}>
+          This BD dashboard is only available for BD or admin roles.
+        </p>
       </div>
     )
   }
@@ -165,10 +178,10 @@ export default function BdDashboard() {
   return (
     <div style={styles.layout}>
       <aside style={styles.sidebar}>
-        <div style={styles.logo}>
-          <div style={styles.logoIcon}></div>
-          HiredLogics
-        </div>
+        <Link to="/" style={styles.logo}>
+          <img src="/logo.png" alt="HiredLogics" style={styles.logoImg} />
+          <span style={styles.logoText}>HiredLogics</span>
+        </Link>
         <div style={styles.logoSub}>BD Portal</div>
         <div style={styles.userEmail}>
           <span style={styles.userEmailLabel}>Logged in as</span>
@@ -181,7 +194,7 @@ export default function BdDashboard() {
           </div>
         </div>
         <div style={styles.sidebarFooter}>
-          <button type="button" onClick={async () => {
+          <button type="button" className="bd-sidebar-btn" onClick={async () => {
             const current_password = window.prompt('Enter your current password:');
             if (!current_password) return;
             const new_password = window.prompt('Enter your new password (min 6 chars):');
@@ -196,7 +209,7 @@ export default function BdDashboard() {
             <Lock size={18} />
             Change password
           </button>
-          <button type="button" onClick={logout} style={styles.sidebarBtn}>
+          <button type="button" className="bd-sidebar-btn" onClick={logout} style={styles.sidebarBtn}>
             <LogOut size={18} />
             Logout
           </button>
@@ -227,8 +240,8 @@ export default function BdDashboard() {
           <section style={styles.statsGrid}>
             <StatCard icon={<Briefcase />} label="Total leads" value={stats.total} accent={theme.primary} />
             <StatCard icon={<Clock />} label="Pending" value={stats.byStatus.pending || 0} accent={theme.amber} />
-            <StatCard icon={<CheckCircle />} label="Assigned" value={stats.byStatus.assigned || 0} accent={theme.teal} />
-            <StatCard icon={<Users />} label="Completed" value={stats.byStatus.completed || 0} accent={theme.cyan} />
+            <StatCard icon={<CheckCircle />} label="Assigned" value={stats.byStatus.assigned || 0} accent={theme.primary} />
+            <StatCard icon={<Users />} label="Completed" value={stats.byStatus.completed || 0} accent={theme.blue} />
             <StatCard icon={<Briefcase />} label="Failed" value={stats.byStatus.failed || 0} accent={theme.rose} />
           </section>
 
@@ -238,13 +251,13 @@ export default function BdDashboard() {
               <div style={{ padding: 12 }}>Loading assigned users…</div>
             ) : myUsers.length === 0 ? (
               <div style={styles.emptyCard}>
-                <p style={{ margin: 0, fontSize: 14, color: 'var(--gray)' }}>
+                <p style={{ margin: 0, fontSize: 14, color: theme.textMuted }}>
                   No profiles assigned to you yet. Ask an admin to assign users to you from the Admin Dashboard.
                 </p>
               </div>
             ) : (
               <div style={styles.tableWrapper}>
-                <table style={styles.table}>
+                <table className="bd-table" style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
                       <th style={styles.tableHeaderCell}>User</th>
@@ -314,11 +327,13 @@ export default function BdDashboard() {
                     disabled={myUsersLoading}
                     style={{
                       padding: '8px 14px',
-                      borderRadius: 8,
-                      border: '1px solid var(--gray-border)',
-                      background: myUsersLoading ? '#f3f4f6' : '#fff',
+                      borderRadius: 10,
+                      border: `1px solid ${theme.border}`,
+                      background: myUsersLoading ? theme.bg : theme.cardBg,
+                      color: theme.text,
                       cursor: myUsersLoading ? 'default' : 'pointer',
                       fontSize: 13,
+                      fontWeight: 600,
                       opacity: myUsersLoading ? 0.7 : 1,
                     }}
                   >
@@ -326,7 +341,7 @@ export default function BdDashboard() {
                   </button>
                 </div>
                 {myUsers.length === 0 && (
-                  <p style={{ margin: 0, fontSize: 13, color: 'var(--gray)' }}>
+                  <p style={{ margin: 0, fontSize: 13, color: theme.textMuted }}>
                     No users assigned to you yet. Ask an admin to assign users to you from the Admin Dashboard (Users → Assign BD), then click Refresh list.
                   </p>
                 )}
@@ -336,7 +351,7 @@ export default function BdDashboard() {
                   </p>
                 )}
               </div>
-              <button type="submit" disabled={creating} style={styles.primaryBtn}>
+              <button type="submit" disabled={creating} className="bd-primary-btn" style={styles.primaryBtn}>
                 {creating ? 'Creating...' : 'Add lead'}
               </button>
             </form>
@@ -346,7 +361,7 @@ export default function BdDashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h2 style={styles.sectionTitle}>Your leads</h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <Filter size={16} color="var(--gray)" />
+                <Filter size={16} style={{ color: theme.textMuted }} />
                 <select
                   value={range}
                   onChange={(e) => setRange(e.target.value)}
@@ -365,13 +380,13 @@ export default function BdDashboard() {
               <div style={{ padding: 24 }}>Loading leads...</div>
             ) : leads.length === 0 ? (
               <div style={styles.emptyCard}>
-                <p style={{ margin: 0, color: 'var(--gray)' }}>
+                <p style={{ margin: 0, color: theme.textMuted }}>
                   No leads in this range. Try a different filter or create a new lead above.
                 </p>
               </div>
             ) : (
               <div style={styles.tableWrapper}>
-                <table style={styles.table}>
+                <table className="bd-table" style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
                       <th style={styles.tableHeaderCell}>Job</th>
@@ -413,12 +428,14 @@ export default function BdDashboard() {
                                 href={lead.job_link}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                className="bd-link-btn"
                                 style={styles.linkBtn}
+                                title="Open job link"
                               >
                                 <ExternalLink size={14} /> Open
                               </a>
                             ) : (
-                              <span style={{ color: 'var(--gray-light)', fontSize: 13 }}>N/A</span>
+                              <span style={{ color: theme.textMuted, fontSize: 13 }}>N/A</span>
                             )}
                           </td>
                         </tr>
@@ -437,7 +454,7 @@ export default function BdDashboard() {
 
 function StatCard({ icon, label, value, accent }) {
   return (
-    <div style={styles.statCard}>
+    <div className="bd-stat-card" style={styles.statCard}>
       <div style={{ ...styles.statIcon, background: `${accent}20`, color: accent }}>{icon}</div>
       <div>
         <div style={styles.statNumber}>{value}</div>
@@ -452,43 +469,49 @@ const styles = {
     display: 'flex',
     minHeight: '100vh',
     background: theme.bg,
-    fontFamily: 'var(--font-primary)',
+    fontFamily: 'var(--font-primary), system-ui, sans-serif',
   },
   sidebar: {
     width: '260px',
-    background: `linear-gradient(180deg, ${theme.slate} 0%, ${theme.slateLight} 100%)`,
+    background: theme.slate,
     padding: '24px',
     display: 'flex',
     flexDirection: 'column',
-    boxShadow: '4px 0 24px rgba(0,0,0,0.06)',
+    boxShadow: '4px 0 24px rgba(15, 23, 42, 0.12)',
+    borderRight: `1px solid ${theme.slateLight}`,
   },
   logo: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
-    fontSize: '20px',
-    fontWeight: '700',
+    gap: '12px',
+    textDecoration: 'none',
     color: '#fff',
     marginBottom: '4px',
   },
+  logoImg: {
+    width: 36,
+    height: 36,
+    objectFit: 'contain',
+    borderRadius: 8,
+  },
+  logoText: {
+    fontSize: '18px',
+    fontWeight: 700,
+    color: '#fff',
+    letterSpacing: '-0.02em',
+  },
   logoSub: {
     fontSize: '11px',
-    fontWeight: '600',
-    color: theme.teal,
-    letterSpacing: '0.05em',
+    fontWeight: 600,
+    color: theme.primary,
+    letterSpacing: '0.06em',
     marginBottom: '28px',
-  },
-  logoIcon: {
-    width: '32px',
-    height: '32px',
-    background: `linear-gradient(135deg, ${theme.teal} 0%, ${theme.cyan} 100%)`,
-    borderRadius: '8px',
-    boxShadow: '0 4px 12px rgba(20, 184, 166, 0.4)',
+    textTransform: 'uppercase',
   },
   userEmail: {
     marginBottom: 24,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.72)',
   },
   userEmailLabel: { fontWeight: 400, marginRight: 4 },
   nav: { display: 'flex', flexDirection: 'column', gap: 6 },
@@ -497,11 +520,12 @@ const styles = {
     alignItems: 'center',
     gap: 10,
     padding: '12px 14px',
-    borderRadius: 10,
+    borderRadius: 12,
     fontSize: 14,
     fontWeight: 600,
-    background: 'rgba(20, 184, 166, 0.2)',
-    color: theme.teal,
+    background: 'rgba(16, 185, 129, 0.18)',
+    color: theme.primary,
+    border: '1px solid rgba(16, 185, 129, 0.3)',
   },
   sidebarFooter: {
     marginTop: 'auto',
@@ -514,16 +538,17 @@ const styles = {
     alignItems: 'center',
     gap: 10,
     padding: '10px 14px',
-    borderRadius: 10,
+    borderRadius: 12,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.85)',
+    color: 'rgba(255,255,255,0.88)',
     background: 'transparent',
-    border: 'none',
+    border: '1px solid transparent',
     width: '100%',
     textAlign: 'left',
     cursor: 'pointer',
+    transition: 'background 0.2s, color 0.2s',
   },
-  main: { flex: 1, display: 'flex', flexDirection: 'column' },
+  main: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 },
   header: {
     height: 72,
     background: theme.cardBg,
@@ -532,13 +557,14 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '0 32px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
   },
   searchBar: {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    background: '#f0fdfa',
-    padding: '10px 18px',
+    background: theme.bg,
+    padding: '12px 18px',
     borderRadius: 12,
     width: 280,
     border: `1px solid ${theme.border}`,
@@ -556,10 +582,10 @@ const styles = {
   profileName: { display: 'block', fontSize: 14, fontWeight: 600, color: theme.text },
   profileRole: { fontSize: 12, color: theme.textMuted },
   avatar: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: '50%',
-    background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.teal} 100%)`,
+    background: `linear-gradient(135deg, ${theme.blue} 0%, ${theme.primary} 100%)`,
     color: '#fff',
     display: 'flex',
     alignItems: 'center',
@@ -569,10 +595,11 @@ const styles = {
   },
   content: {
     padding: '32px 32px 48px',
-    maxWidth: 1200,
+    maxWidth: 1280,
+    width: '100%',
   },
   welcome: {
-    fontSize: '28px',
+    fontSize: '26px',
     fontWeight: 800,
     color: theme.text,
     marginBottom: 8,
@@ -582,21 +609,23 @@ const styles = {
     color: theme.textMuted,
     fontSize: 15,
     marginBottom: 28,
+    lineHeight: 1.5,
   },
   statsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(5, 1fr)',
-    gap: 16,
+    gap: 18,
   },
   statCard: {
     background: theme.cardBg,
-    padding: 20,
+    padding: 22,
     borderRadius: 16,
     border: `1px solid ${theme.border}`,
-    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+    boxShadow: '0 2px 8px rgba(15, 23, 42, 0.06)',
     display: 'flex',
     alignItems: 'center',
     gap: 16,
+    transition: 'box-shadow 0.2s, border-color 0.2s',
   },
   statIcon: {
     width: 48,
@@ -615,36 +644,40 @@ const styles = {
   },
   statLabel: { color: theme.textMuted, fontSize: 13, fontWeight: 500 },
   input: {
-    borderRadius: 10,
+    borderRadius: 12,
     border: `1px solid ${theme.border}`,
-    padding: '10px 14px',
+    padding: '12px 16px',
     fontSize: 14,
     background: theme.cardBg,
+    color: theme.text,
   },
   primaryBtn: {
-    padding: '10px 20px',
-    borderRadius: 10,
+    padding: '12px 22px',
+    borderRadius: 12,
     border: 'none',
-    background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.teal} 100%)`,
+    background: theme.primary,
     color: '#fff',
     fontSize: 14,
     fontWeight: 600,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     boxShadow: `0 4px 14px ${theme.primary}40`,
+    transition: 'background 0.2s, box-shadow 0.2s',
   },
   select: {
-    borderRadius: 10,
+    borderRadius: 12,
     border: `1px solid ${theme.border}`,
-    padding: '8px 14px',
+    padding: '10px 14px',
     fontSize: 13,
     background: theme.cardBg,
+    color: theme.text,
   },
   emptyCard: {
     background: theme.cardBg,
     borderRadius: 16,
     border: `1px solid ${theme.border}`,
-    padding: 24,
+    padding: 28,
+    boxShadow: '0 2px 8px rgba(15, 23, 42, 0.06)',
   },
   tableWrapper: {
     marginTop: 8,
@@ -652,7 +685,7 @@ const styles = {
     border: `1px solid ${theme.border}`,
     overflow: 'hidden',
     background: theme.cardBg,
-    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+    boxShadow: '0 2px 8px rgba(15, 23, 42, 0.06)',
   },
   table: {
     width: '100%',
@@ -660,24 +693,26 @@ const styles = {
     fontSize: 14,
   },
   statusSelect: {
-    borderRadius: 8,
+    borderRadius: 10,
     border: `1px solid ${theme.border}`,
-    padding: '6px 10px',
+    padding: '8px 12px',
     fontSize: 13,
     background: theme.cardBg,
+    color: theme.text,
   },
   linkBtn: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 6,
     padding: '8px 14px',
-    borderRadius: 8,
-    border: `1px solid ${theme.teal}`,
-    background: 'rgba(20, 184, 166, 0.08)',
+    borderRadius: 10,
+    border: `1px solid ${theme.primary}`,
+    background: 'rgba(16, 185, 129, 0.08)',
     color: theme.primary,
     textDecoration: 'none',
     fontSize: 13,
     fontWeight: 600,
+    transition: 'background 0.2s, border-color 0.2s',
   },
   sectionTitle: {
     fontSize: 18,
@@ -687,15 +722,15 @@ const styles = {
     margin: 0,
   },
   tableHeaderRow: {
-    background: `linear-gradient(90deg, ${theme.slate} 0%, ${theme.slateLight} 100%)`,
+    background: theme.slateLight,
   },
   tableHeaderCell: {
     textAlign: 'left',
-    padding: '14px 16px',
+    padding: '14px 18px',
     fontSize: 12,
     fontWeight: 600,
     color: 'rgba(255,255,255,0.95)',
-    letterSpacing: '0.03em',
+    letterSpacing: '0.04em',
   },
 }
 

@@ -103,7 +103,10 @@ export default function Dashboard() {
             .slice(0, 2)
             .toUpperCase() || 'U'
     const currentPlanLabel =
-        subscription?.plan_id || summary.user.subscription_plan || 'No active plan'
+        summary.user.subscription_plan_name ||
+        subscription?.plan_name ||
+        summary.user.subscription_plan ||
+        'No active plan'
     const renewLabel = subscription?.current_period_end
         ? new Date(subscription.current_period_end).toLocaleDateString()
         : 'N/A'
