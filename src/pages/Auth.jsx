@@ -28,7 +28,7 @@ const Auth = () => {
         }}
       >
         <h1 style={{ fontSize: '1.875rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-          Welcome to Hiredlogic
+          Welcome to HiredLogics
         </h1>
         <p style={{ fontSize: '0.95rem', color: '#9ca3af', marginBottom: '1.75rem' }}>
           Choose how you want to continue.

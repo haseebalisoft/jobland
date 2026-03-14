@@ -32,7 +32,7 @@ export default function BdLogin() {
         <div style={styles.header}>
           <Link to="/" style={styles.logo}>
             <div style={styles.logoIcon}></div>
-            Hiredlogic · BD Portal
+            HiredLogics · BD Portal
           </Link>
           <div style={styles.badge}>BD only</div>
           <h2 style={styles.title}>BD Portal</h2>

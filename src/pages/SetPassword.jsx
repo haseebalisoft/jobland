@@ -55,7 +55,7 @@ export default function SetPassword() {
                 <div style={styles.header}>
                     <Link to="/" style={styles.logo}>
                         <div style={styles.logoIcon}></div>
-                        Hiredlogic
+                        HiredLogics
                     </Link>
                     <h2 style={styles.title}>Set your password</h2>
                     <p style={styles.subtitle}>

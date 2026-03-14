@@ -202,7 +202,7 @@ const Onboarding = () => {
                         <ChevronRight />
                     </div>
                     <div>
-                        <div className="logo-text">Hiredlogic</div>
+                        <div className="logo-text">HiredLogics</div>
                         <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Your AI Copilot</div>
                     </div>
                 </div>
@@ -221,7 +221,7 @@ const Onboarding = () => {
                             exit={{ opacity: 0, x: -20 }}
                             className="orion-card"
                         >
-                            <h1>Hi, I'm Hiredlogic, your AI Copilot for job search.</h1>
+                            <h1>Hi, I'm HiredLogics, your AI Copilot for job search.</h1>
                             <p className="subheading">To get started, what type of role are you looking for?</p>
 
                             <div style={{ marginBottom: '32px', position: 'relative' }}>

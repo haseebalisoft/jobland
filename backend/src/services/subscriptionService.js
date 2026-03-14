@@ -79,7 +79,7 @@ function deriveFullName(fullName, email) {
     .replace(/\s+/g, ' ')
     .trim();
 
-  return localPart || 'JobLand User';
+  return localPart || 'HiredLogics User';
 }
 
 function queuePasswordSetupEmail(userId) {

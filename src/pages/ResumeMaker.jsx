@@ -10,8 +10,31 @@ import {
     RefreshCw, FileText, Minus, Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import API from '../api';
+import api from '../services/api';
 import debounce from 'lodash.debounce';
+
+const emptyProfile = () => ({
+    personal: { fullName: '', email: '', phone: '', location: '' },
+    professional: { currentTitle: '', summary: '', skills: [], workExperience: [] },
+    education: [],
+    links: { linkedin: '', github: '', portfolio: '' }
+});
+
+function normalizeProfile(data) {
+    if (!data) return emptyProfile();
+    return {
+        personal: { ...emptyProfile().personal, ...(data.personal || {}) },
+        professional: {
+            ...emptyProfile().professional,
+            ...(data.professional || {}),
+            skills: Array.isArray(data.professional?.skills) ? data.professional.skills : [],
+            workExperience: Array.isArray(data.professional?.workExperience) ? data.professional.workExperience : []
+        },
+        education: Array.isArray(data.education) ? data.education : [],
+        links: { ...emptyProfile().links, ...(data.links || {}) }
+    };
+}
+
 import './ResumeMaker.css';
 
 const ResumeMaker = () => {
@@ -54,7 +77,7 @@ const ResumeMaker = () => {
     const saveProfile = async (updatedProfile) => {
         setSaveStatus('Saving...');
         try {
-            await API.post('/profile', updatedProfile);
+            await api.post('/cv/profile', updatedProfile);
             setSaveStatus('Saved ✓');
         } catch (err) {
             console.error('Save failed:', err);
@@ -71,12 +94,7 @@ const ResumeMaker = () => {
         if (!currentProfile) return;
         setPreviewLoading(true);
         try {
-            const response = await API.post('/cv/download', {
-                profile: currentProfile,
-                templateId: selectedTemplate,
-                customization
-            }, { responseType: 'blob' });
-
+            const response = await api.post('/cv/download', { profile: currentProfile }, { responseType: 'blob' });
             if (previewUrl) window.URL.revokeObjectURL(previewUrl);
             const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
             setPreviewUrl(url);
@@ -100,15 +118,16 @@ const ResumeMaker = () => {
     const fetchData = async () => {
         try {
             const [profileRes, templatesRes] = await Promise.all([
-                API.get('/profile'),
-                API.get('/cv/templates')
+                api.get('/cv/profile'),
+                api.get('/cv/templates')
             ]);
-            const data = profileRes.data.profile || profileRes.data;
-            setProfile(data);
-            setTemplates(templatesRes.data);
+            setProfile(normalizeProfile(profileRes.data));
+            setTemplates(templatesRes.data || []);
             setLoading(false);
         } catch (err) {
             console.error('Fetch error:', err);
+            setProfile(emptyProfile());
+            setTemplates([{ id: 'classic', name: 'Classic' }, { id: 'modern', name: 'Modern' }]);
             setLoading(false);
         }
     };
@@ -116,7 +135,7 @@ const ResumeMaker = () => {
     const handleAIImproveSummary = async () => {
         setSaveStatus('AI Enhancing...');
         try {
-            const res = await API.post('/cv/improve-summary', {
+            const res = await api.post('/cv/improve-summary', {
                 summary: profile.professional.summary,
                 role: profile.professional.currentTitle
             });
@@ -131,7 +150,7 @@ const ResumeMaker = () => {
     const handleAIImproveExperience = async (index) => {
         setSaveStatus('AI Enhancing...');
         try {
-            const res = await API.post('/cv/optimize-experience', {
+            const res = await api.post('/cv/optimize-experience', {
                 description: profile.professional.workExperience[index].description,
                 role: profile.professional.workExperience[index].role
             });
@@ -148,12 +167,12 @@ const ResumeMaker = () => {
         setIsAnalyzing(true);
         setSaveStatus('Optimizing Full Resume...');
         try {
-            const res = await API.post('/cv/optimize-full-resume', { profile, jd });
+            const res = await api.post('/cv/optimize-full-resume', { profile, jd });
             setAnalyzedData(res.data);
             setSaveStatus('Optimization Ready ✓');
         } catch (err) {
             console.error('Full Optimization Error:', err);
-            alert("Analysis failed. Please check your Groq API key.");
+            alert(err.response?.data?.error || "Analysis failed. Check GROQ_API_KEY in backend.");
         } finally {
             setIsAnalyzing(false);
         }
@@ -173,16 +192,11 @@ const ResumeMaker = () => {
     const handleDownload = async () => {
         setDownloading(true);
         try {
-            const response = await API.post('/cv/download', {
-                profile,
-                templateId: selectedTemplate,
-                customization
-            }, { responseType: 'blob' });
-
+            const response = await api.post('/cv/download', { profile }, { responseType: 'blob' });
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `Resume_${profile.personal.fullName.replace(/\s+/g, '_')}.pdf`);
+            link.setAttribute('download', `Resume_${(profile.personal?.fullName || 'Resume').replace(/\s+/g, '_')}.pdf`);
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -343,6 +357,10 @@ const ResumeMaker = () => {
                                         </div>
 
                                         <EditorField label="Location" value={profile.personal.location} onChange={v => updateProfile('personal', 'location', v)} />
+                                        <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginTop: '8px', marginBottom: '4px' }}>Links</div>
+                                        <EditorField label="LinkedIn" value={profile.links?.linkedin || ''} onChange={v => updateProfile('links', 'linkedin', v)} />
+                                        <EditorField label="GitHub" value={profile.links?.github || ''} onChange={v => updateProfile('links', 'github', v)} />
+                                        <EditorField label="Portfolio" value={profile.links?.portfolio || ''} onChange={v => updateProfile('links', 'portfolio', v)} />
                                     </div>
                                 </div>
 
@@ -406,6 +424,32 @@ const ResumeMaker = () => {
                                             style={{ width: '100%', justifyContent: 'center', background: 'white', color: '#64748b', border: '1px dashed #cbd5e1', boxShadow: 'none' }}
                                         >
                                             <Plus size={16} /> Add Experience
+                                        </button>
+                                    </AccordionItem>
+
+                                    <AccordionItem
+                                        title="Education"
+                                        icon={<GraduationCap size={18} />}
+                                        isOpen={expandedSection === 'Education'}
+                                        onClick={() => setExpandedSection(expandedSection === 'Education' ? '' : 'Education')}
+                                    >
+                                        {(profile.education || []).map((edu, i) => (
+                                            <div key={i} style={{ marginBottom: '1.5rem', padding: '1.25rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#0d9488' }}>ENTRY #{i + 1}</span>
+                                                    <Trash2 size={14} onClick={() => { const newEdu = (profile.education || []).filter((_, idx) => idx !== i); setProfile({ ...profile, education: newEdu }); saveProfile({ ...profile, education: newEdu }); }} style={{ color: '#94a3b8', cursor: 'pointer' }} />
+                                                </div>
+                                                <EditorField label="Degree" value={edu.degree} onChange={v => updateProfile('education', 'degree', v, i)} />
+                                                <EditorField label="Institution" value={edu.institution} onChange={v => updateProfile('education', 'institution', v, i)} />
+                                                <EditorField label="Period / Year" value={edu.period || edu.year || ''} onChange={v => updateProfile('education', 'period', v, i)} />
+                                            </div>
+                                        ))}
+                                        <button
+                                            onClick={() => { const newEdu = [...(profile.education || []), { degree: '', institution: '', year: '', period: '' }]; setProfile({ ...profile, education: newEdu }); saveProfile({ ...profile, education: newEdu }); }}
+                                            className="rb-btn-primary"
+                                            style={{ width: '100%', justifyContent: 'center', background: 'white', color: '#64748b', border: '1px dashed #cbd5e1', boxShadow: 'none' }}
+                                        >
+                                            <Plus size={16} /> Add Education
                                         </button>
                                     </AccordionItem>
 

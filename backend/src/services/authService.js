@@ -466,9 +466,9 @@ export async function sendPasswordSetupEmail({ userId }) {
 
   await sendEmail({
     to: row.email,
-    subject: 'Set your JobLand password',
+    subject: 'Set your HiredLogics password',
     html: `<p>Hi ${row.full_name || 'there'},</p>
-           <p>Your JobLand account was created after your successful Stripe checkout.</p>
+           <p>Your HiredLogics account was created after your successful Stripe checkout.</p>
            <p>Please set your password to access your dashboard:</p>
            <p><a href="${setupUrl}">Set Password</a></p>
            <p>If you already have an account with this email, you can ignore this message and sign in normally.</p>`,
@@ -741,7 +741,7 @@ export async function completeSignupWithPassword({ verificationToken, password }
         VALUES ($1, $2, $3, $4, true, 'free', true)
         RETURNING id, full_name, email, role, is_verified, subscription_plan, is_active
       `,
-      [normalizedEmail.split('@')[0] || 'JobLand User', normalizedEmail, passwordHash, role],
+      [normalizedEmail.split('@')[0] || 'HiredLogics User', normalizedEmail, passwordHash, role],
     );
     userRow = insertRes.rows[0];
   }

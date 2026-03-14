@@ -14,6 +14,22 @@ const RANGE_OPTIONS = [
 // job_assignments.status enum in 001_initial: pending, assigned, completed, failed
 const STATUS_OPTIONS = ['pending', 'assigned', 'completed', 'failed']
 
+const theme = {
+  primary: '#0d9488',
+  primaryDark: '#0f766e',
+  cyan: '#06b6d4',
+  teal: '#14b8a6',
+  slate: '#0f172a',
+  slateLight: '#1e293b',
+  bg: '#f0fdfa',
+  cardBg: '#ffffff',
+  border: '#ccfbf1',
+  amber: '#f59e0b',
+  rose: '#f43f5e',
+  text: '#0f172a',
+  textMuted: '#64748b',
+}
+
 export default function BdDashboard() {
   const { user, logout } = useAuth()
   const [range, setRange] = useState('7days')
@@ -151,58 +167,36 @@ export default function BdDashboard() {
       <aside style={styles.sidebar}>
         <div style={styles.logo}>
           <div style={styles.logoIcon}></div>
-          BD Portal
+          HiredLogics
         </div>
-        <div style={{ marginBottom: 24, fontSize: 13, color: 'var(--gray)' }}>
-          Logged in as <strong>{user.email}</strong>
+        <div style={styles.logoSub}>BD Portal</div>
+        <div style={styles.userEmail}>
+          <span style={styles.userEmailLabel}>Logged in as</span>
+          <strong>{user.email}</strong>
         </div>
         <div style={styles.nav}>
-          <div style={{ ...styles.navItem, background: 'rgba(79,70,229,0.06)', color: 'var(--primary)', fontWeight: 600 }}>
+          <div style={styles.navItemActive}>
             <BarChart2 size={18} />
             Leads dashboard
           </div>
         </div>
-        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <button
-            type="button"
-            onClick={async () => {
-              const current_password = window.prompt('Enter your current password:');
-              if (!current_password) return;
-              const new_password = window.prompt('Enter your new password (min 6 chars):');
-              if (!new_password) return;
-              try {
-                await api.put('/settings/password', { current_password, new_password });
-                alert('Password updated successfully.');
-              } catch (e) {
-                alert(e.response?.data?.message || 'Failed to update password');
-              }
-            }}
-            style={{
-              ...styles.navItem,
-              color: 'var(--gray)',
-              background: 'transparent',
-              border: 'none',
-              width: '100%',
-              textAlign: 'left',
-              cursor: 'pointer',
-            }}
-          >
+        <div style={styles.sidebarFooter}>
+          <button type="button" onClick={async () => {
+            const current_password = window.prompt('Enter your current password:');
+            if (!current_password) return;
+            const new_password = window.prompt('Enter your new password (min 6 chars):');
+            if (!new_password) return;
+            try {
+              await api.put('/settings/password', { current_password, new_password });
+              alert('Password updated successfully.');
+            } catch (e) {
+              alert(e.response?.data?.message || 'Failed to update password');
+            }
+          }} style={styles.sidebarBtn}>
             <Lock size={18} />
             Change password
           </button>
-          <button
-            type="button"
-            onClick={logout}
-            style={{
-              ...styles.navItem,
-              color: 'var(--gray)',
-              background: 'transparent',
-              border: 'none',
-              width: '100%',
-              textAlign: 'left',
-              cursor: 'pointer',
-            }}
-          >
+          <button type="button" onClick={logout} style={styles.sidebarBtn}>
             <LogOut size={18} />
             Logout
           </button>
@@ -212,60 +206,34 @@ export default function BdDashboard() {
       <main style={styles.main}>
         <header style={styles.header}>
           <div style={styles.searchBar}>
-            <Search size={18} color="var(--gray-light)" />
-            <input type="text" placeholder="Search leads (client-side soon)" style={styles.searchInput} disabled />
+            <Search size={18} style={{ color: '#94a3b8', flexShrink: 0 }} />
+            <input type="text" placeholder="Search leads…" style={styles.searchInput} disabled />
           </div>
           <div style={styles.profileArea}>
-            <div style={{ textAlign: 'right', marginRight: 12 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{user.name || 'BD'}</div>
-              <div style={{ fontSize: 12, color: 'var(--gray)' }}>Role: {user.role}</div>
+            <div style={styles.profileText}>
+              <span style={styles.profileName}>{user.name || 'BD'}</span>
+              <span style={styles.profileRole}>{user.role}</span>
             </div>
             <div style={styles.avatar}>{initials}</div>
           </div>
         </header>
 
         <div style={styles.content}>
-          <h1 style={styles.welcome}>BD lead dashboard</h1>
+          <h1 style={styles.welcome}>Lead dashboard</h1>
           <p style={styles.subtitle}>
-            Create leads, track assignments, and monitor your funnel. This view uses the same backend APIs as the admin
-            panel.
+            Create leads, assign to users, and track status. All data syncs with the admin panel.
           </p>
 
           <section style={styles.statsGrid}>
-            <StatCard
-              icon={<Briefcase />}
-              label="Total leads"
-              value={stats.total}
-              accent="#4F46E5"
-            />
-            <StatCard
-              icon={<Clock />}
-              label="Pending"
-              value={stats.byStatus.pending || 0}
-              accent="#F59E0B"
-            />
-            <StatCard
-              icon={<CheckCircle />}
-              label="Assigned"
-              value={stats.byStatus.assigned || 0}
-              accent="#22C55E"
-            />
-            <StatCard
-              icon={<Users />}
-              label="Completed"
-              value={stats.byStatus.completed || 0}
-              accent="#0EA5E9"
-            />
-            <StatCard
-              icon={<Briefcase />}
-              label="Failed"
-              value={stats.byStatus.failed || 0}
-              accent="#EF4444"
-            />
+            <StatCard icon={<Briefcase />} label="Total leads" value={stats.total} accent={theme.primary} />
+            <StatCard icon={<Clock />} label="Pending" value={stats.byStatus.pending || 0} accent={theme.amber} />
+            <StatCard icon={<CheckCircle />} label="Assigned" value={stats.byStatus.assigned || 0} accent={theme.teal} />
+            <StatCard icon={<Users />} label="Completed" value={stats.byStatus.completed || 0} accent={theme.cyan} />
+            <StatCard icon={<Briefcase />} label="Failed" value={stats.byStatus.failed || 0} accent={theme.rose} />
           </section>
 
-          <section style={{ marginTop: 24, marginBottom: 24 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Assigned profiles</h2>
+          <section style={{ marginTop: 28, marginBottom: 28 }}>
+            <h2 style={styles.sectionTitle}>Assigned profiles</h2>
             {myUsersLoading ? (
               <div style={{ padding: 12 }}>Loading assigned users…</div>
             ) : myUsers.length === 0 ? (
@@ -278,10 +246,10 @@ export default function BdDashboard() {
               <div style={styles.tableWrapper}>
                 <table style={styles.table}>
                   <thead>
-                    <tr>
-                      <th>User</th>
-                      <th>Email</th>
-                      <th>Primary profile title</th>
+                    <tr style={styles.tableHeaderRow}>
+                      <th style={styles.tableHeaderCell}>User</th>
+                      <th style={styles.tableHeaderCell}>Email</th>
+                      <th style={styles.tableHeaderCell}>Primary profile title</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -299,9 +267,7 @@ export default function BdDashboard() {
           </section>
 
           <section style={{ marginTop: 32, marginBottom: 32 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Create new lead</h2>
-            </div>
+            <h2 style={styles.sectionTitle}>Create new lead</h2>
             <form
               onSubmit={handleCreateLead}
               style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 2fr 1.4fr auto', gap: 12, alignItems: 'center' }}
@@ -378,7 +344,7 @@ export default function BdDashboard() {
 
           <section>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Your leads</h2>
+              <h2 style={styles.sectionTitle}>Your leads</h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <Filter size={16} color="var(--gray)" />
                 <select
@@ -407,13 +373,13 @@ export default function BdDashboard() {
               <div style={styles.tableWrapper}>
                 <table style={styles.table}>
                   <thead>
-                    <tr>
-                      <th>Job</th>
-                      <th>Company</th>
-                      <th>Assigned user</th>
-                      <th>Created</th>
-                      <th>Status</th>
-                      <th>Job link</th>
+                    <tr style={styles.tableHeaderRow}>
+                      <th style={styles.tableHeaderCell}>Job</th>
+                      <th style={styles.tableHeaderCell}>Company</th>
+                      <th style={styles.tableHeaderCell}>Assigned user</th>
+                      <th style={styles.tableHeaderCell}>Created</th>
+                      <th style={styles.tableHeaderCell}>Status</th>
+                      <th style={styles.tableHeaderCell}>Job link</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -472,7 +438,7 @@ export default function BdDashboard() {
 function StatCard({ icon, label, value, accent }) {
   return (
     <div style={styles.statCard}>
-      <div style={{ ...styles.statIcon, background: `${accent}15`, color: accent }}>{icon}</div>
+      <div style={{ ...styles.statIcon, background: `${accent}20`, color: accent }}>{icon}</div>
       <div>
         <div style={styles.statNumber}>{value}</div>
         <div style={styles.statLabel}>{label}</div>
@@ -485,54 +451,83 @@ const styles = {
   layout: {
     display: 'flex',
     minHeight: '100vh',
-    background: '#F8FAFF',
+    background: theme.bg,
     fontFamily: 'var(--font-primary)',
   },
   sidebar: {
     width: '260px',
-    background: 'white',
-    borderRight: '1px solid var(--gray-border)',
+    background: `linear-gradient(180deg, ${theme.slate} 0%, ${theme.slateLight} 100%)`,
     padding: '24px',
     display: 'flex',
     flexDirection: 'column',
+    boxShadow: '4px 0 24px rgba(0,0,0,0.06)',
   },
   logo: {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    fontSize: '22px',
-    fontWeight: '800',
-    color: 'var(--dark)',
-    marginBottom: '32px',
+    fontSize: '20px',
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: '4px',
+  },
+  logoSub: {
+    fontSize: '11px',
+    fontWeight: '600',
+    color: theme.teal,
+    letterSpacing: '0.05em',
+    marginBottom: '28px',
   },
   logoIcon: {
-    width: '28px',
-    height: '28px',
-    background: 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)',
+    width: '32px',
+    height: '32px',
+    background: `linear-gradient(135deg, ${theme.teal} 0%, ${theme.cyan} 100%)`,
     borderRadius: '8px',
+    boxShadow: '0 4px 12px rgba(20, 184, 166, 0.4)',
   },
-  nav: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
+  userEmail: {
+    marginBottom: 24,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
   },
-  navItem: {
+  userEmailLabel: { fontWeight: 400, marginRight: 4 },
+  nav: { display: 'flex', flexDirection: 'column', gap: 6 },
+  navItemActive: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    padding: '10px 14px',
-    borderRadius: '8px',
+    gap: 10,
+    padding: '12px 14px',
+    borderRadius: 10,
     fontSize: 14,
+    fontWeight: 600,
+    background: 'rgba(20, 184, 166, 0.2)',
+    color: theme.teal,
   },
-  main: {
-    flex: 1,
+  sidebarFooter: {
+    marginTop: 'auto',
     display: 'flex',
     flexDirection: 'column',
+    gap: 6,
   },
+  sidebarBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '10px 14px',
+    borderRadius: 10,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.85)',
+    background: 'transparent',
+    border: 'none',
+    width: '100%',
+    textAlign: 'left',
+    cursor: 'pointer',
+  },
+  main: { flex: 1, display: 'flex', flexDirection: 'column' },
   header: {
-    height: '72px',
-    background: 'white',
-    borderBottom: '1px solid var(--gray-border)',
+    height: 72,
+    background: theme.cardBg,
+    borderBottom: `1px solid ${theme.border}`,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -541,121 +536,123 @@ const styles = {
   searchBar: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    background: '#F0F4FF',
-    padding: '8px 16px',
-    borderRadius: '20px',
-    width: '260px',
+    gap: 10,
+    background: '#f0fdfa',
+    padding: '10px 18px',
+    borderRadius: 12,
+    width: 280,
+    border: `1px solid ${theme.border}`,
   },
   searchInput: {
     border: 'none',
     background: 'none',
     outline: 'none',
     width: '100%',
-    fontSize: '14px',
+    fontSize: 14,
+    color: theme.text,
   },
-  profileArea: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-  },
+  profileArea: { display: 'flex', alignItems: 'center', gap: 16 },
+  profileText: { textAlign: 'right', marginRight: 8 },
+  profileName: { display: 'block', fontSize: 14, fontWeight: 600, color: theme.text },
+  profileRole: { fontSize: 12, color: theme.textMuted },
   avatar: {
-    width: '40px',
-    height: '40px',
+    width: 42,
+    height: 42,
     borderRadius: '50%',
-    background: 'var(--primary)',
-    color: 'white',
+    background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.teal} 100%)`,
+    color: '#fff',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontWeight: '700',
+    fontWeight: 700,
+    fontSize: 14,
   },
   content: {
-    padding: '32px 32px 40px',
-    maxWidth: '1100px',
+    padding: '32px 32px 48px',
+    maxWidth: 1200,
   },
   welcome: {
     fontSize: '28px',
-    fontWeight: '800',
-    color: 'var(--dark)',
-    marginBottom: '8px',
+    fontWeight: 800,
+    color: theme.text,
+    marginBottom: 8,
+    letterSpacing: '-0.02em',
   },
   subtitle: {
-    color: 'var(--gray)',
-    fontSize: '15px',
-    marginBottom: '24px',
+    color: theme.textMuted,
+    fontSize: 15,
+    marginBottom: 28,
   },
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: '16px',
+    gridTemplateColumns: 'repeat(5, 1fr)',
+    gap: 16,
   },
   statCard: {
-    background: 'white',
-    padding: '20px',
-    borderRadius: '16px',
-    border: '1px solid var(--gray-border)',
-    boxShadow: 'var(--shadow-sm)',
+    background: theme.cardBg,
+    padding: 20,
+    borderRadius: 16,
+    border: `1px solid ${theme.border}`,
+    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
     display: 'flex',
     alignItems: 'center',
-    gap: '16px',
+    gap: 16,
   },
   statIcon: {
-    width: '44px',
-    height: '44px',
-    borderRadius: '14px',
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
   statNumber: {
     fontSize: '24px',
-    fontWeight: '800',
-    color: 'var(--dark)',
-    lineHeight: '1',
-    marginBottom: '2px',
+    fontWeight: 800,
+    color: theme.text,
+    lineHeight: 1,
+    marginBottom: 2,
   },
-  statLabel: {
-    color: 'var(--gray)',
-    fontSize: '13px',
-    fontWeight: '500',
-  },
+  statLabel: { color: theme.textMuted, fontSize: 13, fontWeight: 500 },
   input: {
-    borderRadius: 8,
-    border: '1px solid var(--gray-border)',
-    padding: '8px 10px',
+    borderRadius: 10,
+    border: `1px solid ${theme.border}`,
+    padding: '10px 14px',
     fontSize: 14,
+    background: theme.cardBg,
   },
   primaryBtn: {
-    padding: '8px 16px',
-    borderRadius: 999,
+    padding: '10px 20px',
+    borderRadius: 10,
     border: 'none',
-    background: 'var(--primary)',
-    color: 'white',
+    background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.teal} 100%)`,
+    color: '#fff',
     fontSize: 14,
     fontWeight: 600,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
+    boxShadow: `0 4px 14px ${theme.primary}40`,
   },
   select: {
-    borderRadius: 999,
-    border: '1px solid var(--gray-border)',
-    padding: '6px 12px',
+    borderRadius: 10,
+    border: `1px solid ${theme.border}`,
+    padding: '8px 14px',
     fontSize: 13,
-    background: 'white',
+    background: theme.cardBg,
   },
   emptyCard: {
-    background: 'white',
-    borderRadius: 12,
-    border: '1px solid var(--gray-border)',
-    padding: 20,
+    background: theme.cardBg,
+    borderRadius: 16,
+    border: `1px solid ${theme.border}`,
+    padding: 24,
   },
   tableWrapper: {
     marginTop: 8,
-    borderRadius: 12,
-    border: '1px solid var(--gray-border)',
+    borderRadius: 16,
+    border: `1px solid ${theme.border}`,
     overflow: 'hidden',
-    background: 'white',
+    background: theme.cardBg,
+    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
   },
   table: {
     width: '100%',
@@ -663,24 +660,42 @@ const styles = {
     fontSize: 14,
   },
   statusSelect: {
-    borderRadius: 999,
-    border: '1px solid var(--gray-border)',
-    padding: '4px 10px',
+    borderRadius: 8,
+    border: `1px solid ${theme.border}`,
+    padding: '6px 10px',
     fontSize: 13,
-    background: 'white',
+    background: theme.cardBg,
   },
   linkBtn: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 4,
-    padding: '6px 12px',
-    borderRadius: 999,
-    border: '1px solid var(--gray-border)',
-    background: 'white',
-    color: 'var(--primary)',
+    gap: 6,
+    padding: '8px 14px',
+    borderRadius: 8,
+    border: `1px solid ${theme.teal}`,
+    background: 'rgba(20, 184, 166, 0.08)',
+    color: theme.primary,
     textDecoration: 'none',
     fontSize: 13,
-    fontWeight: 500,
+    fontWeight: 600,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: theme.text,
+    marginBottom: 12,
+    margin: 0,
+  },
+  tableHeaderRow: {
+    background: `linear-gradient(90deg, ${theme.slate} 0%, ${theme.slateLight} 100%)`,
+  },
+  tableHeaderCell: {
+    textAlign: 'left',
+    padding: '14px 16px',
+    fontSize: 12,
+    fontWeight: 600,
+    color: 'rgba(255,255,255,0.95)',
+    letterSpacing: '0.03em',
   },
 }
 

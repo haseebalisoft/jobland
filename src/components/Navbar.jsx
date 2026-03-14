@@ -29,7 +29,7 @@ export default function Navbar() {
                     <div className="navbar__logo-icon">
                         <Zap size={18} fill="white" color="white" />
                     </div>
-                    <span>Hiredlogic</span>
+                    <span>HiredLogics</span>
                 </a>
 
                 {/* Desktop Nav */}

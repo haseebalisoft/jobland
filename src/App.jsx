@@ -38,7 +38,7 @@ function App() {
           <Route path="/upload_cv" element={<UploadCv />} />
           {/* Both /profile and /profile-builder show ProfileBuilder */}
           <Route path="/profile-builder" element={<ProfileBuilder />} />
-          <Route path="/resume-maker" element={<ResumeMaker />} />
+          <Route path="/resume-maker" element={<ProtectedRoute><ResumeMaker /></ProtectedRoute>} />
           <Route path="/login" element={<Login />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/bd/login" element={<BdLogin />} />

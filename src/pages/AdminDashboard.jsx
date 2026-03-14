@@ -1,5 +1,20 @@
 import { useEffect, useState, useRef } from 'react';
+import { BarChart3, Users, CreditCard, DollarSign, Shield } from 'lucide-react';
 import api from '../services/api.js';
+
+const theme = {
+  primary: '#0d9488',
+  primaryDark: '#0f766e',
+  cyan: '#06b6d4',
+  teal: '#14b8a6',
+  slate: '#0f172a',
+  slateLight: '#1e293b',
+  bg: '#f0fdfa',
+  cardBg: '#ffffff',
+  border: '#ccfbf1',
+  text: '#0f172a',
+  textMuted: '#64748b',
+};
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
@@ -138,121 +153,167 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div style={{ padding: 24 }}>
-      <h2>Admin Dashboard</h2>
-      {stats && (
-        <div style={{ marginBottom: 24 }}>
-          <p>Total users: {stats.totalUsers}</p>
-          <p>Active subscribers: {stats.activeSubscribers}</p>
-          <p>Monthly revenue: ${stats.monthlyRevenue}</p>
+    <div style={styles.page}>
+      <header style={styles.header}>
+        <div style={styles.headerLeft}>
+          <div style={styles.logoIcon}></div>
+          <div>
+            <h1 style={styles.title}>HiredLogics Admin</h1>
+            <p style={styles.subtitle}>Manage users, BDs, plans & subscriptions</p>
+          </div>
         </div>
+      </header>
+
+      {stats && (
+        <section style={styles.statsGrid}>
+          <div style={styles.statCard}>
+            <div style={{ ...styles.statIcon, background: `${theme.primary}20`, color: theme.primary }}>
+              <Users size={22} />
+            </div>
+            <div>
+              <div style={styles.statValue}>{stats.totalUsers ?? 0}</div>
+              <div style={styles.statLabel}>Total users</div>
+            </div>
+          </div>
+          <div style={styles.statCard}>
+            <div style={{ ...styles.statIcon, background: `${theme.teal}20`, color: theme.teal }}>
+              <CreditCard size={22} />
+            </div>
+            <div>
+              <div style={styles.statValue}>{stats.activeSubscribers ?? 0}</div>
+              <div style={styles.statLabel}>Active subscribers</div>
+            </div>
+          </div>
+          <div style={styles.statCard}>
+            <div style={{ ...styles.statIcon, background: `${theme.cyan}20`, color: theme.cyan }}>
+              <DollarSign size={22} />
+            </div>
+            <div>
+              <div style={styles.statValue}>${stats.monthlyRevenue ?? 0}</div>
+              <div style={styles.statLabel}>Monthly revenue</div>
+            </div>
+          </div>
+        </section>
       )}
 
-      <h3>Plans</h3>
-      <form onSubmit={createPlan} style={{ marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <input
-          name="name"
-          placeholder="Plan name"
-          value={newPlan.name}
-          onChange={handleNewPlanChange}
-        />
-        <input
-          name="price"
-          type="number"
-          placeholder="Price (USD)"
-          value={newPlan.price}
-          onChange={handleNewPlanChange}
-        />
-        <input
-          name="stripePriceId"
-          placeholder="Stripe Price ID"
-          value={newPlan.stripePriceId}
-          onChange={handleNewPlanChange}
-          style={{ minWidth: 220 }}
-        />
-        <button type="submit">Add plan</button>
-      </form>
+      <section style={styles.section}>
+        <h2 style={styles.sectionTitle}>
+          <BarChart3 size={20} style={{ marginRight: 8 }} />
+          Plans
+        </h2>
+        <form onSubmit={createPlan} style={styles.planForm}>
+          <input
+            name="name"
+            placeholder="Plan name"
+            value={newPlan.name}
+            onChange={handleNewPlanChange}
+            style={styles.input}
+          />
+          <input
+            name="price"
+            type="number"
+            placeholder="Price (USD)"
+            value={newPlan.price}
+            onChange={handleNewPlanChange}
+            style={styles.input}
+          />
+          <input
+            name="stripePriceId"
+            placeholder="Stripe Price ID"
+            value={newPlan.stripePriceId}
+            onChange={handleNewPlanChange}
+            style={{ ...styles.input, minWidth: 220 }}
+          />
+          <button type="submit" style={styles.primaryBtn}>Add plan</button>
+        </form>
+        <div style={styles.planList}>
+          {plans.map((p) => (
+            <div key={p._id} style={styles.planRow}>
+              <input
+                defaultValue={p.name}
+                onBlur={(e) => updatePlan(p._id, { ...p, name: e.target.value })}
+                style={styles.input}
+              />
+              <input
+                type="number"
+                defaultValue={p.price}
+                onBlur={(e) => updatePlan(p._id, { ...p, price: Number(e.target.value) })}
+                style={{ ...styles.input, width: 90 }}
+              />
+              <input
+                defaultValue={p.stripePriceId}
+                onBlur={(e) => updatePlan(p._id, { ...p, stripePriceId: e.target.value })}
+                style={{ ...styles.input, minWidth: 220 }}
+              />
+              <span style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: p.isActive ? theme.teal : theme.textMuted,
+              }}>
+                {p.isActive ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
 
-      <ul style={{ marginBottom: 24 }}>
-        {plans.map((p) => (
-          <li key={p._id} style={{ marginBottom: 8 }}>
-            <input
-              defaultValue={p.name}
-              onBlur={(e) => updatePlan(p._id, { ...p, name: e.target.value })}
-              style={{ marginRight: 8 }}
-            />
-            <input
-              type="number"
-              defaultValue={p.price}
-              onBlur={(e) => updatePlan(p._id, { ...p, price: Number(e.target.value) })}
-              style={{ width: 80, marginRight: 8 }}
-            />
-            <input
-              defaultValue={p.stripePriceId}
-              onBlur={(e) => updatePlan(p._id, { ...p, stripePriceId: e.target.value })}
-              style={{ minWidth: 220, marginRight: 8 }}
-            />
-            <span style={{ fontSize: 12, color: p.isActive ? 'green' : 'red' }}>
-              {p.isActive ? 'Active' : 'Inactive'}
-            </span>
-          </li>
-        ))}
-      </ul>
-
-      <h3>Users</h3>
-      <p style={{ color: '#666', fontSize: 14, marginBottom: 12 }}>
-        New user signups appear here. Assign one or multiple BDs so only those BDs can assign leads to this user. BDs are loaded from BD signup (/bd/signup).
-      </p>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
-        <thead>
-          <tr style={{ borderBottom: '2px solid #ddd' }}>
-            <th style={{ textAlign: 'left', padding: 12 }}>Name</th>
-            <th style={{ textAlign: 'left', padding: 12 }}>Email</th>
-            <th style={{ textAlign: 'left', padding: 12 }}>Assigned BDs</th>
-            <th style={{ textAlign: 'left', padding: 12 }}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((u) => (
-            <tr key={u.id || u._id} style={{ borderBottom: '1px solid #eee' }}>
-              <td style={{ padding: 12 }}>{u.name || u.full_name || '—'}</td>
-              <td style={{ padding: 12 }}>{u.email}</td>
-              <td style={{ padding: 12 }}>
-                {(u.assigned_bds || []).length > 0 ? (
-                  <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {(u.assigned_bds || []).map((b) => (
-                      <span key={b.id} style={assignedBdTag}>
-                        {b.full_name || b.email}
+      <section style={styles.section}>
+        <h2 style={styles.sectionTitle}>
+          <Users size={20} style={{ marginRight: 8 }} />
+          Users
+        </h2>
+        <p style={styles.helperText}>
+          Assign one or multiple BDs to users so only those BDs can assign leads. BDs sign up at /bd/signup.
+        </p>
+        <div style={styles.tableWrap}>
+          <table style={styles.table}>
+            <thead>
+              <tr style={styles.tableHeaderRow}>
+                <th style={styles.th}>Name</th>
+                <th style={styles.th}>Email</th>
+                <th style={styles.th}>Assigned BDs</th>
+                <th style={styles.th}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id || u._id} style={styles.tr}>
+                  <td style={styles.td}>{u.name || u.full_name || '—'}</td>
+                  <td style={styles.td}>{u.email}</td>
+                  <td style={styles.td}>
+                    {(u.assigned_bds || []).length > 0 ? (
+                      <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {(u.assigned_bds || []).map((b) => (
+                          <span key={b.id} style={assignedBdTag}>
+                            {b.full_name || b.email}
+                          </span>
+                        ))}
                       </span>
-                    ))}
-                  </span>
-                ) : (
-                  <span style={{ color: '#999' }}>—</span>
-                )}
-              </td>
-              <td style={{ padding: 12, position: 'relative' }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    onClick={() => openAssignModal(u)}
-                    style={{ padding: '4px 10px' }}
-                  >
-                    {(u.assigned_bds || []).length ? 'Edit BDs' : 'Assign BD'}
-                  </button>
-                  <button type="button" onClick={() => toggleBlock(u)}>
-                    {u.isBlocked ? 'Unblock' : 'Block'}
-                  </button>
-                  <button type="button" onClick={() => resetPassword(u)}>
-                    Reset password
-                  </button>
-                </div>
+                    ) : (
+                      <span style={{ color: theme.textMuted }}>—</span>
+                    )}
+                  </td>
+                  <td style={{ ...styles.td, position: 'relative' }}>
+                    <div style={styles.actionBtns}>
+                      <button
+                        type="button"
+                        onClick={() => openAssignModal(u)}
+                        style={styles.btnSecondary}
+                      >
+                        {(u.assigned_bds || []).length ? 'Edit BDs' : 'Assign BD'}
+                      </button>
+                      <button type="button" onClick={() => toggleBlock(u)} style={styles.btnSecondary}>
+                        {u.isBlocked ? 'Unblock' : 'Block'}
+                      </button>
+                      <button type="button" onClick={() => resetPassword(u)} style={styles.btnSecondary}>
+                        Reset password
+                      </button>
+                    </div>
 
                 {assignModal && (assignModal.id === (u.id || u._id)) && (
                   <div style={inlineAssignPanel} onClick={(e) => e.stopPropagation()}>
-                    <h4 style={{ marginTop: 0, marginBottom: 6 }}>Assign BD</h4>
-                    <p style={{ marginBottom: 10, color: '#444', fontSize: 13 }}>
-                      Only selected BDs can assign leads to this user.
-                    </p>
+                    <h4 style={styles.modalTitle}>Assign BD</h4>
+                    <p style={styles.modalText}>Only selected BDs can assign leads to this user.</p>
                     <div ref={dropdownRef} style={{ position: 'relative', marginBottom: 10 }}>
                       <button
                         type="button"
@@ -262,166 +323,250 @@ export default function AdminDashboard() {
                         aria-haspopup="listbox"
                       >
                         <span>{getSelectedBdLabel()}</span>
-                        <span style={{ marginLeft: 'auto', fontSize: 12 }}>
-                          {bdDropdownOpen ? '▲' : '▼'}
-                        </span>
+                        <span style={{ marginLeft: 'auto', fontSize: 12 }}>{bdDropdownOpen ? '▲' : '▼'}</span>
                       </button>
                       {bdDropdownOpen && (
                         <div style={dropdownPanel} role="listbox">
                           {bds.length === 0 ? (
-                            <div style={{ padding: 12, color: '#888', fontSize: 13 }}>
+                            <div style={{ padding: 12, color: theme.textMuted, fontSize: 13 }}>
                               No BDs yet. BDs sign up at <strong>/bd/signup</strong>.
                             </div>
                           ) : (
                             bds.map((bd) => (
-                              <label
-                                key={bd.id}
-                                style={dropdownOption}
-                                role="option"
-                                aria-selected={selectedBdIds.includes(bd.id)}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={selectedBdIds.includes(bd.id)}
-                                  onChange={() => toggleBdSelection(bd.id)}
-                                  style={{ marginRight: 10 }}
-                                />
-                                <span>
-                                  <strong>{bd.full_name || bd.email}</strong>
-                                </span>
-                                <span style={{ color: '#666', fontSize: 12 }}> {bd.email}</span>
+                              <label key={bd.id} style={dropdownOption} role="option" aria-selected={selectedBdIds.includes(bd.id)}>
+                                <input type="checkbox" checked={selectedBdIds.includes(bd.id)} onChange={() => toggleBdSelection(bd.id)} style={{ marginRight: 10 }} />
+                                <span><strong>{bd.full_name || bd.email}</strong></span>
+                                <span style={{ color: theme.textMuted, fontSize: 12 }}> {bd.email}</span>
                               </label>
                             ))
                           )}
                         </div>
                       )}
                     </div>
-
-                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginBottom: 8, marginTop: 4 }}>
-                      <button
-                        type="button"
-                        onClick={() => setAssignModal(null)}
-                        disabled={assignSaving}
-                        style={{ padding: '4px 10px' }}
-                      >
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+                      <button type="button" onClick={() => setAssignModal(null)} disabled={assignSaving} style={styles.btnSecondary}>
                         Cancel
                       </button>
-                      <button
-                        type="button"
-                        onClick={saveAssignBd}
-                        disabled={assignSaving}
-                        style={{ padding: '4px 10px' }}
-                      >
-                        {assignSaving ? 'Saving…' : 'Save assignment'}
+                      <button type="button" onClick={saveAssignBd} disabled={assignSaving} style={styles.primaryBtn}>
+                        {assignSaving ? 'Saving…' : 'Save'}
                       </button>
                     </div>
-
-                    {assignError && (
-                      <p style={{ color: '#c00', fontSize: 12, marginBottom: 8 }}>{assignError}</p>
-                    )}
-
+                    {assignError && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 8 }}>{assignError}</p>}
                     {selectedBdIds.length > 0 && (
-                      <div
-                        style={{
-                          marginTop: 2,
-                          marginBottom: 4,
-                          flexWrap: 'wrap',
-                          display: 'flex',
-                          gap: 6,
-                        }}
-                      >
-                        {bds
-                          .filter((b) => selectedBdIds.includes(b.id))
-                          .map((b) => (
-                            <span key={b.id} style={selectedTag}>
-                              {b.full_name || b.email}
-                              <button
-                                type="button"
-                                aria-label={`Remove ${b.full_name || b.email}`}
-                                style={selectedTagRemove}
-                                onClick={() => toggleBdSelection(b.id)}
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
+                      <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {bds.filter((b) => selectedBdIds.includes(b.id)).map((b) => (
+                          <span key={b.id} style={selectedTag}>
+                            {b.full_name || b.email}
+                            <button type="button" aria-label={`Remove ${b.full_name || b.email}`} style={selectedTagRemove} onClick={() => toggleBdSelection(b.id)}>×</button>
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>
                 )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-      <h3>BDs</h3>
-      <p style={{ color: '#666', fontSize: 14, marginBottom: 12 }}>
-        All BD accounts registered via the BD Portal. You can reset their passwords here.
-      </p>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
-        <thead>
-          <tr style={{ borderBottom: '2px solid #ddd' }}>
-            <th style={{ textAlign: 'left', padding: 12 }}>Name</th>
-            <th style={{ textAlign: 'left', padding: 12 }}>Email</th>
-            <th style={{ textAlign: 'left', padding: 12 }}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {bds.map((bd) => (
-            <tr key={bd.id} style={{ borderBottom: '1px solid #eee' }}>
-              <td style={{ padding: 12 }}>{bd.full_name || bd.name || '—'}</td>
-              <td style={{ padding: 12 }}>{bd.email}</td>
-              <td style={{ padding: 12 }}>
-                <button type="button" onClick={() => resetPassword(bd)}>
-                  Reset password
-                </button>
-              </td>
-            </tr>
-          ))}
-          {bds.length === 0 && (
-            <tr>
-              <td colSpan={3} style={{ padding: 12, color: '#999' }}>
-                No BD accounts found yet.
-              </td>
-            </tr>
+      <section style={styles.section}>
+        <h2 style={styles.sectionTitle}>
+          <Shield size={20} style={{ marginRight: 8 }} />
+          BDs
+        </h2>
+        <p style={styles.helperText}>BD accounts from the BD Portal. Reset passwords here.</p>
+        <div style={styles.tableWrap}>
+          <table style={styles.table}>
+            <thead>
+              <tr style={styles.tableHeaderRow}>
+                <th style={styles.th}>Name</th>
+                <th style={styles.th}>Email</th>
+                <th style={styles.th}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bds.map((bd) => (
+                <tr key={bd.id} style={styles.tr}>
+                  <td style={styles.td}>{bd.full_name || bd.name || '—'}</td>
+                  <td style={styles.td}>{bd.email}</td>
+                  <td style={styles.td}>
+                    <button type="button" onClick={() => resetPassword(bd)} style={styles.btnSecondary}>
+                      Reset password
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {bds.length === 0 && (
+                <tr>
+                  <td colSpan={3} style={{ ...styles.td, color: theme.textMuted }}>No BD accounts yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section style={styles.section}>
+        <h2 style={styles.sectionTitle}>Subscriptions</h2>
+        <div style={styles.subList}>
+          {subs.length === 0 ? (
+            <p style={{ color: theme.textMuted, margin: 0 }}>No subscriptions.</p>
+          ) : (
+            subs.map((s) => (
+              <div key={s._id} style={styles.subRow}>
+                <span>{s.user?.email}</span>
+                <span style={{ color: theme.textMuted }}> – {s.plan?.name} – {s.status}</span>
+                <button type="button" onClick={() => cancelSub(s._id)} style={styles.btnSecondary}>Cancel</button>
+              </div>
+            ))
           )}
-        </tbody>
-      </table>
-
-      <h3>Subscriptions</h3>
-      <ul>
-        {subs.map((s) => (
-          <li key={s._id}>
-            {s.user?.email} – {s.plan?.name} – {s.status}{' '}
-            <button onClick={() => cancelSub(s._id)}>Cancel</button>
-          </li>
-        ))}
-      </ul>
+        </div>
+      </section>
     </div>
   );
 }
+
+const styles = {
+  page: {
+    minHeight: '100vh',
+    background: theme.bg,
+    padding: '24px 32px 48px',
+    fontFamily: 'var(--font-primary)',
+  },
+  header: {
+    marginBottom: 32,
+    paddingBottom: 24,
+    borderBottom: `1px solid ${theme.border}`,
+  },
+  headerLeft: { display: 'flex', alignItems: 'center', gap: 16 },
+  logoIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.teal} 100%)`,
+    boxShadow: `0 4px 14px ${theme.primary}40`,
+  },
+  title: { fontSize: 28, fontWeight: 800, color: theme.text, margin: 0, letterSpacing: '-0.02em' },
+  subtitle: { fontSize: 14, color: theme.textMuted, margin: '4px 0 0' },
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 20,
+    marginBottom: 32,
+  },
+  statCard: {
+    background: theme.cardBg,
+    padding: 20,
+    borderRadius: 16,
+    border: `1px solid ${theme.border}`,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 16,
+    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+  },
+  statIcon: { width: 48, height: 48, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  statValue: { fontSize: 24, fontWeight: 800, color: theme.text },
+  statLabel: { fontSize: 13, color: theme.textMuted, marginTop: 2 },
+  section: { marginBottom: 32 },
+  sectionTitle: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: 18,
+    fontWeight: 700,
+    color: theme.text,
+    marginBottom: 12,
+  },
+  helperText: { color: theme.textMuted, fontSize: 14, marginBottom: 16 },
+  tableWrap: {
+    borderRadius: 16,
+    border: `1px solid ${theme.border}`,
+    overflow: 'hidden',
+    background: theme.cardBg,
+    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+  },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: 14 },
+  tableHeaderRow: {
+    background: `linear-gradient(90deg, ${theme.slate} 0%, ${theme.slateLight} 100%)`,
+  },
+  th: {
+    textAlign: 'left',
+    padding: '14px 16px',
+    fontSize: 12,
+    fontWeight: 600,
+    color: 'rgba(255,255,255,0.95)',
+    letterSpacing: '0.03em',
+  },
+  tr: { borderBottom: `1px solid ${theme.border}` },
+  td: { padding: '14px 16px' },
+  input: {
+    padding: '10px 14px',
+    borderRadius: 10,
+    border: `1px solid ${theme.border}`,
+    fontSize: 14,
+    background: theme.cardBg,
+  },
+  primaryBtn: {
+    padding: '10px 20px',
+    borderRadius: 10,
+    border: 'none',
+    background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.teal} 100%)`,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: 'pointer',
+    boxShadow: `0 4px 14px ${theme.primary}40`,
+  },
+  btnSecondary: {
+    padding: '8px 14px',
+    borderRadius: 8,
+    border: `1px solid ${theme.border}`,
+    background: theme.cardBg,
+    fontSize: 13,
+    fontWeight: 500,
+    cursor: 'pointer',
+    color: theme.text,
+  },
+  actionBtns: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
+  planForm: { display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 },
+  planList: { display: 'flex', flexDirection: 'column', gap: 10 },
+  planRow: { display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' },
+  modalTitle: { marginTop: 0, marginBottom: 6, fontSize: 16, fontWeight: 600, color: theme.text },
+  modalText: { marginBottom: 10, color: theme.textMuted, fontSize: 13 },
+  subList: { display: 'flex', flexDirection: 'column', gap: 8 },
+  subRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    padding: '12px 16px',
+    background: theme.cardBg,
+    borderRadius: 10,
+    border: `1px solid ${theme.border}`,
+  },
+};
 
 const inlineAssignPanel = {
   position: 'absolute',
   top: '100%',
   right: 0,
-  marginTop: 6,
-  background: 'white',
-  padding: 12,
-  borderRadius: 10,
-  minWidth: 260,
-  maxWidth: 340,
-  boxShadow: '0 12px 30px rgba(0,0,0,0.18)',
-  border: '1px solid #e5e7eb',
+  marginTop: 8,
+  background: theme.cardBg,
+  padding: 16,
+  borderRadius: 12,
+  minWidth: 280,
+  maxWidth: 360,
+  boxShadow: '0 12px 40px rgba(0,0,0,0.12)',
+  border: `1px solid ${theme.border}`,
   zIndex: 20,
 };
 const dropdownTrigger = {
   width: '100%',
   padding: '12px 14px',
-  border: '1px solid #ccc',
-  borderRadius: 8,
-  background: '#fff',
+  border: `1px solid ${theme.border}`,
+  borderRadius: 10,
+  background: theme.cardBg,
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
@@ -436,10 +581,10 @@ const dropdownPanel = {
   marginTop: 4,
   maxHeight: 220,
   overflowY: 'auto',
-  border: '1px solid #ccc',
-  borderRadius: 8,
-  background: '#fff',
-  boxShadow: '0 8px 20px rgba(0,0,0,0.12)',
+  border: `1px solid ${theme.border}`,
+  borderRadius: 10,
+  background: theme.cardBg,
+  boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
   zIndex: 10,
 };
 const dropdownOption = {
@@ -447,17 +592,18 @@ const dropdownOption = {
   alignItems: 'center',
   padding: '10px 12px',
   cursor: 'pointer',
-  borderBottom: '1px solid #f0f0f0',
+  borderBottom: `1px solid ${theme.border}`,
   fontSize: 13,
 };
 const selectedTag = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 4,
-  padding: '4px 8px',
-  background: '#e8f4fd',
-  borderRadius: 6,
+  padding: '4px 10px',
+  background: `${theme.teal}20`,
+  borderRadius: 8,
   fontSize: 13,
+  color: theme.primary,
 };
 const selectedTagRemove = {
   border: 'none',
@@ -466,13 +612,15 @@ const selectedTagRemove = {
   fontSize: 16,
   lineHeight: 1,
   padding: '0 2px',
-  color: '#666',
+  color: theme.textMuted,
 };
 const assignedBdTag = {
   display: 'inline-block',
-  padding: '2px 8px',
-  background: '#e8f4fd',
-  borderRadius: 6,
+  padding: '4px 10px',
+  background: `${theme.teal}20`,
+  borderRadius: 8,
   fontSize: 12,
+  color: theme.primary,
+  fontWeight: 500,
 };
 

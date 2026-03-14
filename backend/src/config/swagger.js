@@ -4,7 +4,7 @@ import { config } from './env.js';
 const swaggerDefinition = {
   openapi: '3.0.0',
   info: {
-    title: 'HiredLogics / JobLand API',
+    title: 'HiredLogics API',
     version: '1.0.0',
     description:
       'REST API aligned with hiredlogics_prod schema (001_initial.sql): users, profiles, jobs, user_bd_assignments, job_assignments, applications, subscription_plans, subscriptions, refresh_tokens.',
@@ -247,7 +247,7 @@ const swaggerDefinition = {
                 type: 'object',
                 required: ['email', 'password'],
                 properties: {
-                  email: { type: 'string', format: 'email', example: 'admin@jobland.com' },
+                  email: { type: 'string', format: 'email', example: 'admin@hiredlogics.com' },
                   password: { type: 'string', example: 'admin123' },
                 },
               },
@@ -712,11 +712,146 @@ const swaggerDefinition = {
         },
       },
     },
+    '/cv/profile': {
+      get: {
+        tags: ['CV'],
+        summary: 'Get resume profile for builder',
+        description: 'Returns resume data in builder format (personal, professional, education, links) from profiles + profile_education + profile_work_experience.',
+        responses: {
+          200: { description: 'Resume profile object' },
+          401: { description: 'Unauthorized' },
+        },
+      },
+      post: {
+        tags: ['CV'],
+        summary: 'Save resume profile',
+        description: 'Accepts builder-format profile; persists to profiles, profile_education, profile_work_experience.',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  personal: { type: 'object', properties: { fullName: { type: 'string' }, email: { type: 'string' }, phone: { type: 'string' }, location: { type: 'string' } } },
+                  professional: { type: 'object', properties: { currentTitle: { type: 'string' }, summary: { type: 'string' }, skills: { type: 'array', items: { type: 'string' } }, workExperience: { type: 'array' } } },
+                  education: { type: 'array' },
+                  links: { type: 'object', properties: { linkedin: { type: 'string' }, github: { type: 'string' }, portfolio: { type: 'string' } } },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Saved' },
+          400: { description: 'Bad request' },
+          401: { description: 'Unauthorized' },
+        },
+      },
+    },
+    '/cv/improve-summary': {
+      post: {
+        tags: ['CV'],
+        summary: 'AI improve professional summary',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: { summary: { type: 'string' }, role: { type: 'string' } },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Returns { improved }' },
+          401: { description: 'Unauthorized' },
+          500: { description: 'AI error' },
+        },
+      },
+    },
+    '/cv/optimize-experience': {
+      post: {
+        tags: ['CV'],
+        summary: 'AI optimize experience bullet points',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: { description: { type: 'string' }, role: { type: 'string' } },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Returns { optimized }' },
+          401: { description: 'Unauthorized' },
+          500: { description: 'AI error' },
+        },
+      },
+    },
+    '/cv/optimize-full-resume': {
+      post: {
+        tags: ['CV'],
+        summary: 'AI optimize full resume for job description',
+        description: 'Runs gap analysis (JD vs resume) and returns optimized profile + gapAnalysis. Does not auto-save; client may apply and then POST /cv/profile.',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['profile', 'jd'],
+                properties: { profile: { type: 'object' }, jd: { type: 'string', description: 'Job description text' } },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Returns { gapAnalysis, optimizedProfile }' },
+          400: { description: 'Profile and jd required' },
+          401: { description: 'Unauthorized' },
+          500: { description: 'AI error' },
+        },
+      },
+    },
+    '/cv/templates': {
+      get: {
+        tags: ['CV'],
+        summary: 'List resume templates',
+        responses: {
+          200: { description: 'Array of { id, name }' },
+          401: { description: 'Unauthorized' },
+        },
+      },
+    },
+    '/cv/download': {
+      post: {
+        tags: ['CV'],
+        summary: 'Generate and download resume PDF',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['profile'],
+                properties: { profile: { type: 'object', description: 'Builder-format profile' } },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'application/pdf attachment' },
+          400: { description: 'Profile required' },
+          401: { description: 'Unauthorized' },
+          500: { description: 'PDF generation error' },
+        },
+      },
+    },
     '/cv/parse': {
       post: {
         tags: ['CV'],
         summary: 'Upload and parse CV/resume',
-        description: 'Accepts multipart/form-data with file field "resume". Auth required.',
+        description: 'Accepts multipart/form-data with file field "resume". Extracts text, runs AI parse, saves to profiles + profile_education + profile_work_experience. Requires GROQ_API_KEY for AI.',
         requestBody: {
           content: {
             'multipart/form-data': {
@@ -728,9 +863,11 @@ const swaggerDefinition = {
           },
         },
         responses: {
-          200: { description: 'CV parsed / accepted' },
+          200: { description: 'Parsed profile (builder format)' },
           400: { description: 'No file or invalid' },
           401: { description: 'Unauthorized' },
+          429: { description: 'AI rate limit' },
+          500: { description: 'Parse error' },
         },
       },
     },

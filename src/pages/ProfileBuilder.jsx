@@ -161,7 +161,7 @@ const ProfileBuilder = () => {
                 </div>
             ) : (
                 <div style={{ padding: '40px', textAlign: 'center', border: '2px dashed #e2e8f0', borderRadius: '12px', color: 'var(--text-dim)' }}>
-                    <p>No customized resumes yet. Hiredlogic will generate these for you during the application flow.</p>
+                    <p>No customized resumes yet. HiredLogics will generate these for you during the application flow.</p>
                 </div>
             )}
         </div>
@@ -284,7 +284,7 @@ const ProfileBuilder = () => {
                         <ChevronRight />
                     </div>
                     <div>
-                        <div className="logo-text">Hiredlogic</div>
+                        <div className="logo-text">HiredLogics</div>
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>

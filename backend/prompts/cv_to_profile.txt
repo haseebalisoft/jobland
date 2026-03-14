@@ -1,0 +1,49 @@
+Extract all professional and personal information from the following resume text.
+Format the output as a JSON object with the following structure:
+
+{
+  "personal": {
+    "fullName": "Full Name",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "email": "Email Address",
+    "phone": "Phone Number",
+    "location": "City, State or Full Address"
+  },
+  "professional": {
+    "currentTitle": "Most recent job title",
+    "totalExperience": "Approximate total years of experience",
+    "skills": ["Skill 1", "Skill 2", ...],
+    "summary": "The complete professional summary or objective section from the resume. Include ALL sentences. Do NOT truncate.",
+    "workExperience": [
+      {
+        "company": "Company Name",
+        "role": "Job Title",
+        "period": "e.g., Jan 2020 - Present",
+        "description": "Key responsibilities and achievements"
+      }
+    ]
+  },
+  "education": [
+    {
+      "degree": "Degree and Major",
+      "institution": "University/School",
+      "year": "Graduation Year",
+      "period": "Timeframe",
+      "field_of_study": ""
+    }
+  ],
+  "links": {
+    "linkedin": "URL if present",
+    "github": "URL if present",
+    "portfolio": "URL if present"
+  }
+}
+
+Rules:
+- If information is missing, use empty string "" or empty array [].
+- Output ONLY valid JSON.
+- For work description, combine bullet points into a readable paragraph or distinct sentences.
+
+Resume Text:
+{{cv_text}}

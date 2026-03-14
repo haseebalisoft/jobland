@@ -47,7 +47,7 @@ const UploadCv = () => {
             <ChevronRight />
           </div>
           <div>
-            <div className="logo-text">Hiredlogic</div>
+            <div className="logo-text">HiredLogics</div>
             <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Your AI Copilot</div>
           </div>
         </div>
@@ -59,7 +59,7 @@ const UploadCv = () => {
       <main className="orion-onboarding-container">
         <div className="orion-card">
           <h1>Upload your resume</h1>
-          <p className="subheading">This helps Hiredlogic understand your background.</p>
+          <p className="subheading">This helps HiredLogics understand your background.</p>
 
           <div
             style={{
