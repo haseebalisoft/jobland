@@ -522,16 +522,17 @@ const swaggerDefinition = {
       post: {
         tags: ['Subscriptions', 'Stripe'],
         summary: 'Create Stripe Checkout session for subscription',
-        description: 'Requires JWT. Creates Stripe Checkout Session (or mock URL if STRIPE_MOCK_MODE). Redirect user to returned url.',
+        description: 'Optional JWT (logged-in user) or anonymous. Creates Stripe Checkout Session. Send plan_id from GET /plans. Redirect user to returned url.',
         requestBody: {
           required: true,
           content: {
             'application/json': {
               schema: {
                 type: 'object',
-                required: ['planId'],
                 properties: {
-                  planId: { type: 'string', description: 'Plan identifier (e.g. pro, enterprise)' },
+                  plan_id: { type: 'string', description: 'Plan identifier from GET /plans (e.g. professional_resume, starter, success, elite)' },
+                  planId: { type: 'string', description: 'Alias for plan_id' },
+                  email: { type: 'string', format: 'email', description: 'Optional: customer email for checkout (overrides logged-in user email)' },
                 },
               },
             },
@@ -550,9 +551,66 @@ const swaggerDefinition = {
               },
             },
           },
-          400: { description: 'planId is required' },
-          401: { description: 'Unauthorized' },
+          400: { description: 'plan_id / planId required or invalid plan' },
+          401: { description: 'Unauthorized (if auth required by server)' },
           403: { description: 'Email not verified' },
+        },
+      },
+    },
+    '/subscriptions/checkout-session/{sessionId}': {
+      get: {
+        tags: ['Subscriptions', 'Stripe'],
+        summary: 'Confirm checkout session',
+        description: 'After Stripe redirect. Confirms session and activates user subscription. Requires JWT.',
+        parameters: [
+          { in: 'path', name: 'sessionId', required: true, schema: { type: 'string' }, description: 'Stripe checkout session ID from redirect URL' },
+        ],
+        responses: {
+          200: {
+            description: 'Session confirmed, user and subscription updated',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    user: { type: 'object' },
+                    subscription: { type: 'object' },
+                    planId: { type: 'string' },
+                    sessionId: { type: 'string' },
+                    accountCreated: { type: 'boolean' },
+                  },
+                },
+              },
+            },
+          },
+          403: { description: 'Session does not belong to current user' },
+        },
+      },
+    },
+    '/payments/create-checkout-session': {
+      post: {
+        tags: ['Payments', 'Stripe'],
+        summary: 'Create checkout session (verified email flow)',
+        description: 'Alternative flow: requires verificationToken and planId. Used when user verifies email then goes to checkout. Returns Stripe checkout URL.',
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['verificationToken', 'planId'],
+                properties: {
+                  verificationToken: { type: 'string' },
+                  planId: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Checkout URL' },
+          400: { description: 'Validation error' },
         },
       },
     },
@@ -585,9 +643,35 @@ const swaggerDefinition = {
       get: {
         tags: ['Dashboard'],
         summary: 'Get dashboard summary',
-        description: 'Requires JWT. Returns summary for user dashboard.',
+        description: 'Requires JWT. Returns user, subscription, stats, profile. user.subscription_plan_name is the display name from subscription_plans (e.g. "Professional Resume").',
         responses: {
-          200: { description: 'Dashboard summary' },
+          200: {
+            description: 'Dashboard summary',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    user: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'string', format: 'uuid' },
+                        full_name: { type: 'string' },
+                        email: { type: 'string' },
+                        role: { type: 'string' },
+                        subscription_plan: { type: 'string', description: 'plan_id (e.g. professional_resume)' },
+                        subscription_plan_name: { type: 'string', description: 'Display name from subscription_plans' },
+                        is_active: { type: 'boolean' },
+                      },
+                    },
+                    subscription: { type: 'object', nullable: true },
+                    stats: { type: 'object' },
+                    profile: { type: 'object', nullable: true },
+                  },
+                },
+              },
+            },
+          },
           401: { description: 'Unauthorized' },
         },
       },
@@ -635,19 +719,28 @@ const swaggerDefinition = {
       get: {
         tags: ['Settings'],
         summary: 'Get user settings',
-        description: 'Requires JWT.',
+        description: 'Requires JWT. Returns user (with subscription_plan_name from subscription_plans) and subscription.',
         responses: {
-          200: { description: 'Settings object' },
-          401: { description: 'Unauthorized' },
-        },
-      },
-      put: {
-        tags: ['Settings'],
-        summary: 'Update settings',
-        description: 'Requires JWT. Use PUT /settings/profile for profile, PUT /settings/password for password.',
-        responses: {
-          200: { description: 'Updated' },
-          400: { description: 'Validation error' },
+          200: {
+            description: 'Settings object',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    user: {
+                      type: 'object',
+                      properties: {
+                        subscription_plan: { type: 'string' },
+                        subscription_plan_name: { type: 'string', description: 'Display name for current plan' },
+                      },
+                    },
+                    subscription: { type: 'object', nullable: true },
+                  },
+                },
+              },
+            },
+          },
           401: { description: 'Unauthorized' },
         },
       },
