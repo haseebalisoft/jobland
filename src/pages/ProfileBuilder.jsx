@@ -727,11 +727,11 @@ const ProfileBuilder = () => {
                         <div className="mobile-hide" style={{ fontSize: '14px', color: 'var(--text-dim)', fontWeight: '500' }}>Profile accuracy</div>
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="logout-btn mobile-hide" onClick={() => navigate('/resume-maker')} style={{ fontSize: '13px' }}>
-                            Create Resume
+                        <button className="logout-btn mobile-hide" onClick={() => navigate('/onboarding')} style={{ fontSize: '13px' }}>
+                            Job Preferences
                         </button>
-                        <button className="btn-next" onClick={() => setShowModal(true)} style={{ padding: '12px 20px', fontSize: '13px' }}>
-                            Auto-Apply to Jobs
+                        <button className="btn-next" onClick={() => navigate('/resume-maker')} style={{ padding: '12px 20px', fontSize: '13px' }}>
+                            Create Resume
                         </button>
                     </div>
                 </div>
