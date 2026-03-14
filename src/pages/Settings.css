@@ -234,6 +234,9 @@
 }
 
 .settings-input {
+  width: 100%;
+  max-width: 400px;
+  min-width: 320px;
   border-radius: 12px;
   border: 1px solid #E2E8F0;
   padding: 14px 20px;
