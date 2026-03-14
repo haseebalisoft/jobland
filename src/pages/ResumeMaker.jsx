@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
     Download, Layout, User, Briefcase, GraduationCap,
-    BrainCircuit, ChevronDown, ChevronRight, Loader2, Check,
+    BrainCircuit, ChevronDown, ChevronRight, ChevronLeft, Loader2, Check,
     Mail, Phone, MapPin, Camera, Pencil, MoreVertical,
     RotateCcw, RotateCw, Type, Palette, MoveVertical,
     Grid, Sparkles, Trash2, Globe, Github, Linkedin,
@@ -60,12 +60,13 @@ const ResumeMaker = () => {
     const [selectedTemplate, setSelectedTemplate] = useState('classic');
     const [activeTab, setActiveTab] = useState('Content');
     const [contentSection, setContentSection] = useState('Basic Info');
+    const [workExpIndex, setWorkExpIndex] = useState(0);
+    const [educationIndex, setEducationIndex] = useState(0);
     const [expandedSection, setExpandedSection] = useState('Profile');
     const [activeView, setActiveView] = useState('PDF');
     const [previewUrl, setPreviewUrl] = useState(null);
     const [previewLoading, setPreviewLoading] = useState(false);
     const [saveStatus, setSaveStatus] = useState('Saved ✓');
-    const [zoom, setZoom] = useState(0.8);
 
     // AI Tools State
     const [jd, setJd] = useState('');
@@ -283,49 +284,6 @@ const ResumeMaker = () => {
         <div className="rb-scope" style={{ background: theme.bg }}>
             <UserSidebar />
             <div className="rb-main-content">
-                    {/* Top bar: tabs + template + download */}
-                    <header className="rb-header" style={{ padding: '0.8rem 1.5rem', background: theme.cardBg, borderBottom: `1px solid ${theme.border}` }}>
-                        <nav className="rb-nav-tabs mobile-scroll-x" style={{ gap: '0.25rem', background: theme.bg, padding: '4px', borderRadius: '12px', display: 'flex' }}>
-                            {[
-                                { id: 'Content', icon: <FileText size={14} />, label: 'Content' },
-                                { id: 'Templates', icon: <Grid size={14} />, label: 'Templates' },
-                                { id: 'Customize', icon: <Sliders size={14} />, label: 'Customize' },
-                                { id: 'AI Tools', icon: <Sparkles size={14} />, label: 'AI Sync' }
-                            ].map(tab => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`rb-nav-tab ${activeTab === tab.id ? 'active' : ''}`}
-                                    style={{
-                                        display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px',
-                                        background: activeTab === tab.id ? 'white' : 'transparent',
-                                        color: activeTab === tab.id ? theme.primary : theme.textMuted,
-                                        border: 'none', fontWeight: 700, fontSize: '13px',
-                                        boxShadow: activeTab === tab.id ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', flexShrink: 0
-                                    }}
-                                >
-                                    {tab.icon}
-                                    {tab.label}
-                                </button>
-                            ))}
-                        </nav>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <select
-                                value={selectedTemplate}
-                                onChange={(e) => setSelectedTemplate(e.target.value)}
-                                style={{ padding: '8px 16px', borderRadius: '8px', border: `1px solid ${theme.border}`, background: 'white', fontWeight: 600, fontSize: '13px' }}
-                            >
-                                {templates.map(t => (
-                                    <option key={t.id} value={t.id}>{t.name}</option>
-                                ))}
-                            </select>
-                            <button onClick={handleDownload} disabled={downloading} className="rb-btn-primary" style={{ padding: '8px 20px', borderRadius: '8px', background: theme.slate, display: 'flex', alignItems: 'center', gap: '8px', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer' }}>
-                                {downloading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
-                                Download
-                            </button>
-                        </div>
-                    </header>
-
                     {(profile?.education?.length === 0 || (profile?.professional?.workExperience?.length ?? 0) === 0) && (
                         <div style={{ padding: '12px 24px', background: 'linear-gradient(90deg, rgba(13,148,136,0.12) 0%, rgba(6,182,212,0.08) 100%)', borderBottom: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
                             <span style={{ fontSize: 14, color: theme.text, fontWeight: 500 }}>
@@ -340,6 +298,12 @@ const ResumeMaker = () => {
             <main className="rb-main mobile-main-fix" style={{ flex: 1 }}>
                 {/* --- LEFT PANEL: EDITOR SIDEBAR --- */}
                 <aside className={`rb-sidebar ${activeView === 'Editor' ? 'active' : 'mobile-hide'}`}>
+                    <div className="rb-sidebar-header">
+                        <span style={{ fontWeight: 800, fontSize: '14px', color: theme.slate }}>{activeTab}</span>
+                        <button type="button" onClick={() => setActiveView('PDF')} className="rb-sidebar-close" aria-label="Close panel">
+                            <ChevronLeft size={20} />
+                        </button>
+                    </div>
                     <div className="rb-sidebar-scroll">
                     <AnimatePresence mode="wait">
                         {activeTab === 'Content' && (
@@ -404,25 +368,48 @@ const ResumeMaker = () => {
                                         <span style={{ fontSize: 13, color: theme.text }}>Keep work experience in sync with your Profile.</span>
                                         <Link to="/profile" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: theme.primary }}>Manage in Profile →</Link>
                                     </div>
-                                    {profile.professional.workExperience.map((exp, i) => (
-                                        <div key={i} style={{ marginBottom: '1.5rem', padding: '1.25rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                                <span style={{ fontSize: '11px', fontWeight: 800, color: '#e11d48' }}>POSITION #{i + 1}</span>
-                                                <Trash2 size={14} onClick={() => { const newWork = profile.professional.workExperience.filter((_, idx) => idx !== i); updateProfile('professional', 'workExperience', newWork); }} style={{ color: '#94a3b8', cursor: 'pointer' }} />
-                                            </div>
-                                            <EditorField label="Company" value={exp.company} onChange={v => updateProfile('experience', 'company', v, i)} />
-                                            <EditorField label="Role" value={exp.role} onChange={v => updateProfile('experience', 'role', v, i)} />
-                                            <div style={{ position: 'relative' }}>
-                                                <EditorField label="Description" value={exp.description} type="textarea" onChange={v => updateProfile('experience', 'description', v, i)} />
-                                                <button onClick={() => handleAIImproveExperience(i)} style={{ position: 'absolute', top: '-30px', right: 0, background: '#eff6ff', color: '#2563eb', border: 'none', borderRadius: '6px', padding: '4px 8px', fontSize: '10px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                                                    <Sparkles size={10} /> AI Optimize
+                                    {(() => {
+                                        const work = profile.professional.workExperience || [];
+                                        const i = Math.min(workExpIndex, Math.max(0, work.length - 1));
+                                        if (work.length === 0) {
+                                            return (
+                                                <button onClick={() => { const newWork = [{ company: '', role: '', period: '', description: '' }]; updateProfile('professional', 'workExperience', newWork); setWorkExpIndex(0); }} className="rb-btn-primary" style={{ width: '100%', justifyContent: 'center', background: 'white', color: '#64748b', border: '1px dashed #cbd5e1', boxShadow: 'none' }}>
+                                                    <Plus size={16} /> Add Experience
                                                 </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    <button onClick={() => { const newWork = [...profile.professional.workExperience, { company: '', role: '', period: '', description: '' }]; updateProfile('professional', 'workExperience', newWork); }} className="rb-btn-primary" style={{ width: '100%', justifyContent: 'center', background: 'white', color: '#64748b', border: '1px dashed #cbd5e1', boxShadow: 'none' }}>
-                                        <Plus size={16} /> Add Experience
-                                    </button>
+                                            );
+                                        }
+                                        const exp = work[i];
+                                        return (
+                                            <>
+                                                <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#e11d48' }}>POSITION {i + 1} OF {work.length}</span>
+                                                        <Trash2 size={14} onClick={() => { const newWork = work.filter((_, idx) => idx !== i); updateProfile('professional', 'workExperience', newWork); setWorkExpIndex(Math.max(0, Math.min(workExpIndex, newWork.length - 1))); }} style={{ color: '#94a3b8', cursor: 'pointer' }} />
+                                                    </div>
+                                                    <EditorField label="Company" value={exp.company} onChange={v => updateProfile('experience', 'company', v, i)} />
+                                                    <EditorField label="Role" value={exp.role} onChange={v => updateProfile('experience', 'role', v, i)} />
+                                                    <div style={{ position: 'relative' }}>
+                                                        <EditorField label="Description" value={exp.description} type="textarea" onChange={v => updateProfile('experience', 'description', v, i)} />
+                                                        <button onClick={() => handleAIImproveExperience(i)} style={{ position: 'absolute', top: '-30px', right: 0, background: '#eff6ff', color: '#2563eb', border: 'none', borderRadius: '6px', padding: '4px 8px', fontSize: '10px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                                                            <Sparkles size={10} /> AI Optimize
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, gap: 12 }}>
+                                                    <button type="button" onClick={() => setWorkExpIndex(Math.max(0, i - 1))} disabled={i === 0} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', border: '1px solid #e2e8f0', borderRadius: 10, background: 'white', cursor: i === 0 ? 'not-allowed' : 'pointer', opacity: i === 0 ? 0.5 : 1 }}>
+                                                        <ChevronLeft size={18} /> Previous
+                                                    </button>
+                                                    <span style={{ fontSize: 13, color: theme.textMuted, fontWeight: 600 }}>{i + 1} / {work.length}</span>
+                                                    <button type="button" onClick={() => setWorkExpIndex(Math.min(work.length - 1, i + 1))} disabled={i === work.length - 1} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', border: '1px solid #e2e8f0', borderRadius: 10, background: 'white', cursor: i === work.length - 1 ? 'not-allowed' : 'pointer', opacity: i === work.length - 1 ? 0.5 : 1 }}>
+                                                        Next <ChevronRight size={18} />
+                                                    </button>
+                                                </div>
+                                                <button onClick={() => { const newWork = [...work, { company: '', role: '', period: '', description: '' }]; updateProfile('professional', 'workExperience', newWork); setWorkExpIndex(newWork.length - 1); }} className="rb-btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 12, background: 'white', color: '#64748b', border: '1px dashed #cbd5e1', boxShadow: 'none' }}>
+                                                    <Plus size={16} /> Add Another
+                                                </button>
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                                 )}
 
@@ -433,20 +420,43 @@ const ResumeMaker = () => {
                                         <span style={{ fontSize: 13, color: theme.text }}>Keep education in sync with your Profile.</span>
                                         <Link to="/profile" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: theme.primary }}>Manage in Profile →</Link>
                                     </div>
-                                    {(profile.education || []).map((edu, i) => (
-                                        <div key={i} style={{ marginBottom: '1.5rem', padding: '1.25rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                                                <span style={{ fontSize: '11px', fontWeight: 800, color: '#0d9488' }}>ENTRY #{i + 1}</span>
-                                                <Trash2 size={14} onClick={() => { const newEdu = (profile.education || []).filter((_, idx) => idx !== i); setProfile({ ...profile, education: newEdu }); saveProfile({ ...profile, education: newEdu }); }} style={{ color: '#94a3b8', cursor: 'pointer' }} />
-                                            </div>
-                                            <EditorField label="Degree" value={edu.degree} onChange={v => updateProfile('education', 'degree', v, i)} />
-                                            <EditorField label="Institution" value={edu.institution} onChange={v => updateProfile('education', 'institution', v, i)} />
-                                            <EditorField label="Period / Year" value={edu.period || edu.year || ''} onChange={v => updateProfile('education', 'period', v, i)} />
-                                        </div>
-                                    ))}
-                                    <button onClick={() => { const newEdu = [...(profile.education || []), { degree: '', institution: '', year: '', period: '' }]; setProfile({ ...profile, education: newEdu }); saveProfile({ ...profile, education: newEdu }); }} className="rb-btn-primary" style={{ width: '100%', justifyContent: 'center', background: 'white', color: '#64748b', border: '1px dashed #cbd5e1', boxShadow: 'none' }}>
-                                        <Plus size={16} /> Add Education
-                                    </button>
+                                    {(() => {
+                                        const eduList = profile.education || [];
+                                        const j = Math.min(educationIndex, Math.max(0, eduList.length - 1));
+                                        if (eduList.length === 0) {
+                                            return (
+                                                <button onClick={() => { const newEdu = [{ degree: '', institution: '', year: '', period: '' }]; setProfile({ ...profile, education: newEdu }); saveProfile({ ...profile, education: newEdu }); setEducationIndex(0); }} className="rb-btn-primary" style={{ width: '100%', justifyContent: 'center', background: 'white', color: '#64748b', border: '1px dashed #cbd5e1', boxShadow: 'none' }}>
+                                                    <Plus size={16} /> Add Education
+                                                </button>
+                                            );
+                                        }
+                                        const edu = eduList[j];
+                                        return (
+                                            <>
+                                                <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#0d9488' }}>ENTRY {j + 1} OF {eduList.length}</span>
+                                                        <Trash2 size={14} onClick={() => { const newEdu = eduList.filter((_, idx) => idx !== j); setProfile({ ...profile, education: newEdu }); saveProfile({ ...profile, education: newEdu }); setEducationIndex(Math.max(0, Math.min(educationIndex, newEdu.length - 1))); }} style={{ color: '#94a3b8', cursor: 'pointer' }} />
+                                                    </div>
+                                                    <EditorField label="Degree" value={edu.degree} onChange={v => updateProfile('education', 'degree', v, j)} />
+                                                    <EditorField label="Institution" value={edu.institution} onChange={v => updateProfile('education', 'institution', v, j)} />
+                                                    <EditorField label="Period / Year" value={edu.period || edu.year || ''} onChange={v => updateProfile('education', 'period', v, j)} />
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, gap: 12 }}>
+                                                    <button type="button" onClick={() => setEducationIndex(Math.max(0, j - 1))} disabled={j === 0} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', border: '1px solid #e2e8f0', borderRadius: 10, background: 'white', cursor: j === 0 ? 'not-allowed' : 'pointer', opacity: j === 0 ? 0.5 : 1 }}>
+                                                        <ChevronLeft size={18} /> Previous
+                                                    </button>
+                                                    <span style={{ fontSize: 13, color: theme.textMuted, fontWeight: 600 }}>{j + 1} / {eduList.length}</span>
+                                                    <button type="button" onClick={() => setEducationIndex(Math.min(eduList.length - 1, j + 1))} disabled={j === eduList.length - 1} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', border: '1px solid #e2e8f0', borderRadius: 10, background: 'white', cursor: j === eduList.length - 1 ? 'not-allowed' : 'pointer', opacity: j === eduList.length - 1 ? 0.5 : 1 }}>
+                                                        Next <ChevronRight size={18} />
+                                                    </button>
+                                                </div>
+                                                <button onClick={() => { const newEdu = [...eduList, { degree: '', institution: '', year: '', period: '' }]; setProfile({ ...profile, education: newEdu }); saveProfile({ ...profile, education: newEdu }); setEducationIndex(newEdu.length - 1); }} className="rb-btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 12, background: 'white', color: '#64748b', border: '1px dashed #cbd5e1', boxShadow: 'none' }}>
+                                                    <Plus size={16} /> Add Another
+                                                </button>
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                                 )}
 
@@ -635,12 +645,12 @@ const ResumeMaker = () => {
                     </div>
                 </aside>
 
-                {/* --- RIGHT PANEL: LIVE RESUME PREVIEW --- */}
+                {/* --- RESUME VIEWPORT: full height + floating controls --- */}
                 <section className={`rb-preview-section ${activeView === 'PDF' ? 'active' : 'mobile-hide'}`}>
                     <div className="rb-preview-workspace">
                         <div className="rb-pdf-document">
                             {previewLoading && (
-                                <div style={{ position: 'absolute', top: '24px', right: '24px', background: 'white', padding: '10px 20px', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '10px', zIndex: 10, border: '1px solid #eef2ff' }}>
+                                <div style={{ position: 'absolute', top: '24px', right: '80px', background: 'white', padding: '10px 20px', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '10px', zIndex: 5, border: '1px solid #eef2ff' }}>
                                     <Loader2 className="animate-spin text-accent" size={16} />
                                     <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--rb-primary)' }}>Live Sync Active</span>
                                 </div>
@@ -664,12 +674,47 @@ const ResumeMaker = () => {
                         </div>
                     </div>
 
-                    <div style={{ height: '60px', background: 'white', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#f1f5f9', padding: '6px', borderRadius: '100px' }}>
-                            <button onClick={() => setZoom(Math.max(0.4, zoom - 0.1))} style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}><Minus size={14} /></button>
-                            <span style={{ fontSize: '12px', fontWeight: 800, minWidth: '40px', textAlign: 'center' }}>{Math.round(zoom * 100)}%</span>
-                            <button onClick={() => setZoom(Math.min(1.2, zoom + 0.1))} style={{ width: '28px', height: '28px', borderRadius: '50%', border: 'none', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}><Plus size={14} /></button>
-                        </div>
+                    {/* Floating tab buttons on the left */}
+                    <div className="rb-floating-tabs-left">
+                        {[
+                            { id: 'Content', icon: <FileText size={18} />, label: 'Content' },
+                            { id: 'Templates', icon: <Grid size={18} />, label: 'Templates' },
+                            { id: 'Customize', icon: <Sliders size={18} />, label: 'Customize' },
+                            { id: 'AI Tools', icon: <Sparkles size={18} />, label: 'AI Sync' }
+                        ].map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => { setActiveTab(tab.id); setActiveView('Editor'); }}
+                                className={`rb-floating-tab ${activeTab === tab.id ? 'active' : ''}`}
+                            >
+                                {tab.icon}
+                                <span>{tab.label}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Floating actions on the top right */}
+                    <div className="rb-floating-actions-right">
+                        <select
+                            value={selectedTemplate}
+                            onChange={(e) => setSelectedTemplate(e.target.value)}
+                            className="rb-floating-select"
+                        >
+                            {templates.map(t => (
+                                <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                        </select>
+                        <button onClick={handleDownload} disabled={downloading} className="rb-floating-download">
+                            {downloading ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
+                            Download
+                        </button>
+                    </div>
+
+                    {/* Zoom control: center bottom of resume */}
+                    <div className="rb-floating-zoom">
+                        <button type="button" aria-label="Zoom out" disabled><Minus size={14} /></button>
+                        <span>100%</span>
+                        <button type="button" aria-label="Zoom in" disabled><Plus size={14} /></button>
                     </div>
                 </section>
             </main>

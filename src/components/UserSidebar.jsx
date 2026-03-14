@@ -4,91 +4,66 @@ import {
   User,
   FileText,
   Target,
-  CheckCircle,
   Settings,
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
-
-const theme = {
-  primary: '#0d9488',
-  teal: '#14b8a6',
-  slate: '#0f172a',
-  slateLight: '#1e293b',
-};
-
-const navItemStyle = (active) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-  padding: '12px 16px',
-  borderRadius: 10,
-  background: active ? 'rgba(20, 184, 166, 0.15)' : 'transparent',
-  color: active ? theme.teal : 'rgba(255,255,255,0.85)',
-  fontWeight: active ? 600 : 500,
-  textDecoration: 'none',
-  width: '100%',
-  textAlign: 'left',
-  border: 'none',
-  cursor: 'pointer',
-  fontSize: 14,
-});
+import './UserSidebar.css';
 
 export default function UserSidebar() {
   const { logout } = useAuth();
   const location = useLocation();
   const path = location.pathname;
 
+  const isActive = (p) => path === p || (p !== '/dashboard' && path.startsWith(p));
+
   return (
-    <aside
-      style={{
-        width: 260,
-        background: `linear-gradient(180deg, ${theme.slate} 0%, ${theme.slateLight} 100%)`,
-        padding: 24,
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '4px 0 24px rgba(0,0,0,0.06)',
-      }}
-    >
-      <Link
-        to="/dashboard"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          marginBottom: 32,
-          textDecoration: 'none',
-        }}
-      >
+    <aside className="user-sidebar">
+      <Link to="/dashboard" className="user-sidebar__brand">
         <img
           src="/logo.png"
           alt="HiredLogics"
-          style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 8 }}
+          className="user-sidebar__logo"
         />
-        <span style={{ fontSize: 20, fontWeight: 700, color: '#fff' }}>HiredLogics</span>
+        <span className="user-sidebar__title">HiredLogics</span>
       </Link>
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <Link to="/dashboard" style={navItemStyle(path === '/dashboard')}>
+      <nav className="user-sidebar__nav">
+        <Link
+          to="/dashboard"
+          className={`user-sidebar__link ${isActive('/dashboard') ? 'user-sidebar__link--active' : ''}`}
+        >
           <LayoutDashboard size={20} /> Overview
         </Link>
-        <Link to="/profile" style={navItemStyle(path === '/profile')}>
+        <Link
+          to="/profile"
+          className={`user-sidebar__link ${isActive('/profile') ? 'user-sidebar__link--active' : ''}`}
+        >
           <User size={20} /> Profile
         </Link>
-        <Link to="/onboarding" style={navItemStyle(path === '/onboarding')}>
+        <Link
+          to="/onboarding"
+          className={`user-sidebar__link ${isActive('/onboarding') ? 'user-sidebar__link--active' : ''}`}
+        >
           <Target size={20} /> Job Preferences
         </Link>
-        <Link to="/resume-maker" style={navItemStyle(path === '/resume-maker')}>
+        <Link
+          to="/resume-maker"
+          className={`user-sidebar__link ${isActive('/resume-maker') ? 'user-sidebar__link--active' : ''}`}
+        >
           <FileText size={20} /> Resume Maker
         </Link>
-        <Link to="/settings" style={navItemStyle(path === '/settings')}>
+        <Link
+          to="/settings"
+          className={`user-sidebar__link ${isActive('/settings') ? 'user-sidebar__link--active' : ''}`}
+        >
           <Settings size={20} /> Settings
         </Link>
       </nav>
-      <div style={{ marginTop: 'auto', paddingTop: 16 }}>
+      <div className="user-sidebar__footer">
         <button
           type="button"
           onClick={logout}
-          style={navItemStyle(false)}
+          className="user-sidebar__logout"
         >
           <LogOut size={20} /> Logout
         </button>

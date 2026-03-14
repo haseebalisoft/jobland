@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { Bell, Search, User, FileText, CheckCircle, Settings as SettingsIcon, LogOut } from 'lucide-react'
+import { Bell, Search, User, Lock, CreditCard, CheckCircle } from 'lucide-react'
 import api from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import UserSidebar from '../components/UserSidebar.jsx'
+import './Settings.css'
 
 export default function Settings() {
   const { user, logout, setUser } = useAuth()
@@ -45,11 +47,25 @@ export default function Settings() {
   if (!user) return null
 
   if (!user.emailVerified) {
-    return <div style={{ padding: 40 }}>Please verify your email to access settings.</div>
+    return (
+      <div className="settings-empty">
+        <UserSidebar />
+        <main>
+          <p>Please verify your email to access settings.</p>
+        </main>
+      </div>
+    )
   }
 
   if (loading) {
-    return <div style={{ padding: 40 }}>Loading settings...</div>
+    return (
+      <div className="settings-empty">
+        <UserSidebar />
+        <main>
+          <p>Loading settings...</p>
+        </main>
+      </div>
+    )
   }
 
   const initials =
@@ -100,338 +116,148 @@ export default function Settings() {
   const renewDate = subscription?.current_period_end
     ? new Date(subscription.current_period_end).toLocaleDateString()
     : 'N/A'
+  const isSuccess = message && message.toLowerCase().includes('success')
 
   return (
-    <div style={styles.layout}>
-      <aside style={styles.sidebar}>
-        <div style={styles.logo}>
-          <div style={styles.logoIcon}></div>
-          HiredLogics
-        </div>
-        <nav style={styles.nav}>
-          <NavItem icon={<User size={20} />} label="Overview" to="/dashboard" />
-          <NavItem icon={<FileText size={20} />} label="Create Skill" to="/onboarding" />
-          <NavItem icon={<CheckCircle size={20} />} label="Applications" />
-          <NavItem icon={<SettingsIcon size={20} />} label="Settings" active to="/settings" />
-        </nav>
-        <div style={{ marginTop: 'auto' }}>
-          <button
-            type="button"
-            onClick={logout}
-            style={{
-              ...styles.navItem,
-              color: 'var(--gray)',
-              background: 'transparent',
-              border: 'none',
-              width: '100%',
-              textAlign: 'left',
-              cursor: 'pointer',
-            }}
-          >
-            <LogOut size={20} />
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      <main style={styles.main}>
-        <header style={styles.header}>
-          <div style={styles.searchBar}>
-            <Search size={18} color="var(--gray-light)" />
-            <input type="text" placeholder="Search..." style={styles.searchInput} />
+    <div className="settings-page">
+      <UserSidebar />
+      <main className="settings-main">
+        <header className="settings-header">
+          <div className="settings-search">
+            <Search size={18} style={{ color: '#94A3B8', flexShrink: 0 }} />
+            <input type="text" placeholder="Search settings..." />
           </div>
-          <div style={styles.profileArea}>
-            <button style={styles.iconBtn}>
+          <div className="settings-header-right">
+            <button type="button" className="settings-icon-btn" aria-label="Notifications">
               <Bell size={20} />
             </button>
-            <div style={styles.avatar}>{initials}</div>
+            <div className="settings-avatar">{initials}</div>
           </div>
         </header>
 
-        <div style={styles.content}>
-          <h1 style={styles.welcome}>Account settings</h1>
-          <p style={styles.subtitle}>
-            Manage your profile, password, and subscription. Signed in as <strong>{email}</strong>.
-          </p>
+        <div className="settings-content">
+          <div className="settings-hero">
+            <h1 className="settings-title">Account settings</h1>
+            <p className="settings-subtitle">
+              Manage your profile, password, and subscription. Signed in as <strong style={{ color: '#0F172A' }}>{email}</strong>.
+            </p>
+          </div>
 
           {message && (
-            <div
-              style={{
-                marginBottom: 24,
-                padding: 12,
-                borderRadius: 8,
-                background: '#EEF2FF',
-                color: '#4F46E5',
-                fontSize: 14,
-              }}
-            >
+            <div className={`settings-alert ${isSuccess ? 'settings-alert--success' : 'settings-alert--error'}`}>
+              {isSuccess && <CheckCircle size={20} />}
               {message}
             </div>
           )}
 
-          <section style={{ marginBottom: 32 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Profile</h2>
-            <form
-              onSubmit={handleSaveProfile}
-              style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 480 }}
-            >
-              <label style={styles.label}>
-                <span>Full name</span>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  style={styles.input}
-                />
-              </label>
-              <label style={styles.label}>
-                <span>Email</span>
-                <input type="email" value={email} disabled style={styles.input} />
-              </label>
+          <section className="settings-card">
+            <div className="settings-card-header">
+              <div className="settings-card-icon settings-card-icon--profile">
+                <User size={22} />
+              </div>
+              <div>
+                <h2 className="settings-card-title">Profile</h2>
+                <p className="settings-card-subtitle">Update your name and view account info</p>
+              </div>
+            </div>
+            <form onSubmit={handleSaveProfile} className="settings-form">
+              <div className="settings-field">
+                <label>
+                  <span>Full name</span>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="settings-input"
+                  />
+                </label>
+              </div>
+              <div className="settings-field">
+                <label>
+                  <span>Email</span>
+                  <input type="email" value={email} disabled className="settings-input" />
+                </label>
+              </div>
               {createdAt && (
-                <div style={{ fontSize: 13, color: 'var(--gray)' }}>
-                  Member since {new Date(createdAt).toLocaleDateString()}
-                </div>
+                <p className="settings-meta">Member since {new Date(createdAt).toLocaleDateString()}</p>
               )}
-              <button type="submit" disabled={savingProfile} style={styles.primaryBtn}>
+              <button type="submit" disabled={savingProfile} className="settings-btn settings-btn-primary">
                 {savingProfile ? 'Saving...' : 'Save changes'}
               </button>
             </form>
           </section>
 
-          <section style={{ marginBottom: 32 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Password</h2>
-            <form
-              onSubmit={handleChangePassword}
-              style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 480 }}
-            >
-              <label style={styles.label}>
-                <span>Current password</span>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  style={styles.input}
-                />
-              </label>
-              <label style={styles.label}>
-                <span>New password</span>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  style={styles.input}
-                />
-              </label>
-              <button type="submit" disabled={savingPassword} style={styles.secondaryBtn}>
+          <section className="settings-card">
+            <div className="settings-card-header">
+              <div className="settings-card-icon settings-card-icon--password">
+                <Lock size={22} />
+              </div>
+              <div>
+                <h2 className="settings-card-title">Password</h2>
+                <p className="settings-card-subtitle">Change your password to keep your account secure</p>
+              </div>
+            </div>
+            <form onSubmit={handleChangePassword} className="settings-form">
+              <div className="settings-field">
+                <label>
+                  <span>Current password</span>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="settings-input"
+                    placeholder="••••••••"
+                  />
+                </label>
+              </div>
+              <div className="settings-field">
+                <label>
+                  <span>New password</span>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="settings-input"
+                    placeholder="••••••••"
+                  />
+                </label>
+              </div>
+              <button type="submit" disabled={savingPassword} className="settings-btn settings-btn-secondary">
                 {savingPassword ? 'Updating...' : 'Change password'}
               </button>
             </form>
           </section>
 
-          <section>
-            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Subscription</h2>
-            <div
-              style={{
-                borderRadius: 12,
-                border: '1px solid var(--gray-border)',
-                padding: 16,
-                background: 'white',
-                maxWidth: 480,
-              }}
-            >
-              <div style={{ marginBottom: 8 }}>
-                <strong>Current plan:</strong> {currentPlan}
+          <section className="settings-card settings-subscription-card">
+            <div className="settings-card-header">
+              <div className="settings-card-icon settings-card-icon--subscription">
+                <CreditCard size={22} />
               </div>
-              <div style={{ marginBottom: 8 }}>
-                <strong>Status:</strong> {subscriptionStatus}
+              <div>
+                <h2 className="settings-card-title">Subscription</h2>
+                <p className="settings-card-subtitle">Your current plan and billing</p>
               </div>
-              <div style={{ marginBottom: 16 }}>
-                <strong>Renews on:</strong> {renewDate}
-              </div>
-              <a href="/#pricing" style={styles.linkButton}>
-                Change plan
-              </a>
             </div>
+            <div className="settings-subscription-row">
+              <span className="settings-subscription-label">Current plan</span>
+              <span className="settings-plan-badge">{currentPlan}</span>
+            </div>
+            <div className="settings-subscription-row">
+              <span className="settings-subscription-label">Status</span>
+              <span className={`settings-status-badge settings-status-badge--${subscriptionStatus === 'active' ? 'active' : 'inactive'}`}>
+                {subscriptionStatus}
+              </span>
+            </div>
+            <div className="settings-subscription-row">
+              <span className="settings-subscription-label">Renews on</span>
+              <span className="settings-subscription-value">{renewDate}</span>
+            </div>
+            <a href="/#pricing" className="settings-link-btn">
+              Change plan
+            </a>
           </section>
         </div>
       </main>
     </div>
   )
 }
-
-function NavItem({ icon, label, active, to }) {
-  return (
-    <a
-      href={to || '#'}
-      style={{
-        ...styles.navItem,
-        background: active ? 'rgba(79, 70, 229, 0.1)' : 'transparent',
-        color: active ? 'var(--primary)' : 'var(--gray)',
-        fontWeight: active ? '600' : '500',
-      }}
-    >
-      {icon}
-      {label}
-    </a>
-  )
-}
-
-const styles = {
-  layout: {
-    display: 'flex',
-    minHeight: '100vh',
-    background: '#F8FAFF',
-    fontFamily: 'var(--font-primary)',
-  },
-  sidebar: {
-    width: '260px',
-    background: 'white',
-    borderRight: '1px solid var(--gray-border)',
-    padding: '24px',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  logo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    fontSize: '24px',
-    fontWeight: '800',
-    color: 'var(--dark)',
-    marginBottom: '48px',
-  },
-  logoIcon: {
-    width: '32px',
-    height: '32px',
-    background: 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)',
-    borderRadius: '8px',
-  },
-  nav: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  },
-  navItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '12px 16px',
-    borderRadius: '8px',
-    textDecoration: 'none',
-    transition: 'all 0.2s',
-  },
-  main: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  header: {
-    height: '72px',
-    background: 'white',
-    borderBottom: '1px solid var(--gray-border)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0 32px',
-  },
-  searchBar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    background: '#F0F4FF',
-    padding: '8px 16px',
-    borderRadius: '20px',
-    width: '300px',
-  },
-  searchInput: {
-    border: 'none',
-    background: 'none',
-    outline: 'none',
-    width: '100%',
-    fontSize: '14px',
-  },
-  profileArea: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '24px',
-  },
-  iconBtn: {
-    background: 'none',
-    border: 'none',
-    color: 'var(--gray)',
-    cursor: 'pointer',
-  },
-  avatar: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '50%',
-    background: 'var(--primary)',
-    color: 'white',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: '700',
-  },
-  content: {
-    padding: '40px 32px',
-    maxWidth: '1000px',
-  },
-  welcome: {
-    fontSize: '32px',
-    fontWeight: '800',
-    color: 'var(--dark)',
-    marginBottom: '8px',
-  },
-  subtitle: {
-    color: 'var(--gray)',
-    fontSize: '16px',
-    marginBottom: '32px',
-  },
-  label: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-    fontSize: 14,
-    color: 'var(--dark)',
-  },
-  input: {
-    borderRadius: 8,
-    border: '1px solid var(--gray-border)',
-    padding: '10px 12px',
-    fontSize: 14,
-  },
-  primaryBtn: {
-    marginTop: 8,
-    borderRadius: 999,
-    border: 'none',
-    padding: '10px 18px',
-    background: 'var(--primary)',
-    color: 'white',
-    fontWeight: 600,
-    cursor: 'pointer',
-    fontSize: 14,
-  },
-  secondaryBtn: {
-    marginTop: 8,
-    borderRadius: 999,
-    border: '1px solid var(--gray-border)',
-    padding: '10px 18px',
-    background: 'white',
-    color: 'var(--dark)',
-    fontWeight: 500,
-    cursor: 'pointer',
-    fontSize: 14,
-  },
-  linkButton: {
-    display: 'inline-block',
-    borderRadius: 999,
-    padding: '8px 16px',
-    border: '1px solid var(--primary)',
-    color: 'var(--primary)',
-    textDecoration: 'none',
-    fontSize: 14,
-    fontWeight: 500,
-  },
-}
-

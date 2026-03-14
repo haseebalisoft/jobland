@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     CheckCircle2, Circle, ExternalLink, Loader2, Save,
@@ -60,6 +60,79 @@ function mapApiToProfileState(data) {
   };
 }
 
+/**
+ * Compute profile accuracy in real time using ATS-friendly and recruiter metrics.
+ * Weights: contact info, headline, summary, work experience, education, skills, links.
+ */
+function computeProfileAccuracy(profile) {
+  const missing = [];
+  let score = 0;
+  const maxScore = 100;
+
+  const personal = profile?.personal || {};
+  const professional = profile?.professional || {};
+  const education = profile?.education || [];
+  const workExperience = professional?.workExperience || [];
+  const skills = Array.isArray(professional?.skills) ? professional.skills : [];
+  const links = profile?.links || {};
+
+  // Contact info (25% total) - critical for ATS
+  if ((personal.fullName || '').trim().length >= 2) score += 8; else missing.push({ label: 'Full name', tab: 'Personal' });
+  if ((personal.email || '').trim().length >= 5) score += 8; else missing.push({ label: 'Email', tab: 'Personal' });
+  if ((personal.phone || '').trim().length >= 6) score += 4; else missing.push({ label: 'Phone', tab: 'Personal' });
+  if ((personal.location || '').trim().length >= 2) score += 5; else missing.push({ label: 'Location', tab: 'Personal' });
+
+  // Professional title (15%) - headline is key for ATS and recruiters
+  const title = (professional.currentTitle || '').trim();
+  if (title.length >= 2) score += 15; else missing.push({ label: 'Professional title', tab: 'Personal' });
+
+  // Summary (15%) - 50–300 chars is ideal for ATS
+  const summary = (professional.summary || '').trim();
+  if (summary.length >= 150) score += 15;
+  else if (summary.length >= 50) score += 10;
+  else if (summary.length >= 1) score += 5;
+  else missing.push({ label: 'Professional summary', tab: 'Personal' });
+
+  // Work experience (25%) - at least one role with company, title, description
+  if (workExperience.length === 0) {
+    missing.push({ label: 'At least one work experience', tab: 'Work Experience' });
+  } else {
+    const first = workExperience[0];
+    const hasCompany = (first.company || '').trim().length >= 1;
+    const hasRole = (first.role || '').trim().length >= 1;
+    const hasDescription = (first.description || '').trim().length >= 50;
+    if (hasCompany && hasRole && hasDescription) score += 25;
+    else if (hasCompany && hasRole) score += 18;
+    else if (hasCompany || hasRole) score += 10;
+    else missing.push({ label: 'Company & role in work experience', tab: 'Work Experience' });
+  }
+
+  // Education (12%) - at least one entry with degree and institution
+  if (education.length === 0) {
+    missing.push({ label: 'At least one education entry', tab: 'Education' });
+  } else {
+    const first = education[0];
+    const hasDegree = (first.degree || '').trim().length >= 1;
+    const hasInstitution = (first.institution || '').trim().length >= 1;
+    if (hasDegree && hasInstitution) score += 12;
+    else if (hasDegree || hasInstitution) score += 6;
+    else missing.push({ label: 'Degree & institution', tab: 'Education' });
+  }
+
+  // Skills (6%) - 3+ skills improve ATS keyword match
+  if (skills.length >= 5) score += 6;
+  else if (skills.length >= 3) score += 4;
+  else if (skills.length >= 1) score += 2;
+  else missing.push({ label: 'Add 3+ skills', tab: 'Skills' });
+
+  // LinkedIn or portfolio (2%) - improves discoverability
+  const hasLink = ((links.linkedin || '').trim().length >= 10) || ((links.portfolio || '').trim().length >= 10) || ((links.github || '').trim().length >= 10);
+  if (hasLink) score += 2;
+
+  const completionPercent = Math.min(100, Math.round(score));
+  return { completionPercent, missingFields: missing };
+}
+
 const ProfileBuilder = () => {
     const [resumes, setResumes] = useState({ base: {}, customized: [] });
     const navigate = useNavigate();
@@ -71,7 +144,7 @@ const ProfileBuilder = () => {
         education: [],
         links: { linkedin: '', github: '', portfolio: '' }
     });
-    const [status, setStatus] = useState({ completionPercent: 0 });
+    const profileAccuracy = useMemo(() => computeProfileAccuracy(profile), [profile]);
     const [activeTab, setActiveTab] = useState('Personal');
     const [showModal, setShowModal] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
@@ -126,7 +199,6 @@ const ProfileBuilder = () => {
             const { data } = await api.get('/profile');
             setProfile(mapApiToProfileState(data));
             setResumes(data.resumes || { base: {}, customized: [] });
-            updateStatus();
         } catch (err) {
             console.error(err);
         } finally {
@@ -215,15 +287,6 @@ const ProfileBuilder = () => {
         </div>
     );
 
-    const updateStatus = async () => {
-        try {
-            const { data } = await api.get('/profile').catch(() => ({}));
-            if (data?.profile) setStatus({ completionPercent: data.profile.title ? 50 : 0 });
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
     const saveChanges = async (updatedProfile = profile) => {
         setSaving(true);
         try {
@@ -244,7 +307,6 @@ const ProfileBuilder = () => {
                 work_experience: (updatedProfile.professional?.workExperience || []).map((w) => ({ company: w.company, role: w.role, period: w.period, description: w.description })),
             };
             await api.post('/profile', payload);
-            updateStatus();
         } catch (err) {
             console.error(err);
         } finally {
@@ -723,15 +785,15 @@ const ProfileBuilder = () => {
                         onClick={() => setShowStatusModal(true)}
                         style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
                     >
-                        <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--accent)' }}>{status.completionPercent}%</div>
+                        <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--accent)' }}>{profileAccuracy.completionPercent}%</div>
                         <div className="mobile-hide" style={{ fontSize: '14px', color: 'var(--text-dim)', fontWeight: '500' }}>Profile accuracy</div>
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="logout-btn mobile-hide" onClick={() => navigate('/resume-maker')} style={{ fontSize: '13px' }}>
-                            Create Resume
+                        <button className="logout-btn mobile-hide" onClick={() => navigate('/onboarding')} style={{ fontSize: '13px' }}>
+                            Job Preferences
                         </button>
-                        <button className="btn-next" onClick={() => setShowModal(true)} style={{ padding: '12px 20px', fontSize: '13px' }}>
-                            Auto-Apply to Jobs
+                        <button className="btn-next" onClick={() => navigate('/resume-maker')} style={{ padding: '12px 20px', fontSize: '13px' }}>
+                            Create Resume
                         </button>
                     </div>
                 </div>
@@ -962,9 +1024,9 @@ const ProfileBuilder = () => {
 
                         <div style={{ marginBottom: '32px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                                <div style={{ fontSize: '32px', fontWeight: '800', color: 'var(--accent)' }}>{status.completionPercent}%</div>
+                                <div style={{ fontSize: '32px', fontWeight: '800', color: 'var(--accent)' }}>{profileAccuracy.completionPercent}%</div>
                                 <div style={{ flex: 1, height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                                    <div style={{ width: `${status.completionPercent}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.5s ease' }}></div>
+                                    <div style={{ width: `${profileAccuracy.completionPercent}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.5s ease' }}></div>
                                 </div>
                             </div>
                             <p style={{ color: 'var(--text-dim)', fontSize: '14px' }}>
@@ -972,20 +1034,20 @@ const ProfileBuilder = () => {
                             </p>
                         </div>
 
-                        {status.missingFields?.length > 0 ? (
+                        {profileAccuracy.missingFields?.length > 0 ? (
                             <div style={{ marginBottom: '32px' }}>
                                 <h3 style={{ fontSize: '14px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#ef4444', marginBottom: '16px' }}>
-                                    Missing Information
+                                    Missing for ATS
                                 </h3>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                    {status.missingFields.map((field, idx) => (
+                                    {profileAccuracy.missingFields.map((field, idx) => (
                                         <div
                                             key={idx}
                                             onClick={() => {
                                                 setActiveTab(field.tab || 'Personal');
                                                 setShowStatusModal(false);
                                                 // If it's the summary, we can even trigger the edit mode
-                                                if (field.label === 'Summary') {
+                                                if (field.label === 'Professional summary') {
                                                     setEditingSection('summary');
                                                 }
                                             }}

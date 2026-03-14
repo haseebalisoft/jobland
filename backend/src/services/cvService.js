@@ -13,7 +13,7 @@ function toBuilderProfile(user, profile, education, workExperience) {
   const professional = {
     currentTitle: profile?.title || '',
     summary: profile?.summary || '',
-    skills: Array.isArray(profile?.resume_skills)?.length ? [...profile.resume_skills] : (Array.isArray(profile?.job_functions) ? [...profile.job_functions] : []),
+    skills: (Array.isArray(profile?.resume_skills) && profile.resume_skills.length) ? [...profile.resume_skills] : (Array.isArray(profile?.job_functions) ? [...profile.job_functions] : []),
     workExperience: (workExperience || []).map((w) => ({
       company: w.company_name || '',
       role: w.job_title || '',

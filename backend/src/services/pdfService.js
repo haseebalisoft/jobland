@@ -36,17 +36,19 @@ export function buildResumePdf(profile) {
     }
     doc.moveDown(1);
 
+    doc.fontSize(11).fillColor(primary).font('Helvetica-Bold').text('Professional Summary', { underline: true });
+    doc.moveDown(0.4);
     if (professional.summary) {
-      doc.fontSize(11).fillColor(primary).font('Helvetica-Bold').text('Professional Summary', { underline: true });
-      doc.moveDown(0.4);
       doc.fontSize(10).fillColor(primary).font('Helvetica').text(professional.summary, { align: 'justify' });
-      doc.moveDown(1);
+    } else {
+      doc.fontSize(10).fillColor(muted).font('Helvetica').text('Add your professional summary in the Resume Maker Content tab.', { align: 'left' });
     }
+    doc.moveDown(1);
 
     const work = professional.workExperience || [];
+    doc.fontSize(11).fillColor(primary).font('Helvetica-Bold').text('Experience', { underline: true });
+    doc.moveDown(0.5);
     if (work.length > 0) {
-      doc.fontSize(11).fillColor(primary).font('Helvetica-Bold').text('Experience', { underline: true });
-      doc.moveDown(0.5);
       work.forEach((w) => {
         doc.fontSize(10).fillColor(primary).font('Helvetica-Bold').text(w.role || w.company || 'Role');
         doc.fontSize(9).fillColor(muted).text(`${w.company || ''}${w.period ? `  •  ${w.period}` : ''}`);
@@ -56,26 +58,32 @@ export function buildResumePdf(profile) {
         }
         doc.moveDown(0.6);
       });
-      doc.moveDown(0.3);
+    } else {
+      doc.fontSize(10).fillColor(muted).font('Helvetica').text('Add work experience in Profile or in the Resume Maker Content tab.', { align: 'left' });
     }
+    doc.moveDown(0.3);
 
+    doc.fontSize(11).fillColor(primary).font('Helvetica-Bold').text('Education', { underline: true });
+    doc.moveDown(0.5);
     if (education.length > 0) {
-      doc.fontSize(11).fillColor(primary).font('Helvetica-Bold').text('Education', { underline: true });
-      doc.moveDown(0.5);
       education.forEach((e) => {
         doc.fontSize(10).fillColor(primary).font('Helvetica-Bold').text(e.degree || e.institution || 'Education');
         doc.fontSize(9).fillColor(muted).text(`${e.institution || ''}${e.period || e.year ? `  •  ${e.period || e.year}` : ''}`);
         if (e.description) doc.fontSize(9).fillColor(primary).font('Helvetica').text(e.description);
         doc.moveDown(0.5);
       });
-      doc.moveDown(0.3);
+    } else {
+      doc.fontSize(10).fillColor(muted).font('Helvetica').text('Add education in Profile or in the Resume Maker Content tab.', { align: 'left' });
     }
+    doc.moveDown(0.3);
 
+    doc.fontSize(11).fillColor(primary).font('Helvetica-Bold').text('Skills', { underline: true });
+    doc.moveDown(0.4);
     const skills = professional.skills || [];
     if (skills.length > 0) {
-      doc.fontSize(11).fillColor(primary).font('Helvetica-Bold').text('Skills', { underline: true });
-      doc.moveDown(0.4);
       doc.fontSize(9).fillColor(primary).font('Helvetica').text(skills.join('  •  '));
+    } else {
+      doc.fontSize(10).fillColor(muted).font('Helvetica').text('Add skills in the Resume Maker Content tab.', { align: 'left' });
     }
 
     doc.end();
