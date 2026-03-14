@@ -6,16 +6,18 @@ import { useAuth } from '../context/AuthContext.jsx'
 import UserSidebar from '../components/UserSidebar.jsx'
 
 const theme = {
-  primary: '#0d9488',
-  teal: '#14b8a6',
-  cyan: '#06b6d4',
-  slate: '#0f172a',
-  slateLight: '#1e293b',
-  bg: '#f0fdfa',
+  primary: '#10B981',
+  blue: '#2563EB',
+  violet: '#7C3AED',
+  slate: '#0F172A',
+  slateLight: '#1E293B',
+  bg: '#F1F5F9',
   cardBg: '#ffffff',
-  border: '#ccfbf1',
-  text: '#0f172a',
-  textMuted: '#64748b',
+  border: '#E2E8F0',
+  text: '#0F172A',
+  textMuted: '#64748B',
+  teal: '#10B981',
+  cyan: '#2563EB',
 }
 
 export default function Dashboard() {
@@ -116,8 +118,8 @@ export default function Dashboard() {
             <main style={styles.main}>
                 <header style={styles.header}>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <button type="button" onClick={() => setActiveSection('overview')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: activeSection === 'overview' ? theme.teal : 'transparent', color: activeSection === 'overview' ? 'white' : theme.textMuted, fontWeight: 600, cursor: 'pointer' }}>Overview</button>
-                        <button type="button" onClick={() => setActiveSection('applications')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: activeSection === 'applications' ? theme.teal : 'transparent', color: activeSection === 'applications' ? 'white' : theme.textMuted, fontWeight: 600, cursor: 'pointer' }}>Applications</button>
+                        <button type="button" onClick={() => setActiveSection('overview')} style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: activeSection === 'overview' ? theme.primary : 'transparent', color: activeSection === 'overview' ? 'white' : theme.textMuted, fontWeight: 600, cursor: 'pointer' }}>Overview</button>
+                        <button type="button" onClick={() => setActiveSection('applications')} style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: activeSection === 'applications' ? theme.primary : 'transparent', color: activeSection === 'applications' ? 'white' : theme.textMuted, fontWeight: 600, cursor: 'pointer' }}>Applications</button>
                     </div>
                     <div style={styles.profileArea}>
                         <button type="button" style={styles.iconBtn} aria-label="Notifications">
@@ -139,9 +141,9 @@ export default function Dashboard() {
 
                             <div style={styles.statsGrid}>
                                 <StatCard number={currentPlanLabel} label="Current plan" color={theme.primary} icon={<FileText size={22} />} />
-                                <StatCard number={renewLabel} label="Renews on" color={theme.teal} icon={<Clock size={22} />} />
-                                <StatCard number={totalApplications} label="Applications" color={theme.cyan} icon={<CheckCircle size={22} />} />
-                                <StatCard number={totalInterviews} label="Interviews" color="#8b5cf6" icon={<CheckCircle size={22} />} />
+                                <StatCard number={renewLabel} label="Renews on" color={theme.blue} icon={<Clock size={22} />} />
+                                <StatCard number={totalApplications} label="Applications" color={theme.primary} icon={<CheckCircle size={22} />} />
+                                <StatCard number={totalInterviews} label="Interviews" color={theme.violet} icon={<CheckCircle size={22} />} />
                             </div>
 
                             <section style={styles.section}>
@@ -226,14 +228,14 @@ export default function Dashboard() {
 
 function statusBadgeStyle(status) {
     const colors = {
-        pending: theme.slate,
-        assigned: theme.teal,
-        completed: theme.cyan,
+        pending: theme.slateLight,
+        assigned: theme.primary,
+        completed: theme.blue,
         failed: '#f43f5e',
-        applied: '#3b82f6',
-        interview: '#8b5cf6',
+        applied: theme.blue,
+        interview: theme.violet,
         rejection: '#ef4444',
-        acceptance: '#22c55e',
+        acceptance: theme.primary,
     }
     const c = colors[status] || theme.textMuted
     return {
@@ -244,29 +246,6 @@ function statusBadgeStyle(status) {
         background: `${c}20`,
         color: c,
     }
-}
-
-function NavItem({ icon, label, active, to, onClick }) {
-    const baseStyle = {
-        ...styles.navItem,
-        background: active ? 'rgba(20, 184, 166, 0.15)' : 'transparent',
-        color: active ? theme.teal : 'rgba(255,255,255,0.85)',
-        fontWeight: active ? 600 : 500,
-    }
-    if (onClick) {
-        return (
-            <button type="button" onClick={onClick} style={{ ...baseStyle, border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
-                {icon}
-                {label}
-            </button>
-        )
-    }
-    return (
-        <a href={to || '#'} style={{ ...baseStyle, textDecoration: 'none' }}>
-            {icon}
-            {label}
-        </a>
-    )
 }
 
 function StatCard({ number, label, color, icon }) {
@@ -303,53 +282,6 @@ const styles = {
         background: theme.bg,
         fontFamily: 'var(--font-primary)',
     },
-    sidebar: {
-        width: 260,
-        background: `linear-gradient(180deg, ${theme.slate} 0%, ${theme.slateLight} 100%)`,
-        padding: 24,
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '4px 0 24px rgba(0,0,0,0.06)',
-    },
-    logo: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        marginBottom: 32,
-    },
-    logoIcon: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        background: `linear-gradient(135deg, ${theme.teal} 0%, ${theme.cyan} 100%)`,
-        boxShadow: `0 4px 12px ${theme.teal}40`,
-    },
-    logoText: { fontSize: 20, fontWeight: 700, color: '#fff' },
-    nav: { display: 'flex', flexDirection: 'column', gap: 6 },
-    navItem: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '12px 16px',
-        borderRadius: 10,
-        textDecoration: 'none',
-        color: 'rgba(255,255,255,0.85)',
-    },
-    sidebarFooter: { marginTop: 'auto', paddingTop: 16 },
-    logoutBtn: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '12px 16px',
-        borderRadius: 10,
-        border: 'none',
-        background: 'transparent',
-        color: 'rgba(255,255,255,0.8)',
-        cursor: 'pointer',
-        width: '100%',
-        textAlign: 'left',
-        fontSize: 14,
-    },
     main: { flex: 1, display: 'flex', flexDirection: 'column' },
     header: {
         height: 72,
@@ -364,7 +296,7 @@ const styles = {
         display: 'flex',
         alignItems: 'center',
         gap: 10,
-        background: '#f0fdfa',
+        background: theme.bg,
         padding: '10px 18px',
         borderRadius: 12,
         width: 280,
@@ -390,7 +322,7 @@ const styles = {
         width: 42,
         height: 42,
         borderRadius: '50%',
-        background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.teal} 100%)`,
+        background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.blue} 100%)`,
         color: '#fff',
         display: 'flex',
         alignItems: 'center',
@@ -463,7 +395,7 @@ const styles = {
         width: 10,
         height: 10,
         borderRadius: '50%',
-        background: theme.teal,
+        background: theme.primary,
         marginTop: 6,
         flexShrink: 0,
     },
@@ -484,8 +416,8 @@ const styles = {
         cursor: 'pointer',
     },
     filterChipActive: {
-        borderColor: theme.teal,
-        background: `${theme.teal}15`,
+        borderColor: theme.primary,
+        background: 'rgba(16, 185, 129, 0.12)',
         color: theme.primary,
         fontWeight: 600,
     },
@@ -513,8 +445,8 @@ const styles = {
         gap: 6,
         padding: '10px 16px',
         borderRadius: 10,
-        border: `1px solid ${theme.teal}`,
-        background: `${theme.teal}12`,
+        border: `1px solid ${theme.primary}`,
+        background: 'rgba(16, 185, 129, 0.12)',
         color: theme.primary,
         textDecoration: 'none',
         fontSize: 14,

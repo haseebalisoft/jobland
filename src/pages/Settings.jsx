@@ -1,7 +1,21 @@
 import React, { useEffect, useState } from 'react'
-import { Bell, Search, User, FileText, CheckCircle, Settings as SettingsIcon, LogOut } from 'lucide-react'
+import { Bell, Search } from 'lucide-react'
 import api from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import UserSidebar from '../components/UserSidebar.jsx'
+
+const theme = {
+  primary: '#10B981',
+  blue: '#2563EB',
+  violet: '#7C3AED',
+  slate: '#0F172A',
+  slateLight: '#1E293B',
+  bg: '#F1F5F9',
+  cardBg: '#ffffff',
+  border: '#E2E8F0',
+  text: '#0F172A',
+  textMuted: '#64748B',
+}
 
 export default function Settings() {
   const { user, logout, setUser } = useAuth()
@@ -45,11 +59,25 @@ export default function Settings() {
   if (!user) return null
 
   if (!user.emailVerified) {
-    return <div style={{ padding: 40 }}>Please verify your email to access settings.</div>
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', background: theme.bg }}>
+        <UserSidebar />
+        <main style={{ flex: 1, padding: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p style={{ color: theme.textMuted }}>Please verify your email to access settings.</p>
+        </main>
+      </div>
+    )
   }
 
   if (loading) {
-    return <div style={{ padding: 40 }}>Loading settings...</div>
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', background: theme.bg }}>
+        <UserSidebar />
+        <main style={{ flex: 1, padding: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p style={{ color: theme.textMuted }}>Loading settings...</p>
+        </main>
+      </div>
+    )
   }
 
   const initials =
@@ -103,45 +131,15 @@ export default function Settings() {
 
   return (
     <div style={styles.layout}>
-      <aside style={styles.sidebar}>
-        <div style={styles.logo}>
-          <div style={styles.logoIcon}></div>
-          HiredLogics
-        </div>
-        <nav style={styles.nav}>
-          <NavItem icon={<User size={20} />} label="Overview" to="/dashboard" />
-          <NavItem icon={<FileText size={20} />} label="Create Skill" to="/onboarding" />
-          <NavItem icon={<CheckCircle size={20} />} label="Applications" />
-          <NavItem icon={<SettingsIcon size={20} />} label="Settings" active to="/settings" />
-        </nav>
-        <div style={{ marginTop: 'auto' }}>
-          <button
-            type="button"
-            onClick={logout}
-            style={{
-              ...styles.navItem,
-              color: 'var(--gray)',
-              background: 'transparent',
-              border: 'none',
-              width: '100%',
-              textAlign: 'left',
-              cursor: 'pointer',
-            }}
-          >
-            <LogOut size={20} />
-            Logout
-          </button>
-        </div>
-      </aside>
-
+      <UserSidebar />
       <main style={styles.main}>
         <header style={styles.header}>
           <div style={styles.searchBar}>
-            <Search size={18} color="var(--gray-light)" />
+            <Search size={18} style={{ color: theme.textMuted }} />
             <input type="text" placeholder="Search..." style={styles.searchInput} />
           </div>
           <div style={styles.profileArea}>
-            <button style={styles.iconBtn}>
+            <button type="button" style={styles.iconBtn} aria-label="Notifications">
               <Bell size={20} />
             </button>
             <div style={styles.avatar}>{initials}</div>
@@ -158,22 +156,24 @@ export default function Settings() {
             <div
               style={{
                 marginBottom: 24,
-                padding: 12,
-                borderRadius: 8,
-                background: '#EEF2FF',
-                color: '#4F46E5',
+                padding: 14,
+                borderRadius: 12,
+                background: message.includes('success') ? 'rgba(16, 185, 129, 0.12)' : 'rgba(37, 99, 235, 0.1)',
+                color: message.includes('success') ? '#059669' : theme.blue,
                 fontSize: 14,
+                fontWeight: 500,
+                border: `1px solid ${message.includes('success') ? 'rgba(16, 185, 129, 0.3)' : 'rgba(37, 99, 235, 0.2)'}`,
               }}
             >
               {message}
             </div>
           )}
 
-          <section style={{ marginBottom: 32 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Profile</h2>
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>Profile</h2>
             <form
               onSubmit={handleSaveProfile}
-              style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 480 }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 480 }}
             >
               <label style={styles.label}>
                 <span>Full name</span>
@@ -189,7 +189,7 @@ export default function Settings() {
                 <input type="email" value={email} disabled style={styles.input} />
               </label>
               {createdAt && (
-                <div style={{ fontSize: 13, color: 'var(--gray)' }}>
+                <div style={{ fontSize: 13, color: theme.textMuted }}>
                   Member since {new Date(createdAt).toLocaleDateString()}
                 </div>
               )}
@@ -199,11 +199,11 @@ export default function Settings() {
             </form>
           </section>
 
-          <section style={{ marginBottom: 32 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Password</h2>
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>Password</h2>
             <form
               onSubmit={handleChangePassword}
-              style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 480 }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 480 }}
             >
               <label style={styles.label}>
                 <span>Current password</span>
@@ -229,17 +229,9 @@ export default function Settings() {
             </form>
           </section>
 
-          <section>
-            <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Subscription</h2>
-            <div
-              style={{
-                borderRadius: 12,
-                border: '1px solid var(--gray-border)',
-                padding: 16,
-                background: 'white',
-                maxWidth: 480,
-              }}
-            >
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>Subscription</h2>
+            <div style={styles.subscriptionCard}>
               <div style={{ marginBottom: 8 }}>
                 <strong>Current plan:</strong> {currentPlan}
               </div>
@@ -260,76 +252,23 @@ export default function Settings() {
   )
 }
 
-function NavItem({ icon, label, active, to }) {
-  return (
-    <a
-      href={to || '#'}
-      style={{
-        ...styles.navItem,
-        background: active ? 'rgba(79, 70, 229, 0.1)' : 'transparent',
-        color: active ? 'var(--primary)' : 'var(--gray)',
-        fontWeight: active ? '600' : '500',
-      }}
-    >
-      {icon}
-      {label}
-    </a>
-  )
-}
-
 const styles = {
   layout: {
     display: 'flex',
     minHeight: '100vh',
-    background: '#F8FAFF',
-    fontFamily: 'var(--font-primary)',
-  },
-  sidebar: {
-    width: '260px',
-    background: 'white',
-    borderRight: '1px solid var(--gray-border)',
-    padding: '24px',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  logo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    fontSize: '24px',
-    fontWeight: '800',
-    color: 'var(--dark)',
-    marginBottom: '48px',
-  },
-  logoIcon: {
-    width: '32px',
-    height: '32px',
-    background: 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)',
-    borderRadius: '8px',
-  },
-  nav: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  },
-  navItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '12px 16px',
-    borderRadius: '8px',
-    textDecoration: 'none',
-    transition: 'all 0.2s',
+    background: theme.bg,
+    fontFamily: 'var(--font-primary), system-ui, sans-serif',
   },
   main: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
+    minWidth: 0,
   },
   header: {
-    height: '72px',
-    background: 'white',
-    borderBottom: '1px solid var(--gray-border)',
+    height: 72,
+    background: theme.cardBg,
+    borderBottom: `1px solid ${theme.border}`,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -338,100 +277,122 @@ const styles = {
   searchBar: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    background: '#F0F4FF',
-    padding: '8px 16px',
-    borderRadius: '20px',
-    width: '300px',
+    gap: 10,
+    background: theme.bg,
+    padding: '10px 16px',
+    borderRadius: 12,
+    width: 280,
+    border: `1px solid ${theme.border}`,
   },
   searchInput: {
     border: 'none',
     background: 'none',
     outline: 'none',
     width: '100%',
-    fontSize: '14px',
+    fontSize: 14,
+    color: theme.text,
   },
   profileArea: {
     display: 'flex',
     alignItems: 'center',
-    gap: '24px',
+    gap: 20,
   },
   iconBtn: {
     background: 'none',
     border: 'none',
-    color: 'var(--gray)',
+    color: theme.textMuted,
     cursor: 'pointer',
+    padding: 8,
   },
   avatar: {
-    width: '40px',
-    height: '40px',
+    width: 40,
+    height: 40,
     borderRadius: '50%',
-    background: 'var(--primary)',
-    color: 'white',
+    background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.blue} 100%)`,
+    color: '#fff',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontWeight: '700',
+    fontWeight: 700,
+    fontSize: 14,
   },
   content: {
-    padding: '40px 32px',
-    maxWidth: '1000px',
+    padding: '32px 32px 48px',
+    maxWidth: 1000,
   },
   welcome: {
-    fontSize: '32px',
-    fontWeight: '800',
-    color: 'var(--dark)',
-    marginBottom: '8px',
+    fontSize: 28,
+    fontWeight: 800,
+    color: theme.text,
+    marginBottom: 8,
+    letterSpacing: '-0.02em',
   },
   subtitle: {
-    color: 'var(--gray)',
-    fontSize: '16px',
-    marginBottom: '32px',
+    color: theme.textMuted,
+    fontSize: 15,
+    marginBottom: 28,
+  },
+  section: {
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: theme.text,
+    marginBottom: 14,
   },
   label: {
     display: 'flex',
     flexDirection: 'column',
     gap: 6,
     fontSize: 14,
-    color: 'var(--dark)',
+    color: theme.text,
   },
   input: {
-    borderRadius: 8,
-    border: '1px solid var(--gray-border)',
-    padding: '10px 12px',
+    borderRadius: 10,
+    border: `1px solid ${theme.border}`,
+    padding: '10px 14px',
     fontSize: 14,
+    background: theme.cardBg,
+    color: theme.text,
   },
   primaryBtn: {
-    marginTop: 8,
-    borderRadius: 999,
+    marginTop: 4,
+    borderRadius: 10,
     border: 'none',
-    padding: '10px 18px',
-    background: 'var(--primary)',
+    padding: '12px 20px',
+    background: theme.primary,
     color: 'white',
     fontWeight: 600,
     cursor: 'pointer',
     fontSize: 14,
   },
   secondaryBtn: {
-    marginTop: 8,
-    borderRadius: 999,
-    border: '1px solid var(--gray-border)',
-    padding: '10px 18px',
-    background: 'white',
-    color: 'var(--dark)',
+    marginTop: 4,
+    borderRadius: 10,
+    border: `1px solid ${theme.border}`,
+    padding: '12px 20px',
+    background: theme.cardBg,
+    color: theme.text,
     fontWeight: 500,
     cursor: 'pointer',
     fontSize: 14,
   },
+  subscriptionCard: {
+    borderRadius: 12,
+    border: `1px solid ${theme.border}`,
+    padding: 20,
+    background: theme.cardBg,
+    maxWidth: 480,
+  },
   linkButton: {
     display: 'inline-block',
-    borderRadius: 999,
-    padding: '8px 16px',
-    border: '1px solid var(--primary)',
-    color: 'var(--primary)',
+    borderRadius: 10,
+    padding: '10px 18px',
+    border: `1px solid ${theme.primary}`,
+    color: theme.primary,
     textDecoration: 'none',
     fontSize: 14,
-    fontWeight: 500,
+    fontWeight: 600,
   },
 }
-
