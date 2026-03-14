@@ -5,16 +5,19 @@ async function getLatestSubscription(userId) {
   try {
     const subRes = await query(
       `
-        SELECT id, stripe_customer_id, stripe_subscription_id, plan_id, status, current_period_end, created_at
-        FROM subscriptions
-        WHERE user_id = $1
-        ORDER BY created_at DESC
+        SELECT s.id, s.stripe_customer_id, s.stripe_subscription_id, s.status, s.current_period_end, s.created_at,
+               sp.plan_id
+        FROM subscriptions s
+        LEFT JOIN subscription_plans sp ON sp.id = s.subscription_plan_id
+        WHERE s.user_id = $1
+        ORDER BY s.created_at DESC
         LIMIT 1
       `,
       [userId],
     );
 
-    return subRes.rows[0] || null;
+    const row = subRes.rows[0];
+    return row ? { ...row, plan_id: row.plan_id ?? null } : null;
   } catch (err) {
     if (err?.code === '42P01') {
       return null;

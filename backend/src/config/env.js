@@ -11,7 +11,7 @@ export const config = {
     port: Number(process.env.DB_PORT) || 5432,
     user: process.env.DB_USER || "postgres",
     password: process.env.DB_PASSWORD || "",
-    name: process.env.DB_NAME || "HiredLogics",
+    name: process.env.DB_NAME || "hiredlogics_prod",
   },
 
   clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
