@@ -221,23 +221,28 @@
 .settings-field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+  width: 100%;
 }
 
 .settings-field label span {
   font-size: 13px;
   font-weight: 600;
   color: #475569;
+  display: block;
+  margin-bottom: 2px;
 }
 
 .settings-input {
   border-radius: 12px;
   border: 1px solid #E2E8F0;
-  padding: 12px 16px;
+  padding: 14px 20px;
   font-size: 15px;
   background: #ffffff;
   color: #0F172A;
   transition: border-color 0.2s, box-shadow 0.2s;
+  min-height: 48px;
+  box-sizing: border-box;
 }
 
 .settings-input:focus {
