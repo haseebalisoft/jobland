@@ -68,5 +68,5 @@ export const config = {
       "no-reply@example.com",
   },
 
-  adminEmail: process.env.ADMIN_EMAIL || "admin@jobland.com",
+  adminEmail: process.env.ADMIN_EMAIL || "admin@hiredlogics.com",
 };

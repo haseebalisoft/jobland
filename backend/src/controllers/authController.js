@@ -11,6 +11,7 @@ import {
   setPasswordFromToken,
   setPasswordForPaidUser,
   setPasswordForUserId,
+  registerUser,
   registerBd,
   loginBd,
 } from '../services/authService.js';
@@ -27,6 +28,27 @@ function buildRefreshCookieOptions() {
     sameSite: 'strict',
     maxAge: ONE_WEEK_MS,
   };
+}
+
+export async function signup(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    const full_name = req.body.full_name || req.body.name || '';
+    const { email, password } = req.body;
+    if (!full_name || typeof full_name !== 'string' || !full_name.trim()) {
+      return res.status(400).json({ message: 'Full name is required' });
+    }
+    await registerUser({ full_name: full_name.trim(), email, password });
+    res.status(201).json({ message: 'User created. Check email to verify account.' });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ message: err.message });
+    }
+    next(err);
+  }
 }
 
 export async function startSignupController(req, res, next) {

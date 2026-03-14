@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
-import { ChevronRight, LogOut, Upload, Check } from 'lucide-react';
+import { Upload, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import UserSidebar from '../components/UserSidebar.jsx';
 
 const Onboarding = () => {
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    const [profileLoading, setProfileLoading] = useState(true);
     const navigate = useNavigate();
 
     const [prefs, setPrefs] = useState({
@@ -21,52 +23,53 @@ const Onboarding = () => {
         workAuthorisation: ''
     });
 
-    // CV upload is now handled on /upload_cv
+    // Fetch profile from DB on load so /onboarding shows saved data when user reloads
     useEffect(() => {
         const fetchProfile = async () => {
             try {
                 const res = await api.get('/profile');
-                const profile = res.data?.profile;
-                if (!profile) return;
+                const profile = res.data?.profile ?? null;
 
-                const typeReverseMap = {
-                    full_time: 'Full-time',
-                    contract: 'Contract',
-                    part_time: 'Part-time',
-                    internship: 'Internship',
-                };
+                if (profile) {
+                    const typeReverseMap = {
+                        full_time: 'Full-time',
+                        contract: 'Contract',
+                        part_time: 'Part-time',
+                        internship: 'Internship',
+                    };
 
-                // Rebuild job functions
-                const jobFunctionsFromDb =
-                    Array.isArray(profile.job_functions) && profile.job_functions.length > 0
-                        ? profile.job_functions
-                        : (profile.title ? [profile.title] : []);
-                const primaryJobFunction = jobFunctionsFromDb[0] || '';
+                    const jobFunctionsFromDb =
+                        Array.isArray(profile.job_functions) && profile.job_functions.length > 0
+                            ? profile.job_functions
+                            : (profile.title ? [profile.title] : []);
+                    const primaryJobFunction = jobFunctionsFromDb[0] || '';
 
-                // Rebuild job types (labels)
-                const jobTypesFromDb =
-                    Array.isArray(profile.job_types) && profile.job_types.length > 0
-                        ? profile.job_types
-                              .map((t) => typeReverseMap[t])
-                              .filter(Boolean)
-                        : (profile.employment_type
-                              ? [typeReverseMap[profile.employment_type] || '']
-                              : []);
+                    const jobTypesFromDb =
+                        Array.isArray(profile.job_types) && profile.job_types.length > 0
+                            ? profile.job_types
+                                  .map((t) => typeReverseMap[t])
+                                  .filter(Boolean)
+                            : (profile.employment_type
+                                  ? [typeReverseMap[profile.employment_type] || '']
+                                  : []);
 
-                setPrefs(prev => ({
-                    ...prev,
-                    jobFunction: primaryJobFunction,
-                    jobFunctions: jobFunctionsFromDb,
-                    jobTypes: jobTypesFromDb,
-                    preferredLocations: profile.preferred_country ? [profile.preferred_country] : [],
-                    preferredCity: profile.preferred_city || '',
-                    earliestStartDate: profile.earliest_start_date || '',
-                    experienceLevel: profile.experience_level || '',
-                    openToRemote: profile.remote_preference === 'remote_only',
-                    workAuthorisation: profile.work_authorisation || '',
-                }));
+                    setPrefs(prev => ({
+                        ...prev,
+                        jobFunction: primaryJobFunction,
+                        jobFunctions: jobFunctionsFromDb,
+                        jobTypes: jobTypesFromDb,
+                        preferredLocations: profile.preferred_country ? [profile.preferred_country] : [],
+                        preferredCity: profile.preferred_city || '',
+                        earliestStartDate: profile.earliest_start_date != null ? String(profile.earliest_start_date).slice(0, 10) : '',
+                        experienceLevel: profile.experience_level || '',
+                        openToRemote: profile.remote_preference === 'remote_only',
+                        workAuthorisation: profile.work_authorisation || '',
+                    }));
+                }
             } catch (err) {
                 console.error('Failed to fetch profile for onboarding prefill', err);
+            } finally {
+                setProfileLoading(false);
             }
         };
 
@@ -194,24 +197,22 @@ const Onboarding = () => {
         }
     };
 
-    return (
-        <div className="onboarding-page">
-            <header>
-                <div className="logo-area">
-                    <div className="logo-icon">
-                        <ChevronRight />
-                    </div>
-                    <div>
-                        <div className="logo-text">Hiredlogic</div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Your AI Copilot</div>
-                    </div>
+    if (profileLoading) {
+        return (
+            <div className="onboarding-page" style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
+                <UserSidebar />
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <p style={{ color: '#64748b', fontSize: '15px' }}>Loading your preferences...</p>
                 </div>
-                <button className="logout-btn" onClick={() => navigate('/auth')}>
-                    <LogOut size={16} /> Logout
-                </button>
-            </header>
+            </div>
+        );
+    }
 
-            <main className="orion-onboarding-container">
+    return (
+        <div className="onboarding-page" style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
+            <UserSidebar />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+            <main className="orion-onboarding-container" style={{ flex: 1, padding: '32px 24px' }}>
                 <AnimatePresence mode="wait">
                     {step === 1 ? (
                         <motion.div
@@ -221,7 +222,7 @@ const Onboarding = () => {
                             exit={{ opacity: 0, x: -20 }}
                             className="orion-card"
                         >
-                            <h1>Hi, I'm Hiredlogic, your AI Copilot for job search.</h1>
+                            <h1>Hi, I'm HiredLogics, your AI Copilot for job search.</h1>
                             <p className="subheading">To get started, what type of role are you looking for?</p>
 
                             <div style={{ marginBottom: '32px', position: 'relative' }}>
@@ -587,6 +588,7 @@ const Onboarding = () => {
                     )}
                 </AnimatePresence>
             </main>
+            </div>
         </div>
     );
 };

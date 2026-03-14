@@ -31,8 +31,8 @@ export default function BdLogin() {
       <div className="auth-card" style={styles.card}>
         <div style={styles.header}>
           <Link to="/" style={styles.logo}>
-            <div style={styles.logoIcon}></div>
-            Hiredlogic · BD Portal
+            <img src="/logo.png" alt="HiredLogics" style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 8 }} />
+            <span>HiredLogics · BD Portal</span>
           </Link>
           <div style={styles.badge}>BD only</div>
           <h2 style={styles.title}>BD Portal</h2>

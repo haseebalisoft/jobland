@@ -79,7 +79,7 @@ function deriveFullName(fullName, email) {
     .replace(/\s+/g, ' ')
     .trim();
 
-  return localPart || 'JobLand User';
+  return localPart || 'HiredLogics User';
 }
 
 function queuePasswordSetupEmail(userId) {
@@ -505,7 +505,10 @@ export async function createCheckoutSession({ userId = null, planId, email = nul
   const plan = getPlanConfig(planId);
   let customerEmail = null;
 
-  if (userId) {
+  // Use explicitly provided email first (so user can enter a different email at checkout)
+  if (email && String(email).trim()) {
+    customerEmail = String(email).trim().toLowerCase();
+  } else if (userId) {
     const user = await getCheckoutUser(userId);
     if (!user.is_verified) {
       const err = new Error('Please verify your email before starting checkout');
@@ -513,8 +516,6 @@ export async function createCheckoutSession({ userId = null, planId, email = nul
       throw err;
     }
     customerEmail = user.email;
-  } else if (email) {
-    customerEmail = String(email).trim().toLowerCase();
   }
 
   const clientBaseUrl = config.clientUrl.replace(/\/$/, '');

@@ -25,12 +25,10 @@ export default function Navbar() {
         <header className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
             <div className="container navbar__inner">
                 {/* Logo */}
-                <a href="#home" className="navbar__logo">
-                    <div className="navbar__logo-icon">
-                        <Zap size={18} fill="white" color="white" />
-                    </div>
-                    <span>Hiredlogic</span>
-                </a>
+                <Link to="/" className="navbar__logo">
+                    <img src="/logo.png" alt="HiredLogics" className="navbar__logo-img" />
+                    <span>HiredLogics</span>
+                </Link>
 
                 {/* Desktop Nav */}
                 <nav className="navbar__links">

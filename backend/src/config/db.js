@@ -17,11 +17,25 @@ const pool = new Pool({
   ssl: false,
 });
 
+function getDatabaseName() {
+  const url = process.env.DATABASE_URL;
+  if (url) {
+    try {
+      const match = url.match(/\/([^/?]+)(\?|$)/);
+      return match ? match[1] : 'from DATABASE_URL';
+    } catch (_) {
+      return 'from DATABASE_URL';
+    }
+  }
+  return process.env.DB_NAME || 'hiredlogics_prod';
+}
+
 export async function connectDB() {
   const client = await pool.connect();
   try {
     await client.query('SELECT 1');
-    console.log('✅ PostgreSQL connected successfully');
+    const dbName = getDatabaseName();
+    console.log(`✅ PostgreSQL connected successfully → database: ${dbName}`);
   } finally {
     client.release();
   }

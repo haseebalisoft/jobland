@@ -207,7 +207,7 @@ jobland/
 
 ## 🤝 Contact
 
-- 📧 Email: [hello@jobland.io](mailto:hello@jobland.io)
+- 📧 Email: [hello@hiredlogics.com](mailto:hello@hiredlogics.com)
 - 📞 Phone: +1 (234) 567-890
 - 🌐 Remote-first · Serving worldwide
 

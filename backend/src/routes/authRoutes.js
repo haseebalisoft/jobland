@@ -1,6 +1,7 @@
 import express from 'express';
 import { body } from 'express-validator';
 import {
+  signup,
   startSignupController,
   startEmailVerificationController,
   verifyOtpController,
@@ -24,6 +25,23 @@ import {
 } from '../middlewares/rateLimitMiddleware.js';
 
 const router = express.Router();
+
+// Classic signup (email + password, sends verification email) – documented in Swagger as POST /auth/signup
+router.post(
+  '/signup',
+  signupRateLimiter,
+  [
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('password')
+      .isLength({ min: 8 })
+      .matches(/[A-Z]/).withMessage('Password must contain uppercase')
+      .matches(/[a-z]/).withMessage('Password must contain lowercase')
+      .matches(/[0-9]/).withMessage('Password must contain number')
+      .matches(/[^A-Za-z0-9]/).withMessage('Password must contain special character'),
+    body('confirm_password').custom((value, { req }) => value === req.body.password).withMessage('Passwords do not match'),
+  ],
+  signup,
+);
 
 // Legacy OTP-based signup flow (pre-payment password) – kept for backwards compatibility
 router.post(

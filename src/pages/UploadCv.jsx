@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
-import { ChevronRight, LogOut, Upload } from 'lucide-react';
+import { Upload } from 'lucide-react';
+import UserSidebar from '../components/UserSidebar.jsx';
 
 const UploadCv = () => {
   const [file, setFile] = useState(null);
@@ -40,26 +41,13 @@ const UploadCv = () => {
   };
 
   return (
-    <div className="onboarding-page">
-      <header>
-        <div className="logo-area">
-          <div className="logo-icon">
-            <ChevronRight />
-          </div>
-          <div>
-            <div className="logo-text">Hiredlogic</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Your AI Copilot</div>
-          </div>
-        </div>
-        <button className="logout-btn" onClick={() => navigate('/auth')}>
-          <LogOut size={16} /> Logout
-        </button>
-      </header>
-
-      <main className="orion-onboarding-container">
+    <div className="onboarding-page" style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
+      <UserSidebar />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+      <main className="orion-onboarding-container" style={{ flex: 1, padding: '32px 24px' }}>
         <div className="orion-card">
           <h1>Upload your resume</h1>
-          <p className="subheading">This helps Hiredlogic understand your background.</p>
+          <p className="subheading">This helps HiredLogics understand your background.</p>
 
           <div
             style={{
@@ -149,6 +137,7 @@ const UploadCv = () => {
           </div>
         </div>
       </main>
+      </div>
     </div>
   );
 };

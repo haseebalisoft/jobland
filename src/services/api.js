@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const ACCESS_TOKEN_STORAGE_KEY = 'jobland_access_token';
+const ACCESS_TOKEN_STORAGE_KEY = 'hiredlogics_access_token';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',

@@ -106,7 +106,7 @@ export default function Settings() {
       <aside style={styles.sidebar}>
         <div style={styles.logo}>
           <div style={styles.logoIcon}></div>
-          Hiredlogic
+          HiredLogics
         </div>
         <nav style={styles.nav}>
           <NavItem icon={<User size={20} />} label="Overview" to="/dashboard" />
