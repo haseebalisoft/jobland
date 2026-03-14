@@ -271,6 +271,8 @@ CREATE TABLE subscription_plans (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX idx_subscription_plans_active ON subscription_plans(is_active);
+
 -- =============================
 -- SUBSCRIPTIONS
 -- =============================

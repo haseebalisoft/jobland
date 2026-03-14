@@ -5,231 +5,257 @@ import './Pricing.css'
 import api from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
-// Static design data – keeps your original layout/labels exactly the same
-const BASE_PLANS = [
-    {
-        name: 'Professional Resume',
-        now: '$15',
-        original: '$25',
-        discount: '40% OFF',
-        savings: 'Save $10',
-        period: 'One-time',
-        description: 'Get a professional, ATS-optimized CV that lands you interviews.',
-        features: [
-            'Pro ATS-Optimized CV',
-            'Keyword Research',
-            '24h Delivery',
-            'Editable File (DOCX)',
-        ],
-        cta: 'Get Resume',
-        popular: false,
-        color: 'var(--dark)',
-        bg: 'var(--white)',
-    },
-    {
-        name: 'Starter Pack',
-        now: '$30',
-        original: '$40',
-        discount: '25% OFF',
-        savings: 'Save $10',
-        period: '1 interview',
-        description: 'Perfect for individual applications.',
-        features: [
-            '1 Guaranteed Interview',
-            'Professional ATS CV',
-            'Job Applications included',
-            'Email Support',
-        ],
-        cta: 'Get Started',
-        popular: false,
-        color: 'var(--dark)',
-        bg: 'var(--white)',
-    },
-    {
-        name: 'Success Pack',
-        now: '$60',
-        original: '$100',
-        discount: '40% OFF',
-        savings: 'Save $40',
-        period: '3 interviews',
-        description: 'Our most popular result-driven plan.',
-        features: [
-            '3 Guaranteed Interviews',
-            'Professional ATS CV',
-            'Job Applications included',
-            'Priority Support',
-        ],
-        cta: 'Landed Interviews',
-        popular: true,
-        color: 'white',
-        bg: 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)',
-    },
-    {
-        name: 'Elite Pack',
-        now: '$100',
-        original: '$165',
-        discount: '40% OFF',
-        savings: 'Save $65',
-        period: '6 interviews',
-        description: 'Maximum exposure for serious career growth.',
-        features: [
-            '6 Guaranteed Interviews',
-            'Professional ATS CV',
-            'Job Applications included',
-            'WhatsApp Priority Support',
-        ],
-        cta: 'Go Elite',
-        popular: false,
-        color: 'var(--dark)',
-        bg: 'var(--white)',
-    },
-]
+function formatPrice(price, currency = 'USD') {
+  if (price === 0) return 'Free'
+  const symbol = currency === 'USD' ? '$' : currency
+  return `${symbol}${Number(price).toFixed(2)}`
+}
+
+function formatPeriod(billing_interval) {
+  if (!billing_interval || billing_interval === 'never') return ''
+  if (billing_interval === 'one-time') return 'One-time'
+  if (billing_interval === 'monthly') return '/month'
+  return billing_interval
+}
+
+// Default features per plan_id when backend doesn't provide them
+const DEFAULT_FEATURES = {
+  professional_resume: [
+    'Pro ATS-Optimized CV',
+    'Keyword Research',
+    '24h Delivery',
+    'Editable File (DOCX)',
+  ],
+  starter: [
+    '1 Guaranteed Interview',
+    'Professional ATS CV',
+    'Job Applications included',
+    'Email Support',
+  ],
+  success: [
+    '3 Guaranteed Interviews',
+    'Professional ATS CV',
+    'Job Applications included',
+    'Priority Support',
+  ],
+  elite: [
+    '6 Guaranteed Interviews',
+    'Professional ATS CV',
+    'Job Applications included',
+    'WhatsApp Priority Support',
+  ],
+}
 
 export default function Pricing() {
-    const { user } = useAuth()
-    const [plans, setPlans] = useState(BASE_PLANS)
-    const [startingPlan, setStartingPlan] = useState('')
-    const navigate = useNavigate()
+  const { user } = useAuth()
+  const [plans, setPlans] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [startingPlan, setStartingPlan] = useState('')
+  const navigate = useNavigate()
 
-    useEffect(() => {
-        // Fetch plan IDs/prices from backend and merge into static design
-        api.get('/plans')
-            .then((res) => {
-                const apiPlans = res.data || []
-                setPlans(
-                    BASE_PLANS.map((p) => {
-                        const match = apiPlans.find((ap) => ap.name === p.name)
-                        return match
-                            ? {
-                                ...p,
-                                apiId: match.id,
-                                apiPrice: match.priceCents,
-                            }
-                            : p
-                    }),
-                )
-            })
-            .catch(() => {
-                setPlans(BASE_PLANS)
-            })
-    }, [])
+  useEffect(() => {
+    api
+      .get('/plans')
+      .then((res) => {
+        const apiPlans = res.data || []
+        setPlans(
+          apiPlans.map((p) => ({
+            plan_id: p.plan_id,
+            name: p.name,
+            price: p.price,
+            currency: p.currency || 'USD',
+            billing_interval: p.billing_interval || 'monthly',
+            description: p.description || '',
+            period: formatPeriod(p.billing_interval),
+            priceFormatted: formatPrice(p.price, p.currency),
+            popular: p.plan_id === 'success',
+            features: DEFAULT_FEATURES[p.plan_id] || [],
+          })),
+        )
+      })
+      .catch(() => setPlans([]))
+      .finally(() => setLoading(false))
+  }, [])
 
-    const handleGetStarted = async (plan) => {
-        // Save plan name for any legacy flows that still use it
-        localStorage.setItem('selectedPlanName', plan.name)
-        setStartingPlan(plan.name)
+  const handleGetStarted = async (plan) => {
+    localStorage.setItem('selectedPlanName', plan.name)
+    setStartingPlan(plan.plan_id)
 
-        // If user is already logged in and is a normal user, skip email/OTP and go straight to Stripe
-        if (user && user.role === 'user') {
-            try {
-                const res = await api.post('/subscriptions/checkout-session', {
-                    plan_id: plan.apiId || plan.name,
-                })
-                window.location.href = res.data.url
-                return
-            } catch (err) {
-                console.error('Unable to start Stripe checkout for logged-in user', err)
-                setStartingPlan('')
-                return
-            }
-        }
-
-        // Anonymous flow: send user into full-screen onboarding
-        navigate(`/start?plan=${encodeURIComponent(plan.name)}`)
+    if (user && user.role === 'user') {
+      try {
+        const res = await api.post('/subscriptions/checkout-session', {
+          plan_id: plan.plan_id,
+        })
+        window.location.href = res.data.url
+        return
+      } catch (err) {
+        console.error('Unable to start Stripe checkout for logged-in user', err)
+        setStartingPlan('')
+        return
+      }
     }
+
+    navigate(`/start?plan=${encodeURIComponent(plan.name)}`)
+  }
+
+  if (loading) {
     return (
-        <section id="pricing" className="pricing-section section">
-            <div className="container">
-                <div className="text-center">
-                    <div className="section-label">💰 Pricing</div>
-                    <h2 className="section-title">Simple, Transparent Pricing</h2>
-                    <p className="section-subtitle">
-                        No hidden fees. No contracts. Pay for what works — or go unlimited for just $30/month.
-                    </p>
-                </div>
-
-                <div className="pricing-cards">
-                    {plans.map((plan, i) => (
-                        <div
-                            key={i}
-                            className={`pricing-card ${plan.popular ? 'pricing-card--popular' : ''}`}
-                            style={{ background: plan.bg }}
-                        >
-                            {plan.popular && (
-                                <div className="pricing-badge">
-                                    <Star size={12} fill="currentColor" /> Most Popular
-                                </div>
-                            )}
-
-                            <div className="pricing-header">
-                                <h3 className="pricing-name" style={{ color: plan.popular ? 'rgba(255,255,255,0.85)' : 'var(--gray)' }}>
-                                    {plan.name}
-                                </h3>
-                                <div className="pricing-price-area">
-                                    <div className="pricing-top-right-badge">
-                                        <span
-                                            className="discount-badge"
-                                            style={{
-                                                background: 'linear-gradient(135deg, #2563EB 0%, #22C55E 100%)',
-                                                color: '#FFFFFF',
-                                            }}
-                                        >
-                                            {plan.discount}
-                                        </span>
-                                    </div>
-                                    <div className="pricing-original-strike">
-                                        {plan.original}
-                                    </div>
-                                    <div className="pricing-main-row">
-                                        <span className="pricing-now" style={{ color: plan.popular ? 'white' : 'var(--dark)' }}>
-                                            {plan.now}
-                                        </span>
-                                        <span className="pricing-period-meta" style={{ color: plan.popular ? 'rgba(255,255,255,0.7)' : 'var(--gray)' }}>
-                                            {plan.period}
-                                        </span>
-                                    </div>
-                                    {/* Savings text can be computed on backend if needed */}
-                                </div>
-                                <p className="pricing-desc" style={{ color: plan.popular ? 'rgba(255,255,255,0.75)' : 'var(--gray)' }}>
-                                    {plan.description}
-                                </p>
-                            </div>
-
-                            <div className="pricing-divider" style={{ background: plan.popular ? 'rgba(255,255,255,0.15)' : 'var(--gray-border)' }} />
-
-                            <ul className="pricing-features">
-                                {plan.features.map((f, j) => (
-                                    <li key={j} className="pricing-feature">
-                                        <span className="pricing-check" style={{
-                                            background: plan.popular ? 'rgba(255,255,255,0.2)' : 'var(--accent-light)',
-                                            color: plan.popular ? 'white' : 'var(--accent)',
-                                        }}>
-                                            <Check size={12} strokeWidth={3} />
-                                        </span>
-                                        <span style={{ color: plan.popular ? 'rgba(255,255,255,0.9)' : 'var(--dark)' }}>
-                                            {f}
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-
-                            <button
-                                type="button"
-                                className={`btn btn-lg pricing-cta ${plan.popular ? 'pricing-cta--inverted' : 'btn-primary'}`}
-                                disabled={startingPlan === plan.name}
-                                onClick={() => handleGetStarted(plan)}
-                            >
-                                <Zap size={16} fill={plan.popular ? '#4F46E5' : 'white'} />
-                                {startingPlan === plan.name ? 'Redirecting...' : 'Get Started'}
-                            </button>
-                        </div>
-                    ))}
-                </div>
-
-                <div className="pricing-note">
-                    <p>🔒 Secure payment · Cancel anytime · 100% satisfaction guaranteed · Questions? <a href="#faq">See FAQ</a></p>
-                </div>
-            </div>
-        </section>
+      <section id="pricing" className="pricing-section section">
+        <div className="container">
+          <div className="text-center">
+            <div className="section-label">💰 Pricing</div>
+            <h2 className="section-title">Simple, Transparent Pricing</h2>
+            <p className="section-subtitle">Loading plans...</p>
+          </div>
+        </div>
+      </section>
     )
+  }
+
+  if (plans.length === 0) {
+    return (
+      <section id="pricing" className="pricing-section section">
+        <div className="container">
+          <div className="text-center">
+            <div className="section-label">💰 Pricing</div>
+            <h2 className="section-title">Simple, Transparent Pricing</h2>
+            <p className="section-subtitle">No plans available at the moment.</p>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section id="pricing" className="pricing-section section">
+      <div className="container">
+        <div className="text-center">
+          <div className="section-label">💰 Pricing</div>
+          <h2 className="section-title">Simple, Transparent Pricing</h2>
+          <p className="section-subtitle">
+            No hidden fees. No contracts. Pay for what works.
+          </p>
+        </div>
+
+        <div className="pricing-cards">
+          {plans.map((plan, i) => (
+            <div
+              key={plan.plan_id}
+              className={`pricing-card ${plan.popular ? 'pricing-card--popular' : ''}`}
+              style={{
+                background: plan.popular
+                  ? 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)'
+                  : 'var(--white)',
+              }}
+            >
+              {plan.popular && (
+                <div className="pricing-badge">
+                  <Star size={12} fill="currentColor" /> Most Popular
+                </div>
+              )}
+
+              <div className="pricing-header">
+                <h3
+                  className="pricing-name"
+                  style={{
+                    color: plan.popular ? 'rgba(255,255,255,0.85)' : 'var(--gray)',
+                  }}
+                >
+                  {plan.name}
+                </h3>
+                <div className="pricing-price-area">
+                  <div className="pricing-main-row">
+                    <span
+                      className="pricing-now"
+                      style={{
+                        color: plan.popular ? 'white' : 'var(--dark)',
+                      }}
+                    >
+                      {plan.priceFormatted}
+                    </span>
+                    <span
+                      className="pricing-period-meta"
+                      style={{
+                        color: plan.popular ? 'rgba(255,255,255,0.7)' : 'var(--gray)',
+                      }}
+                    >
+                      {plan.period}
+                    </span>
+                  </div>
+                </div>
+                <p
+                  className="pricing-desc"
+                  style={{
+                    color: plan.popular ? 'rgba(255,255,255,0.75)' : 'var(--gray)',
+                  }}
+                >
+                  {plan.description}
+                </p>
+              </div>
+
+              <div
+                className="pricing-divider"
+                style={{
+                  background: plan.popular
+                    ? 'rgba(255,255,255,0.15)'
+                    : 'var(--gray-border)',
+                }}
+              />
+
+              {plan.features && plan.features.length > 0 && (
+                <ul className="pricing-features">
+                  {plan.features.map((f, j) => (
+                    <li key={j} className="pricing-feature">
+                      <span
+                        className="pricing-check"
+                        style={{
+                          background: plan.popular
+                            ? 'rgba(255,255,255,0.2)'
+                            : 'var(--accent-light)',
+                          color: plan.popular ? 'white' : 'var(--accent)',
+                        }}
+                      >
+                        <Check size={12} strokeWidth={3} />
+                      </span>
+                      <span
+                        style={{
+                          color: plan.popular
+                            ? 'rgba(255,255,255,0.9)'
+                            : 'var(--dark)',
+                        }}
+                      >
+                        {f}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <button
+                type="button"
+                className={`btn btn-lg pricing-cta ${
+                  plan.popular ? 'pricing-cta--inverted' : 'btn-primary'
+                }`}
+                disabled={startingPlan === plan.plan_id}
+                onClick={() => handleGetStarted(plan)}
+              >
+                <Zap
+                  size={16}
+                  fill={plan.popular ? '#4F46E5' : 'white'}
+                />
+                {startingPlan === plan.plan_id ? 'Redirecting...' : 'Get Started'}
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="pricing-note">
+          <p>
+            🔒 Secure payment · Cancel anytime · 100% satisfaction guaranteed ·
+            Questions? <a href="#faq">See FAQ</a>
+          </p>
+        </div>
+      </div>
+    </section>
+  )
 }

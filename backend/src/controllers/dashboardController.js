@@ -36,9 +36,11 @@ export async function getDashboardSummary(req, res, next) {
 
     const userRes = await query(
       `
-        SELECT id, full_name, email, role, subscription_plan, is_active
-        FROM users
-        WHERE id = $1
+        SELECT u.id, u.full_name, u.email, u.role, u.subscription_plan, u.is_active,
+               sp.name AS subscription_plan_name
+        FROM users u
+        LEFT JOIN subscription_plans sp ON sp.plan_id = u.subscription_plan
+        WHERE u.id = $1
       `,
       [userId],
     );
@@ -93,6 +95,7 @@ export async function getDashboardSummary(req, res, next) {
         email: user.email,
         role: user.role,
         subscription_plan: user.subscription_plan,
+        subscription_plan_name: user.subscription_plan_name || null,
         is_active: user.is_active,
       },
       subscription,

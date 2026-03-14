@@ -490,11 +490,30 @@ const swaggerDefinition = {
     '/plans': {
       get: {
         tags: ['Plans'],
-        summary: 'List active subscription plans',
+        summary: 'List paid subscription plans',
+        description: 'Returns plans from subscription_plans table (excludes free). Used by pricing page.',
         security: [],
         responses: {
           200: {
-            description: 'Array of plans (id, name, price, stripePriceId, etc.)',
+            description: 'Array of plans from DB',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      plan_id: { type: 'string', example: 'professional_resume', description: 'Unique plan identifier' },
+                      name: { type: 'string', example: 'Professional Resume' },
+                      price: { type: 'number', example: 14.99 },
+                      currency: { type: 'string', example: 'USD' },
+                      billing_interval: { type: 'string', example: 'one-time', enum: ['one-time', 'monthly', 'never'] },
+                      description: { type: 'string', description: 'Plan description' },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },

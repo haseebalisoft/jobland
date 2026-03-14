@@ -6,14 +6,14 @@ import { query } from '../config/db.js';
 
 const PLAN_NAME_TO_ID = {
   'professional resume': 'professional_resume',
-  'starter pack': 'starter_pack',
-  'success pack': 'success_pack',
-  'elite pack': 'elite_pack',
+  'starter pack': 'starter',
+  'success pack': 'success',
+  'elite pack': 'elite',
 };
 
 function normalizePlanId(planId) {
-  if (!planId || (typeof planId === 'string' && !planId.trim())) return 'success_pack';
-  const key = String(planId).toLowerCase().trim();
+  if (!planId || (typeof planId === 'string' && !planId.trim())) return 'success';
+  const key = String(planId).toLowerCase().trim().replace(/_pack$/, '');
   return PLAN_NAME_TO_ID[key] || key;
 }
 
