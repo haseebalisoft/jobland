@@ -7,7 +7,8 @@ import {
 } from '../repositories/leadRepository.js';
 import { buildDateRangeFilter } from '../utils/dateFilter.js';
 
-const ALLOWED_STATUSES = new Set(['pending', 'applied', 'interview', 'rejected', 'offer']);
+// job_assignments.status: job_assignment_status enum in 001_initial (pending, assigned, completed, failed)
+const ALLOWED_JOB_ASSIGNMENT_STATUSES = new Set(['pending', 'assigned', 'completed', 'failed']);
 
 function parsePagination({ page, limit }) {
   const p = Math.max(parseInt(page || '1', 10), 1);
@@ -48,56 +49,27 @@ export async function createLeadForBd(bdId, payload, actorRole = 'bd') {
     bd_id: bdId,
   });
 
-  // If this lead is already assigned to a specific user, also upsert an application
-  // so the user's applications table stays in sync.
+  // If this lead is assigned to a user and they have a profile, upsert an application
+  // (applications.profile_id is NOT NULL in 001_initial; current_status uses application_status enum)
   if (allowedUserId && lead?.job_id) {
-    // Find the latest profile for this user (if any)
     const profileRes = await query(
-      `
-        SELECT id
-        FROM profiles
-        WHERE user_id = $1
-        ORDER BY created_at DESC
-        LIMIT 1
-      `,
+      `SELECT id FROM profiles WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`,
       [allowedUserId],
     );
     const profileId = profileRes.rowCount > 0 ? profileRes.rows[0].id : null;
-
-    await query(
-      `
-        INSERT INTO applications (
-          id,
-          user_id,
-          profile_id,
-          job_id,
-          bd_id,
-          current_status,
-          applied_at,
-          last_status_updated_at,
-          notes,
-          is_active,
-          created_at,
-          updated_at
-        )
-        VALUES (
-          gen_random_uuid(),
-          $1,
-          $2,
-          $3,
-          $4,
-          'applied',
-          NOW(),
-          NOW(),
-          NULL,
-          TRUE,
-          NOW(),
-          NOW()
-        )
-        ON CONFLICT (user_id, job_id) DO NOTHING
-      `,
-      [allowedUserId, profileId, lead.job_id, bdId],
-    );
+    if (profileId) {
+      await query(
+        `
+          INSERT INTO applications (
+            id, user_id, profile_id, job_id, bd_id,
+            current_status, applied_at, last_status_updated_at, notes, is_active, created_at, updated_at
+          )
+          VALUES (gen_random_uuid(), $1, $2, $3, $4, 'applied', NOW(), NOW(), NULL, TRUE, NOW(), NOW())
+          ON CONFLICT (user_id, job_id) DO NOTHING
+        `,
+        [allowedUserId, profileId, lead.job_id, bdId],
+      );
+    }
   }
 
   return lead;
@@ -122,7 +94,7 @@ export async function assignLead(leadId, bdIdOrAdminId, assignedUserId, actorRol
 }
 
 export async function updateLeadStatusService(leadId, newStatus, actor) {
-  if (!ALLOWED_STATUSES.has(newStatus)) {
+  if (!ALLOWED_JOB_ASSIGNMENT_STATUSES.has(newStatus)) {
     const err = new Error('Invalid lead status');
     err.statusCode = 400;
     throw err;
@@ -296,26 +268,25 @@ export async function listLeadsForAdmin({ range, page, limit }) {
   };
 }
 
+// job_assignments.status enum in 001: pending, assigned, completed, failed
 export async function getLeadStats() {
   const res = await query(
     `
       SELECT
         COUNT(*)::int AS total_leads,
         COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
-        COUNT(*) FILTER (WHERE status = 'applied')::int AS applied,
-        COUNT(*) FILTER (WHERE status = 'interview')::int AS interview,
-        COUNT(*) FILTER (WHERE status = 'rejected')::int AS rejected,
-        COUNT(*) FILTER (WHERE status = 'offer')::int AS offer
+        COUNT(*) FILTER (WHERE status = 'assigned')::int AS assigned,
+        COUNT(*) FILTER (WHERE status = 'completed')::int AS completed,
+        COUNT(*) FILTER (WHERE status = 'failed')::int AS failed
       FROM job_assignments
     `,
   );
   return res.rows[0] || {
     total_leads: 0,
     pending: 0,
-    applied: 0,
-    interview: 0,
-    rejected: 0,
-    offer: 0,
+    assigned: 0,
+    completed: 0,
+    failed: 0,
   };
 }
 
@@ -353,62 +324,29 @@ export async function markLeadAppliedByUser(leadId, userId) {
     }
 
     await client.query(
-      `
-        UPDATE job_assignments
-        SET status = 'applied'
-        WHERE id = $1
-      `,
+      `UPDATE job_assignments SET status = 'assigned', updated_at = NOW() WHERE id = $1`,
       [leadId],
     );
 
     if (lead.job_id) {
-      // Use the latest profile for this user if it exists
       const profileRes = await client.query(
-        `
-          SELECT id
-          FROM profiles
-          WHERE user_id = $1
-          ORDER BY created_at DESC
-          LIMIT 1
-        `,
+        `SELECT id FROM profiles WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`,
         [userId],
       );
       const profileId = profileRes.rowCount > 0 ? profileRes.rows[0].id : null;
-
-      await client.query(
-        `
-          INSERT INTO applications (
-            id,
-            user_id,
-            profile_id,
-            job_id,
-            bd_id,
-            current_status,
-            applied_at,
-            last_status_updated_at,
-            notes,
-            is_active,
-            created_at,
-            updated_at
-          )
-          VALUES (
-            gen_random_uuid(),
-            $1,
-            $2,
-            $3,
-            $4,
-            'applied',
-            NOW(),
-            NOW(),
-            NULL,
-            TRUE,
-            NOW(),
-            NOW()
-          )
-          ON CONFLICT (user_id, job_id) DO NOTHING
-        `,
-        [userId, profileId, lead.job_id, lead.bd_id],
-      );
+      if (profileId) {
+        await client.query(
+          `
+            INSERT INTO applications (
+              id, user_id, profile_id, job_id, bd_id,
+              current_status, applied_at, last_status_updated_at, notes, is_active, created_at, updated_at
+            )
+            VALUES (gen_random_uuid(), $1, $2, $3, $4, 'applied', NOW(), NOW(), NULL, TRUE, NOW(), NOW())
+            ON CONFLICT (user_id, job_id) DO NOTHING
+          `,
+          [userId, profileId, lead.job_id, lead.bd_id],
+        );
+      }
     }
 
     await client.query('COMMIT');

@@ -4,15 +4,15 @@ import { config } from './env.js';
 const swaggerDefinition = {
   openapi: '3.0.0',
   info: {
-    title: 'JobLand SaaS API',
+    title: 'HiredLogics / JobLand API',
     version: '1.0.0',
     description:
-      'REST API for JobLand subscription-based SaaS (auth, billing, admin dashboard).',
+      'REST API aligned with hiredlogics_prod schema (001_initial.sql): users, profiles, jobs, user_bd_assignments, job_assignments, applications, subscription_plans, subscriptions, refresh_tokens.',
   },
   servers: [
     {
       url: `${config.clientUrl.replace(/\/$/, '')}/api`.replace('5173', '5000'),
-      description: 'Local API server',
+      description: 'API server (DB: hiredlogics_prod)',
     },
   ],
   components: {
@@ -680,6 +680,60 @@ const swaggerDefinition = {
         },
       },
     },
+    '/user/onboarding': {
+      post: {
+        tags: ['User'],
+        summary: 'Save onboarding preferences',
+        description: 'Creates/updates profile (profiles table). Uses user_bd_assignments for bd_id if set. Schema: title, employment_type, experience_years, experience_level, earliest_start_date, preferred_country, preferred_city, remote_preference, work_authorisation, job_functions (TEXT[]), job_types (employment_type[]).',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  jobFunction: { type: 'string' },
+                  jobFunctions: { type: 'array', items: { type: 'string' } },
+                  jobTypes: { type: 'array', items: { type: 'string' } },
+                  preferredLocations: { type: 'array', items: { type: 'string' } },
+                  preferredCity: { type: 'string' },
+                  earliestStartDate: { type: 'string', format: 'date' },
+                  experienceLevel: { type: 'string' },
+                  openToRemote: { type: 'boolean' },
+                  workAuthorisation: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Onboarding saved' },
+          400: { description: 'Validation error' },
+          401: { description: 'Unauthorized' },
+        },
+      },
+    },
+    '/cv/parse': {
+      post: {
+        tags: ['CV'],
+        summary: 'Upload and parse CV/resume',
+        description: 'Accepts multipart/form-data with file field "resume". Auth required.',
+        requestBody: {
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                properties: { resume: { type: 'string', format: 'binary' } },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'CV parsed / accepted' },
+          400: { description: 'No file or invalid' },
+          401: { description: 'Unauthorized' },
+        },
+      },
+    },
     '/bd/my-users': {
       get: {
         tags: ['BD'],
@@ -918,6 +972,37 @@ const swaggerDefinition = {
         },
       },
     },
+    '/admin/users/{id}/reset-password': {
+      post: {
+        tags: ['Admin'],
+        summary: 'Reset user/BD password',
+        description: 'Admin sets a new password for any user (users table). Admin only.',
+        parameters: [
+          { in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' }, description: 'User ID' },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['new_password'],
+                properties: {
+                  new_password: { type: 'string', minLength: 6, description: 'New password' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Password reset' },
+          400: { description: 'Validation error' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Admin only' },
+          404: { description: 'User not found' },
+        },
+      },
+    },
     '/admin/subscriptions': {
       get: {
         tags: ['Admin'],
@@ -1092,7 +1177,8 @@ const swaggerDefinition = {
     '/leads/{id}/status': {
       patch: {
         tags: ['Leads'],
-        summary: 'Update lead status (BD or admin)',
+        summary: 'Update lead (job_assignment) status (BD or admin)',
+        description: 'job_assignments.status uses job_assignment_status enum: pending, assigned, completed, failed.',
         parameters: [
           {
             in: 'path',
@@ -1111,7 +1197,7 @@ const swaggerDefinition = {
                 properties: {
                   status: {
                     type: 'string',
-                    enum: ['pending', 'applied', 'interview', 'rejected', 'offer'],
+                    enum: ['pending', 'assigned', 'completed', 'failed'],
                   },
                 },
               },

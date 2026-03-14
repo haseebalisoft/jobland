@@ -10,7 +10,7 @@ const connectionString =
   process.env.DATABASE_URL ||
   `postgresql://${encodeURIComponent(process.env.DB_USER || 'postgres')}:${encodeURIComponent(
     process.env.DB_PASSWORD || '',
-  )}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'HiredLogics'}`;
+  )}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'hiredlogics_prod'}`;
 
 const pool = new Pool({
   connectionString,

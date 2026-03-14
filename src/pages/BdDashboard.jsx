@@ -11,7 +11,8 @@ const RANGE_OPTIONS = [
   { value: 'all', label: 'All time' },
 ]
 
-const STATUS_OPTIONS = ['pending', 'applied', 'interview', 'rejected', 'offer']
+// job_assignments.status enum in 001_initial: pending, assigned, completed, failed
+const STATUS_OPTIONS = ['pending', 'assigned', 'completed', 'failed']
 
 export default function BdDashboard() {
   const { user, logout } = useAuth()
@@ -76,7 +77,7 @@ export default function BdDashboard() {
         acc[s] = (acc[s] || 0) + 1
         return acc
       },
-      { pending: 0, applied: 0, interview: 0, rejected: 0, offer: 0 },
+      { pending: 0, assigned: 0, completed: 0, failed: 0 },
     )
     return { total, byStatus }
   }, [leads])
@@ -245,15 +246,21 @@ export default function BdDashboard() {
             />
             <StatCard
               icon={<CheckCircle />}
-              label="Applied / Interview"
-              value={(stats.byStatus.applied || 0) + (stats.byStatus.interview || 0)}
+              label="Assigned"
+              value={stats.byStatus.assigned || 0}
               accent="#22C55E"
             />
             <StatCard
               icon={<Users />}
-              label="Offers"
-              value={stats.byStatus.offer || 0}
+              label="Completed"
+              value={stats.byStatus.completed || 0}
               accent="#0EA5E9"
+            />
+            <StatCard
+              icon={<Briefcase />}
+              label="Failed"
+              value={stats.byStatus.failed || 0}
+              accent="#EF4444"
             />
           </section>
 

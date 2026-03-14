@@ -1,18 +1,21 @@
 import { query } from '../config/db.js';
 
+// 001_initial: subscriptions has subscription_plan_id (FK to subscription_plans); plan_id lives on subscription_plans
 async function getLatestSubscription(userId) {
   try {
     const subRes = await query(
       `
-        SELECT stripe_customer_id,
-               stripe_subscription_id,
-               plan_id,
-               status,
-               current_period_end,
-               created_at
-        FROM subscriptions
-        WHERE user_id = $1
-        ORDER BY created_at DESC
+        SELECT s.stripe_customer_id,
+               s.stripe_subscription_id,
+               s.status,
+               s.current_period_end,
+               s.created_at,
+               sp.plan_id,
+               sp.name AS plan_name
+        FROM subscriptions s
+        LEFT JOIN subscription_plans sp ON sp.id = s.subscription_plan_id
+        WHERE s.user_id = $1
+        ORDER BY s.created_at DESC
         LIMIT 1
       `,
       [userId],
@@ -48,11 +51,12 @@ export async function getDashboardSummary(req, res, next) {
 
     const subscription = await getLatestSubscription(userId);
 
+    // applications.current_status: application_status enum in 001 (applied, interview, acceptance, rejection, withdrawn)
     const appsRes = await query(
       `
         SELECT
           COUNT(*)::int AS total_applications,
-          COALESCE(SUM(CASE WHEN current_status = 'interview' OR current_status = 'interview_scheduled' THEN 1 ELSE 0 END), 0)::int AS total_interviews
+          COALESCE(SUM(CASE WHEN current_status = 'interview' THEN 1 ELSE 0 END), 0)::int AS total_interviews
         FROM applications
         WHERE user_id = $1
       `,
