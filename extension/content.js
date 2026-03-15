@@ -2,6 +2,10 @@
 // HiredLogics OneClick – content script
 // Extracts job data and submits to HiredLogics API (jobs + job_assignments).
 // ==============================
+// Guard: avoid "Identifier already declared" when script is injected multiple times (e.g. manifest + executeScript).
+(function () {
+  if (typeof window.__hiredlogicsOneClickLoaded !== 'undefined') return;
+  window.__hiredlogicsOneClickLoaded = true;
 
 const PREFS_KEY = 'job_capture_prefs_v2';
 const API_BASE_URL_KEY = 'hiredlogics_oneclick_api_base_url';
@@ -254,22 +258,30 @@ async function createPopup(initial) {
     padding: 14px; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #0f172a;
   `;
 
+  const reqStar = '<span style="color:#b91c1c;">*</span>';
   container.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
       <div style="font-weight:700;font-size:14px;color:#0f172a;">HiredLogics OneClick</div>
       <button id="jc-close" title="Close" style="appearance:none;border:none;background:#f1f5f9;color:#64748b;width:24px;height:24px;border-radius:6px;cursor:pointer;font-size:16px;">×</button>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-      <label style="font-size:12px;color:#475569;">Job Title</label>
+      <label style="font-size:12px;color:#475569;">Job Title ${reqStar}</label>
       <button type="button" id="jc-refetch" title="Refetch title & company from page" style="font-size:11px;color:#2563eb;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">Refetch</button>
     </div>
     <input id="jc-title" type="text" value="${escapeHtml(initial.title)}" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;" />
-    <label style="font-size:12px;color:#475569;">Company <span style="font-weight:400;color:#64748b;">(employer)</span></label>
+    <label style="font-size:12px;color:#475569;">Company (employer) ${reqStar}</label>
     <input id="jc-company" type="text" value="${escapeHtml(initial.company)}" placeholder="Company posting the job" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;" />
-    <label style="font-size:12px;color:#475569;">Job URL</label>
+    <label style="font-size:12px;color:#475569;">Job URL ${reqStar}</label>
     <input id="jc-url" type="text" value="${escapeHtml(initial.url)}" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;font-size:11px;" />
-    <label style="font-size:12px;color:#475569;">Location <span style="color:#b91c1c;">*</span></label>
+    <label style="font-size:12px;color:#475569;">Location ${reqStar}</label>
     <input id="jc-location" type="text" value="${escapeHtml(initialLocation)}" placeholder="e.g. Remote, New York, NY" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;" />
+    <label style="font-size:12px;color:#475569;">Work type ${reqStar}</label>
+    <select id="jc-work-type" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;">
+      <option value="">Select…</option>
+      <option value="remote">Remote</option>
+      <option value="hybrid">Hybrid</option>
+      <option value="onsite">Onsite</option>
+    </select>
     <label style="font-size:12px;color:#475569;">Description (optional)</label>
     <textarea id="jc-description" rows="3" placeholder="Paste or type job description…" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;resize:vertical;min-height:60px;font-family:inherit;">${escapeHtml(initialDesc)}</textarea>
     <label style="font-size:12px;color:#475569;">Platform</label>
@@ -309,13 +321,20 @@ async function createPopup(initial) {
     const company = container.querySelector('#jc-company').value.trim();
     const jobUrl = container.querySelector('#jc-url').value.trim();
     const location = container.querySelector('#jc-location').value.trim();
+    const workType = container.querySelector('#jc-work-type').value.trim().toLowerCase();
     const description = container.querySelector('#jc-description').value.trim();
     const platform = container.querySelector('#jc-platform').value.trim() || detectPlatform();
 
-    if (!title || !company || !jobUrl || !location) {
+    if (!title || !company || !jobUrl || !location || !workType) {
       statusEl.style.display = 'block';
       statusEl.style.color = '#b91c1c';
-      statusEl.textContent = 'Please fill Title, Company, Job URL, and Location.';
+      statusEl.textContent = 'Please fill all required fields: Title, Company, Job URL, Location, Work type.';
+      return;
+    }
+    if (!['remote', 'hybrid', 'onsite'].includes(workType)) {
+      statusEl.style.display = 'block';
+      statusEl.style.color = '#b91c1c';
+      statusEl.textContent = 'Work type must be Remote, Hybrid, or Onsite.';
       return;
     }
 
@@ -334,7 +353,7 @@ async function createPopup(initial) {
     submitBtn.textContent = 'Saving…';
     statusEl.style.display = 'none';
 
-    const payload = { title, company_name: company, job_url: jobUrl, location };
+    const payload = { title, company_name: company, job_url: jobUrl, location, work_type: workType };
     if (platform) payload.platform = platform;
     if (description) payload.description = description;
 
@@ -416,3 +435,4 @@ chrome.runtime.onMessage.addListener((msg) => {
     createPopup(data);
   }
 });
+})();

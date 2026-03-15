@@ -25,9 +25,16 @@ export async function submitJobFromExtension(req, res, next) {
       return res.status(403).json({ message: 'OneClick API key is only for BD or admin accounts' });
     }
 
-    const { title, company_name, job_url, platform, location, description } = req.body || {};
-    if (!title || !company_name || !job_url) {
-      return res.status(400).json({ message: 'title, company_name, and job_url are required' });
+    const { title, company_name, job_url, platform, location, description, work_type } = req.body || {};
+    if (!title || !company_name || !job_url || !location || !work_type) {
+      return res.status(400).json({ message: 'title, company_name, job_url, location, and work_type are required' });
+    }
+    const allowedWorkTypes = ['hybrid', 'onsite', 'remote'];
+    const workType = allowedWorkTypes.includes(String(work_type).toLowerCase().trim())
+      ? String(work_type).toLowerCase().trim()
+      : null;
+    if (!workType) {
+      return res.status(400).json({ message: 'work_type must be one of: hybrid, onsite, remote' });
     }
 
     const jobUrl = String(job_url).trim();
@@ -42,16 +49,17 @@ export async function submitJobFromExtension(req, res, next) {
     } else {
       try {
         const insertJob = await query(
-          `INSERT INTO jobs (company_name, company_website, title, job_url, platform, location, description, created_at)
-           VALUES ($1, NULL, $2, $3, $4, $5, $6, NOW())
+          `INSERT INTO jobs (company_name, company_website, title, job_url, platform, location, description, work_type, created_at)
+           VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, NOW())
            RETURNING id`,
           [
             String(company_name).trim(),
             String(title).trim(),
             jobUrl,
             platform ? String(platform).trim().slice(0, 100) : null,
-            location ? String(location).trim().slice(0, 255) : null,
+            String(location).trim().slice(0, 255),
             description ? String(description).trim().slice(0, 5000) : null,
+            workType,
           ]
         );
         jobId = insertJob.rows[0].id;
