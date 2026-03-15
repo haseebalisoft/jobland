@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HiredLogics Capture</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #0f172a;
+      background: linear-gradient(160deg, #f0fdf4 0%, #ecfeff 50%, #f0f9ff 100%);
+      width: 300px;
+      min-height: 180px;
+    }
+    .wrap {
+      padding: 20px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 18px;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+    }
+    .brand-text {
+      font-weight: 700;
+      font-size: 17px;
+      color: #0f172a;
+      letter-spacing: -0.02em;
+    }
+    .brand-sub {
+      font-size: 11px;
+      color: #64748b;
+      font-weight: 500;
+      margin-top: 2px;
+    }
+    .btn {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: transform 0.08s ease, box-shadow 0.2s ease;
+      font-family: inherit;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+    }
+    .btn-secondary {
+      background: #fff;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .btn-secondary:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+    .hint {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 14px;
+      line-height: 1.4;
+    }
+    .hint a { color: #10b981; font-weight: 500; text-decoration: none; }
+    .hint a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <div class="brand-icon">H</div>
+      <div>
+        <div class="brand-text">HiredLogics Capture</div>
+        <div class="brand-sub">Save jobs from any board</div>
+      </div>
+    </div>
+    <button id="open" class="btn btn-primary">Open on this page</button>
+    <button id="options" class="btn btn-secondary">Settings (API URL & Key)</button>
+    <p class="hint">Configure API URL and key in Settings. Get the key from the BD dashboard.</p>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

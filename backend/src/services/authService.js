@@ -299,11 +299,16 @@ export async function loginUser({ email, password }) {
     throw err;
   }
 
-  // Enforce that this generic login is only for normal users.
-  // Admin and BD must use their own dedicated login flows.
+  // This endpoint is for regular users only. Admin and BD must use their own login pages.
   if (row.role && row.role !== 'user') {
-    const err = new Error('Invalid credentials');
-    err.statusCode = 401;
+    const err = new Error(
+      row.role === 'admin'
+        ? 'Use the Admin login page to sign in with this account.'
+        : row.role === 'bd'
+          ? 'Use the BD login page to sign in with this account.'
+          : 'Invalid credentials'
+    );
+    err.statusCode = 403;
     throw err;
   }
 

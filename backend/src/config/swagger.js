@@ -22,6 +22,12 @@ const swaggerDefinition = {
         scheme: 'bearer',
         bearerFormat: 'JWT',
       },
+      oneclickApiKey: {
+        type: 'apiKey',
+        in: 'header',
+        name: 'Authorization',
+        description: 'Bearer &lt;oneclick_api_key&gt; — get from GET /bd/oneclick-token when logged in as BD',
+      },
     },
   },
   security: [{ bearerAuth: [] }],
@@ -983,6 +989,62 @@ const swaggerDefinition = {
         },
       },
     },
+    '/bd/analytics': {
+      get: {
+        tags: ['BD'],
+        summary: 'Get BD dashboard analytics',
+        description: 'Requires JWT (BD or admin). Returns total leads, by status, over time, assigned users count, unassigned count.',
+        responses: {
+          200: {
+            description: 'Analytics object',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    total: { type: 'integer' },
+                    byStatus: { type: 'array', items: { type: 'object', properties: { status: { type: 'string' }, count: { type: 'integer' } } } },
+                    last7Days: { type: 'integer' },
+                    last30Days: { type: 'integer' },
+                    unassignedCount: { type: 'integer' },
+                    assignedUsersCount: { type: 'integer' },
+                    overTime: { type: 'array', items: { type: 'object' } },
+                  },
+                },
+              },
+            },
+          },
+          401: { description: 'Unauthorized' },
+          403: { description: 'BD or admin only' },
+        },
+      },
+    },
+    '/bd/oneclick-token': {
+      get: {
+        tags: ['BD'],
+        summary: 'Get or create Capture API key',
+        description: 'Requires JWT (BD or admin). Returns oneclick_api_key for use in the HiredLogics Capture browser extension (Authorization: Bearer &lt;key&gt;). Key is created on first call.',
+        responses: {
+          200: {
+            description: 'API key for extension',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['oneclick_api_key'],
+                  properties: {
+                    oneclick_api_key: { type: 'string', description: 'Use in extension as Bearer token' },
+                    message: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          401: { description: 'Unauthorized' },
+          403: { description: 'BD or admin only' },
+        },
+      },
+    },
     '/bd/my-users': {
       get: {
         tags: ['BD'],
@@ -1073,6 +1135,69 @@ const swaggerDefinition = {
         responses: {
           200: { description: 'Stats for admin dashboard' },
           403: { description: 'Admin only' },
+        },
+      },
+    },
+    '/admin/analytics': {
+      get: {
+        tags: ['Admin'],
+        summary: 'Get admin dashboard analytics',
+        description: 'Returns summary counts, users by role, user growth, leads by status/over time, subscriptions by plan, applications by status.',
+        responses: {
+          200: {
+            description: 'Analytics object',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    summary: { type: 'object', properties: { totalUsers: { type: 'integer' }, activeSubscriptions: { type: 'integer' }, totalLeads: { type: 'integer' }, totalApplications: { type: 'integer' } } },
+                    usersByRole: { type: 'array' },
+                    usersCreatedLast7Days: { type: 'array' },
+                    usersCreatedLast30Days: { type: 'array' },
+                    leadsByStatus: { type: 'array' },
+                    leadsOverTime: { type: 'array' },
+                    subscriptionsByPlan: { type: 'array' },
+                    applicationsByStatus: { type: 'array' },
+                    counts: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Admin only' },
+        },
+      },
+    },
+    '/admin/users/{id}/subscription-plan': {
+      put: {
+        tags: ['Admin'],
+        summary: 'Set user subscription plan',
+        description: 'Admin sets subscription_plan (plan_id) for a user. Does not create Stripe subscription.',
+        parameters: [
+          { in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' }, description: 'User ID' },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['plan_id'],
+                properties: {
+                  plan_id: { type: 'string', nullable: true, description: 'Plan ID from subscription_plans, or null for free' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'User plan updated' },
+          400: { description: 'Validation error' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Admin only' },
+          404: { description: 'User not found' },
         },
       },
     },
@@ -1586,6 +1711,58 @@ const swaggerDefinition = {
           200: { description: 'Lead statistics' },
           401: { description: 'Unauthorized' },
           403: { description: 'Admin only' },
+        },
+      },
+    },
+    '/extension/jobs': {
+      post: {
+        tags: ['Extension (Capture)'],
+        summary: 'Submit job from HiredLogics Capture extension',
+        description: 'Creates or reuses job by job_url, then creates job_assignment for the BD. Auth via Bearer token: use the oneclick_api_key from GET /bd/oneclick-token. Data appears in BD dashboard (Your leads) and admin/user dashboards.',
+        security: [{ oneclickApiKey: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['title', 'company_name', 'job_url'],
+                properties: {
+                  title: { type: 'string', description: 'Job title' },
+                  company_name: { type: 'string', description: 'Company name' },
+                  job_url: { type: 'string', format: 'uri', description: 'Job listing URL (unique per job)' },
+                  platform: { type: 'string', description: 'Optional e.g. LinkedIn, Indeed' },
+                  location: { type: 'string' },
+                  description: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Job saved, lead created',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    message: { type: 'string' },
+                    job_id: { type: 'string', format: 'uuid' },
+                    lead_id: { type: 'string', format: 'uuid' },
+                    job_title: { type: 'string' },
+                    company_name: { type: 'string' },
+                    job_link: { type: 'string' },
+                    status: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'title, company_name, job_url required' },
+          401: { description: 'Missing or invalid Capture API key' },
+          403: { description: 'API key not for BD/admin' },
+          409: { description: 'Duplicate job URL (already added by you)' },
         },
       },
     },
