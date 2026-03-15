@@ -277,7 +277,6 @@ function ActivityItem({ title, desc, time }) {
         </div>
     )
 }
-
 const styles = {
     layout: {
         display: 'flex',
@@ -457,3 +456,4 @@ const styles = {
         flexShrink: 0,
     },
 }
+

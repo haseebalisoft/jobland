@@ -20,6 +20,7 @@ import leadRoutes from './routes/leadRoutes.js';
 import bdRoutes from './routes/bdRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import cvRoutes from './routes/cvRoutes.js';
+import extensionRoutes from './routes/extensionRoutes.js';
 import { notFound, errorHandler } from './middlewares/errorMiddleware.js';
 
 const app = express();
@@ -31,7 +32,13 @@ app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }), stripe
 
 app.use(
   cors({
-    origin: config.clientUrl,
+    origin: (origin, cb) => {
+      if (!origin || origin === config.clientUrl || /^chrome-extension:\/\//i.test(origin)) {
+        cb(null, true);
+      } else {
+        cb(null, false);
+      }
+    },
     credentials: true,
   }),
 );
@@ -58,6 +65,7 @@ app.use('/api/leads', leadRoutes);
 app.use('/api/bd', bdRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/cv', cvRoutes);
+app.use('/api/extension', extensionRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
 app.use(notFound);

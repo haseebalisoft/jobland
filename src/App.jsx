@@ -6,8 +6,12 @@ import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 // import Profile from './pages/Profile'
 import Settings from './pages/Settings'
-import BdDashboard from './pages/BdDashboard'
 import BdLogin from './pages/BdLogin'
+import BdLayout from './pages/bd/BdLayout'
+import BdDashboardOverview from './pages/bd/BdDashboardOverview'
+import BdCreateLead from './pages/bd/BdCreateLead'
+import BdAssignedProfiles from './pages/bd/BdAssignedProfiles'
+import BdYourLeads from './pages/bd/BdYourLeads'
 import BdSignup from './pages/BdSignup'
 import Checkout from './pages/Checkout'
 import VerifyEmail from './pages/VerifyEmail'
@@ -86,14 +90,12 @@ function App() {
             <Route path="bds" element={<AdminBds />} />
             <Route path="subscriptions" element={<AdminSubscriptions />} />
           </Route>
-          <Route
-            path="/bd"
-            element={
-              <BdRoute>
-                <BdDashboard />
-              </BdRoute>
-            }
-          />
+          <Route path="/bd" element={<BdRoute><BdLayout /></BdRoute>}>
+            <Route index element={<BdDashboardOverview />} />
+            <Route path="create-lead" element={<BdCreateLead />} />
+            <Route path="assigned-profiles" element={<BdAssignedProfiles />} />
+            <Route path="leads" element={<BdYourLeads />} />
+          </Route>
         </Routes>
       </AuthProvider>
     </BrowserRouter>

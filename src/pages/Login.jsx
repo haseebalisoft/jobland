@@ -86,6 +86,8 @@ export default function Login() {
                 </p>
                 <p style={styles.footer}>
                     BD? <Link to="/bd/login" style={styles.link}>Sign in to BD Portal</Link>
+                    {' · '}
+                    Admin? <Link to="/admin/login" style={styles.link}>Sign in to Admin</Link>
                 </p>
             </div>
         </div>

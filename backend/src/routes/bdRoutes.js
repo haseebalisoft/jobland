@@ -1,11 +1,11 @@
 import express from 'express';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
-import { getMyUsers } from '../controllers/bdController.js';
+import { getBdAnalytics, getMyUsers, getOneClickToken } from '../controllers/bdController.js';
 
 const router = express.Router();
 
-router.use(authMiddleware);
-
-router.get('/my-users', getMyUsers);
+router.get('/analytics', authMiddleware, getBdAnalytics);
+router.get('/oneclick-token', authMiddleware, getOneClickToken);
+router.get('/my-users', authMiddleware, getMyUsers);
 
 export default router;
