@@ -261,13 +261,14 @@ async function createPopup(initial) {
     overflow: hidden;
   `;
 
+  const logoUrl = chrome.runtime.getURL('icons/logo.png');
   const reqStar = '<span style="color:#dc2626;font-weight:600;">*</span>';
   const fieldStyle = 'width:100%;margin-bottom:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;box-sizing:border-box;font-size:13px;font-family:inherit;transition:border-color .15s,box-shadow .15s;';
   const labelStyle = 'font-size:12px;font-weight:600;color:#334155;margin-bottom:4px;display:block;';
   container.innerHTML = `
     <div style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
       <div style="display:flex;align-items:center;gap:10px;">
-        <span style="width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,0.25);color:#fff;font-weight:800;font-size:14px;display:inline-flex;align-items:center;justify-content:center;">H</span>
+        <img src="${logoUrl}" alt="HiredLogics" style="width:32px;height:32px;border-radius:8px;object-fit:contain;flex-shrink:0;" />
         <span style="font-weight:700;font-size:14px;color:#fff;letter-spacing:-0.02em;">HiredLogics Capture</span>
       </div>
       <button id="jc-close" title="Close" style="appearance:none;border:none;background:rgba(255,255,255,0.2);color:#fff;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:18px;line-height:1;transition:background .15s;">×</button>
