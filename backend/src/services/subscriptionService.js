@@ -569,7 +569,8 @@ export async function createCheckoutSession({ userId = null, planId, email = nul
     payment_method_types: ['card'],
     ...(userId ? { client_reference_id: userId } : {}),
     ...(customerEmail ? { customer_email: customerEmail } : {}),
-    customer_creation: 'always',
+    // customer_creation is only allowed in payment mode (one-time), not subscription mode
+    ...(plan.mode === 'payment' ? { customer_creation: 'always' } : {}),
     billing_address_collection: 'auto',
     metadata: {
       ...(userId ? { userId } : {}),
