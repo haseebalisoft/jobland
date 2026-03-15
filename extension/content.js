@@ -31,8 +31,24 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+// Company = employer who posted the job, NOT the job board. Filter out platform names.
+const JOB_BOARD_NAMES = [
+  'indeed', 'linkedin', 'glassdoor', 'greenhouse', 'lever', 'wellfound', 'angel list', 'angel.co',
+  'remoteok', 'ziprecruiter', 'dice', 'monster', 'careerbuilder', 'flexjobs', 'simplyhired', 'rocketship'
+];
+function isJobBoardName(str) {
+  if (!str || typeof str !== 'string') return true;
+  const s = str.trim().toLowerCase();
+  if (s.length < 2) return true;
+  return JOB_BOARD_NAMES.some(name => s === name || s.includes(name) || name.includes(s));
+}
+
+function cleanCompany(company) {
+  return company && !isJobBoardName(company) ? company.trim() : '';
+}
+
 // ==============================
-// Job data extraction (same as your original)
+// Job data extraction – title, employer company (not job board), location
 // ==============================
 function extractJobData() {
   const url = location.href;
@@ -48,14 +64,19 @@ function extractJobData() {
       document.querySelector('.top-card-layout__title')?.textContent?.trim() ||
       document.querySelector('.jobs-unified-top-card__job-title')?.textContent?.trim() ||
       document.querySelector('[class*="job-title"]')?.textContent?.trim() || '';
-    company =
-      document.querySelector('.job-details-jobs-unified-top-card__company-name')?.textContent?.trim() ||
-      document.querySelector('.topcard__flavor a')?.textContent?.trim() ||
-      document.querySelector('.topcard__org-name-link')?.textContent?.trim() ||
-      document.querySelector('.topcard__org-name')?.textContent?.trim() ||
-      document.querySelector('.jobs-unified-top-card__company-name a')?.textContent?.trim() ||
-      document.querySelector('.jobs-unified-top-card__company-name')?.textContent?.trim() ||
-      document.querySelector('[class*="company-name"]')?.textContent?.trim() || '';
+    const linkedInCompanyCandidates = [
+      document.querySelector('.job-details-jobs-unified-top-card__company-name')?.textContent?.trim(),
+      document.querySelector('.topcard__flavor a')?.textContent?.trim(),
+      document.querySelector('.topcard__org-name-link')?.textContent?.trim(),
+      document.querySelector('.topcard__org-name')?.textContent?.trim(),
+      document.querySelector('.jobs-unified-top-card__company-name a')?.textContent?.trim(),
+      document.querySelector('.jobs-unified-top-card__company-name')?.textContent?.trim(),
+      document.querySelector('[class*="company-name"]')?.textContent?.trim()
+    ].filter(Boolean);
+    for (const c of linkedInCompanyCandidates) {
+      const cleaned = cleanCompany(c);
+      if (cleaned) { company = cleaned; break; }
+    }
     locationText =
       document.querySelector('.job-details-jobs-unified-top-card__bullet')?.textContent?.trim() ||
       document.querySelector('.jobs-unified-top-card__primary-description-without-tagline')?.textContent?.trim() ||
@@ -68,13 +89,18 @@ function extractJobData() {
       document.querySelector('h1')?.innerText?.trim() ||
       document.querySelector("[data-testid='job-title']")?.textContent?.trim() ||
       document.querySelector('[class*="JobInfoHeader-title"]')?.textContent?.trim() || '';
-    company =
-      document.querySelector('[data-company-name]')?.textContent?.trim() ||
-      document.querySelector('[data-company-name] a')?.textContent?.trim() ||
-      document.querySelector('.jobsearch-InlineCompanyRating div:first-child')?.textContent?.trim() ||
-      document.querySelector('.jobsearch-CompanyReview--heading')?.textContent?.trim() ||
-      document.querySelector('[class*="companyName"]')?.textContent?.trim() ||
-      document.querySelector('a[data-tn-element="companyName"]')?.textContent?.trim() || '';
+    const indeedCompanyCandidates = [
+      document.querySelector('[data-company-name]')?.textContent?.trim(),
+      document.querySelector('[data-company-name] a')?.textContent?.trim(),
+      document.querySelector('a[data-tn-element="companyName"]')?.textContent?.trim(),
+      document.querySelector('[class*="companyName"]')?.textContent?.trim(),
+      document.querySelector('.jobsearch-InlineCompanyRating div:first-child')?.textContent?.trim(),
+      document.querySelector('.jobsearch-CompanyReview--heading')?.textContent?.trim()
+    ].filter(Boolean);
+    for (const c of indeedCompanyCandidates) {
+      const cleaned = cleanCompany(c);
+      if (cleaned) { company = cleaned; break; }
+    }
     locationText =
       document.querySelector('[data-testid="job-location"]')?.textContent?.trim() ||
       document.querySelector('.jobsearch-CompanyReview--heading')?.nextElementSibling?.textContent?.trim() ||
@@ -86,34 +112,35 @@ function extractJobData() {
       document.querySelector('h1')?.innerText?.trim() ||
       document.querySelector('[data-test="job-title"]')?.textContent?.trim() ||
       document.querySelector('.jobTitle')?.textContent?.trim() || '';
-    company =
+    company = cleanCompany(
       document.querySelector('[data-test="employerName"]')?.textContent?.trim() ||
-      document.querySelector('.employerName')?.textContent?.trim() || '';
+      document.querySelector('.employerName')?.textContent?.trim() || ''
+    ) || company;
   }
 
   if (!title && /greenhouse\.io\//i.test(url)) {
     title = document.querySelector('h1')?.innerText?.trim() || document.querySelector('.app-title')?.textContent?.trim() || '';
-    company = document.querySelector('.company-name')?.textContent?.trim() || document.querySelector('.company')?.textContent?.trim() || '';
+    company = cleanCompany(document.querySelector('.company-name')?.textContent?.trim() || document.querySelector('.company')?.textContent?.trim() || '') || company;
   }
 
   if (!title && /jobs\.lever\.co\//i.test(url)) {
     title = document.querySelector('h2')?.innerText?.trim() || document.querySelector('.posting-headline h2')?.textContent?.trim() || '';
-    company = document.querySelector('.posting-categories .company')?.textContent?.trim() || document.querySelector('.company')?.textContent?.trim() || '';
+    company = cleanCompany(document.querySelector('.posting-categories .company')?.textContent?.trim() || document.querySelector('.company')?.textContent?.trim() || '') || company;
   }
 
   if (!title && /wellfound\.com\//i.test(url)) {
     title = document.querySelector('h1')?.innerText?.trim() || document.querySelector('.job-title')?.textContent?.trim() || '';
-    company = document.querySelector('.company-name')?.textContent?.trim() || document.querySelector('.startup-name')?.textContent?.trim() || '';
+    company = cleanCompany(document.querySelector('.company-name')?.textContent?.trim() || document.querySelector('.startup-name')?.textContent?.trim() || '') || company;
   }
 
   if (!title && /remoteok\.com\//i.test(url)) {
     title = document.querySelector('h1')?.innerText?.trim() || document.querySelector('h2[itemprop="title"]')?.textContent?.trim() || '';
-    company = document.querySelector("[itemprop='name']")?.textContent?.trim() || document.querySelector('.companyLink')?.textContent?.trim() || '';
+    company = cleanCompany(document.querySelector("[itemprop='name']")?.textContent?.trim() || document.querySelector('.companyLink')?.textContent?.trim() || '') || company;
   }
 
   if (!title && /ziprecruiter\.com\//i.test(url)) {
     title = document.querySelector('h1')?.innerText?.trim() || document.querySelector('.job_title')?.textContent?.trim() || '';
-    company = document.querySelector('.company_name')?.textContent?.trim() || document.querySelector('.company')?.textContent?.trim() || '';
+    company = cleanCompany(document.querySelector('.company_name')?.textContent?.trim() || document.querySelector('.company')?.textContent?.trim() || '') || company;
   }
 
   const titleSelectors = [
@@ -139,8 +166,9 @@ function extractJobData() {
   if (!company) {
     for (const selector of companySelectors) {
       const el = document.querySelector(selector);
-      if (el?.textContent?.trim()) {
-        company = el.textContent.trim();
+      const raw = el?.textContent?.trim();
+      if (raw && !isJobBoardName(raw)) {
+        company = raw;
         break;
       }
     }
@@ -148,7 +176,7 @@ function extractJobData() {
 
   if (!company && document.title) {
     const parts = document.title.split(/[-|·–—]/).map(p => p.trim()).filter(Boolean);
-    if (parts.length >= 2 && !/^(jobs?|careers?|hiring|apply|indeed|linkedin|glassdoor)$/i.test(parts[1])) {
+    if (parts.length >= 2 && !isJobBoardName(parts[1])) {
       company = parts[1];
     }
   }
@@ -236,11 +264,11 @@ async function createPopup(initial) {
       <button type="button" id="jc-refetch" title="Refetch title & company from page" style="font-size:11px;color:#2563eb;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">Refetch</button>
     </div>
     <input id="jc-title" type="text" value="${escapeHtml(initial.title)}" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;" />
-    <label style="font-size:12px;color:#475569;">Company</label>
-    <input id="jc-company" type="text" value="${escapeHtml(initial.company)}" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;" />
+    <label style="font-size:12px;color:#475569;">Company <span style="font-weight:400;color:#64748b;">(employer)</span></label>
+    <input id="jc-company" type="text" value="${escapeHtml(initial.company)}" placeholder="Company posting the job" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;" />
     <label style="font-size:12px;color:#475569;">Job URL</label>
     <input id="jc-url" type="text" value="${escapeHtml(initial.url)}" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;font-size:11px;" />
-    <label style="font-size:12px;color:#475569;">Location (optional)</label>
+    <label style="font-size:12px;color:#475569;">Location <span style="color:#b91c1c;">*</span></label>
     <input id="jc-location" type="text" value="${escapeHtml(initialLocation)}" placeholder="e.g. Remote, New York, NY" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;" />
     <label style="font-size:12px;color:#475569;">Description (optional)</label>
     <textarea id="jc-description" rows="3" placeholder="Paste or type job description…" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;resize:vertical;min-height:60px;font-family:inherit;">${escapeHtml(initialDesc)}</textarea>
@@ -268,7 +296,7 @@ async function createPopup(initial) {
     container.querySelector('#jc-title').value = data.title || '';
     container.querySelector('#jc-company').value = data.company || '';
     container.querySelector('#jc-location').value = data.location || '';
-    if (data.title || data.company) {
+    if (data.title || data.company || data.location) {
       statusEl.textContent = 'Fetched from page.';
       statusEl.style.display = 'block';
       statusEl.style.color = '#065f46';
@@ -284,10 +312,10 @@ async function createPopup(initial) {
     const description = container.querySelector('#jc-description').value.trim();
     const platform = container.querySelector('#jc-platform').value.trim() || detectPlatform();
 
-    if (!title || !company || !jobUrl) {
+    if (!title || !company || !jobUrl || !location) {
       statusEl.style.display = 'block';
       statusEl.style.color = '#b91c1c';
-      statusEl.textContent = 'Please fill Title, Company, and Job URL.';
+      statusEl.textContent = 'Please fill Title, Company, Job URL, and Location.';
       return;
     }
 
@@ -306,9 +334,8 @@ async function createPopup(initial) {
     submitBtn.textContent = 'Saving…';
     statusEl.style.display = 'none';
 
-    const payload = { title, company_name: company, job_url: jobUrl };
+    const payload = { title, company_name: company, job_url: jobUrl, location };
     if (platform) payload.platform = platform;
-    if (location) payload.location = location;
     if (description) payload.description = description;
 
     chrome.runtime.sendMessage(
