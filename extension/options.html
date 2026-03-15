@@ -33,14 +33,8 @@
       width: 44px;
       height: 44px;
       border-radius: 12px;
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-      color: #fff;
-      font-weight: 800;
-      font-size: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+      object-fit: contain;
+      flex-shrink: 0;
     }
     h1 {
       font-size: 20px;
@@ -127,7 +121,7 @@
 <body>
   <div class="card">
     <div class="header">
-      <div class="header-icon">H</div>
+      <img src="icons/logo.png" alt="HiredLogics" class="header-icon" />
       <h1>HiredLogics Capture</h1>
     </div>
     <p class="subtitle">Get your API key from the BD dashboard: log in at your app, go to BD Portal, then click <strong>Copy Capture API key</strong> in the sidebar.</p>

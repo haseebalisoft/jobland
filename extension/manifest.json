@@ -4,8 +4,14 @@
   "version": "1.0.0",
   "description": "Capture job details from job boards and submit to HiredLogics. For BDs: get your API key from the BD dashboard (Copy Capture API key).",
   "action": {
+    "default_icon": "icons/logo.png",
     "default_title": "HiredLogics Capture",
     "default_popup": "popup.html"
+  },
+  "icons": {
+    "16": "icons/logo.png",
+    "32": "icons/logo.png",
+    "48": "icons/logo.png"
   },
   "permissions": [
     "storage",
@@ -27,7 +33,7 @@
     }
   ],
   "web_accessible_resources": [
-    { "resources": ["content.js", "popup.html", "options.html"], "matches": ["<all_urls>"] }
+    { "resources": ["content.js", "popup.html", "options.html", "icons/logo.png"], "matches": ["<all_urls>"] }
   ],
   "background": {
     "service_worker": "background.js"
