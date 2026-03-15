@@ -2,7 +2,7 @@ import { query } from '../config/db.js';
 
 /**
  * POST /api/extension/jobs
- * OneClick extension: submit job from extension. Auth via Bearer token (oneclick_api_key).
+ * Capture extension: submit job from extension. Auth via Bearer token (oneclick_api_key).
  * Creates or reuses job by job_url, then creates job_assignment for the BD.
  */
 export async function submitJobFromExtension(req, res, next) {
@@ -10,7 +10,7 @@ export async function submitJobFromExtension(req, res, next) {
     const authHeader = req.headers.authorization;
     const apiKey = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
     if (!apiKey) {
-      return res.status(401).json({ message: 'Missing or invalid Authorization. Use: Bearer <your OneClick API key>' });
+      return res.status(401).json({ message: 'Missing or invalid Authorization. Use: Bearer <your Capture API key>' });
     }
 
     const userRow = await query(
@@ -18,11 +18,11 @@ export async function submitJobFromExtension(req, res, next) {
       [apiKey]
     );
     if (userRow.rowCount === 0) {
-      return res.status(401).json({ message: 'Invalid or inactive OneClick API key' });
+      return res.status(401).json({ message: 'Invalid or inactive Capture API key' });
     }
     const bdId = userRow.rows[0].id;
     if (userRow.rows[0].role !== 'bd' && userRow.rows[0].role !== 'admin') {
-      return res.status(403).json({ message: 'OneClick API key is only for BD or admin accounts' });
+      return res.status(403).json({ message: 'Capture API key is only for BD or admin accounts' });
     }
 
     const { title, company_name, job_url, platform, location, description, work_type } = req.body || {};

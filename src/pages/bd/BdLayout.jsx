@@ -60,7 +60,7 @@ export default function BdLayout() {
                 const { data } = await api.get('/bd/oneclick-token');
                 const key = data.oneclick_api_key;
                 await navigator.clipboard.writeText(key);
-                alert('OneClick API key copied to clipboard. Paste it in the extension Settings (API Key).');
+                alert('Capture API key copied to clipboard. Paste it in the extension Settings (API Key).');
               } catch (e) {
                 alert(e.response?.data?.message || 'Failed to get API key');
               } finally {
@@ -69,7 +69,7 @@ export default function BdLayout() {
             }}
           >
             <Key size={18} />
-            {oneClickKeyLoading ? 'Copying…' : 'Copy OneClick API key'}
+            {oneClickKeyLoading ? 'Copying…' : 'Copy Capture API key'}
           </button>
           <button
             type="button"

@@ -1022,8 +1022,8 @@ const swaggerDefinition = {
     '/bd/oneclick-token': {
       get: {
         tags: ['BD'],
-        summary: 'Get or create OneClick API key',
-        description: 'Requires JWT (BD or admin). Returns oneclick_api_key for use in the OneClick browser extension (Authorization: Bearer &lt;key&gt;). Key is created on first call.',
+        summary: 'Get or create Capture API key',
+        description: 'Requires JWT (BD or admin). Returns oneclick_api_key for use in the HiredLogics Capture browser extension (Authorization: Bearer &lt;key&gt;). Key is created on first call.',
         responses: {
           200: {
             description: 'API key for extension',
@@ -1716,8 +1716,8 @@ const swaggerDefinition = {
     },
     '/extension/jobs': {
       post: {
-        tags: ['Extension (OneClick)'],
-        summary: 'Submit job from OneClick extension',
+        tags: ['Extension (Capture)'],
+        summary: 'Submit job from HiredLogics Capture extension',
         description: 'Creates or reuses job by job_url, then creates job_assignment for the BD. Auth via Bearer token: use the oneclick_api_key from GET /bd/oneclick-token. Data appears in BD dashboard (Your leads) and admin/user dashboards.',
         security: [{ oneclickApiKey: [] }],
         requestBody: {
@@ -1760,7 +1760,7 @@ const swaggerDefinition = {
             },
           },
           400: { description: 'title, company_name, job_url required' },
-          401: { description: 'Missing or invalid OneClick API key' },
+          401: { description: 'Missing or invalid Capture API key' },
           403: { description: 'API key not for BD/admin' },
           409: { description: 'Duplicate job URL (already added by you)' },
         },

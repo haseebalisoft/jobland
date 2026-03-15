@@ -1,34 +1,145 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HiredLogics OneClick – Settings</title>
+  <title>HiredLogics Capture – Settings</title>
   <style>
-    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #0f172a; background: #f8fafc; padding: 24px; max-width: 480px; }
-    h1 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 20px; }
-    label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
-    input { width: 100%; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box; margin-bottom: 16px; }
-    input:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
-    .hint { font-size: 12px; color: #64748b; margin-top: -8px; margin-bottom: 16px; }
-    button { padding: 12px 20px; border-radius: 10px; border: none; background: #10b981; color: #fff; font-weight: 600; font-size: 14px; cursor: pointer; }
-    button:hover { background: #0d9668; }
-    .saved { font-size: 13px; color: #10b981; margin-top: 12px; }
-    a { color: #2563eb; text-decoration: none; font-size: 13px; }
-    a:hover { text-decoration: underline; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #0f172a;
+      background: linear-gradient(160deg, #f0fdf4 0%, #ecfeff 40%, #f0f9ff 100%);
+      min-height: 100vh;
+      padding: 32px 24px;
+    }
+    .card {
+      max-width: 480px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+      padding: 28px 32px;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .header-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #fff;
+      font-weight: 800;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #64748b;
+      margin: 0 0 24px 56px;
+      line-height: 1.5;
+    }
+    .subtitle strong { color: #475569; }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 8px;
+    }
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 14px;
+      margin-bottom: 6px;
+      font-family: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus {
+      outline: none;
+      border-color: #10b981;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+    }
+    input::placeholder { color: #94a3b8; }
+    .hint {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: -2px;
+      margin-bottom: 20px;
+      line-height: 1.4;
+    }
+    button {
+      padding: 12px 24px;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      font-family: inherit;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+      transition: transform 0.08s ease, box-shadow 0.2s ease;
+    }
+    button:hover { box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4); }
+    button:active { transform: scale(0.98); }
+    .saved {
+      font-size: 13px;
+      color: #059669;
+      font-weight: 500;
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .saved::before {
+      content: '✓';
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      background: #d1fae5;
+      color: #059669;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 18px;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
-  <h1>HiredLogics OneClick</h1>
-  <p style="font-size: 13px; color: #64748b; margin-bottom: 20px;">Get your API key from the BD dashboard: log in at your app, go to BD Portal, then click <strong>Copy OneClick API key</strong> in the sidebar.</p>
-  <label for="apiBaseUrl">API Base URL</label>
-  <input type="text" id="apiBaseUrl" placeholder="https://your-api.com or http://localhost:5000" />
-  <p class="hint">No trailing slash. Example: https://api.hiredlogics.com or http://localhost:5000</p>
-  <label for="apiKey">API Key (OneClick)</label>
-  <input type="password" id="apiKey" placeholder="Paste the key from BD dashboard" />
-  <p class="hint">Paste the key you copied from the BD dashboard sidebar.</p>
-  <button id="save">Save</button>
-  <p id="saved" class="saved" style="display:none;">Saved. You can close this tab.</p>
+  <div class="card">
+    <div class="header">
+      <div class="header-icon">H</div>
+      <h1>HiredLogics Capture</h1>
+    </div>
+    <p class="subtitle">Get your API key from the BD dashboard: log in at your app, go to BD Portal, then click <strong>Copy Capture API key</strong> in the sidebar.</p>
+    <label for="apiBaseUrl">API Base URL</label>
+    <input type="text" id="apiBaseUrl" placeholder="https://your-api.com or http://localhost:5000" />
+    <p class="hint">No trailing slash. Example: https://api.hiredlogics.com or http://localhost:5000</p>
+    <label for="apiKey">API Key (Capture)</label>
+    <input type="password" id="apiKey" placeholder="Paste the key from BD dashboard" />
+    <p class="hint">Paste the key you copied from the BD dashboard sidebar.</p>
+    <button id="save">Save settings</button>
+    <p id="saved" class="saved" style="display:none;">Saved. You can close this tab.</p>
+  </div>
   <script src="options.js"></script>
 </body>
 </html>

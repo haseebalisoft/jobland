@@ -1,11 +1,11 @@
 // ==============================
-// HiredLogics OneClick – content script
+// HiredLogics Capture – content script
 // Extracts job data and submits to HiredLogics API (jobs + job_assignments).
 // ==============================
 // Guard: avoid "Identifier already declared" when script is injected multiple times (e.g. manifest + executeScript).
 (function () {
-  if (typeof window.__hiredlogicsOneClickLoaded !== 'undefined') return;
-  window.__hiredlogicsOneClickLoaded = true;
+  if (typeof window.__hiredlogicsCaptureLoaded !== 'undefined') return;
+  window.__hiredlogicsCaptureLoaded = true;
 
 const PREFS_KEY = 'job_capture_prefs_v2';
 const API_BASE_URL_KEY = 'hiredlogics_oneclick_api_base_url';
@@ -253,45 +253,62 @@ async function createPopup(initial) {
   const container = document.createElement('div');
   container.id = 'job-capture-popup';
   container.style.cssText = `
-    position: fixed; top: 12px; right: 12px; z-index: 2147483647; width: 280px;
-    background: #fff; border-radius: 12px; box-shadow: 0 10px 24px rgba(0,0,0,0.12);
-    padding: 14px; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #0f172a;
+    position: fixed; top: 16px; right: 16px; z-index: 2147483647; width: 320px;
+    background: #fff; border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
+    padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #0f172a;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    overflow: hidden;
   `;
 
-  const reqStar = '<span style="color:#b91c1c;">*</span>';
+  const reqStar = '<span style="color:#dc2626;font-weight:600;">*</span>';
+  const fieldStyle = 'width:100%;margin-bottom:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;box-sizing:border-box;font-size:13px;font-family:inherit;transition:border-color .15s,box-shadow .15s;';
+  const labelStyle = 'font-size:12px;font-weight:600;color:#334155;margin-bottom:4px;display:block;';
   container.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-      <div style="font-weight:700;font-size:14px;color:#0f172a;">HiredLogics OneClick</div>
-      <button id="jc-close" title="Close" style="appearance:none;border:none;background:#f1f5f9;color:#64748b;width:24px;height:24px;border-radius:6px;cursor:pointer;font-size:16px;">×</button>
+    <div style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,0.25);color:#fff;font-weight:800;font-size:14px;display:inline-flex;align-items:center;justify-content:center;">H</span>
+        <span style="font-weight:700;font-size:14px;color:#fff;letter-spacing:-0.02em;">HiredLogics Capture</span>
+      </div>
+      <button id="jc-close" title="Close" style="appearance:none;border:none;background:rgba(255,255,255,0.2);color:#fff;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:18px;line-height:1;transition:background .15s;">×</button>
     </div>
+    <div style="padding:16px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-      <label style="font-size:12px;color:#475569;">Job Title ${reqStar}</label>
-      <button type="button" id="jc-refetch" title="Refetch title & company from page" style="font-size:11px;color:#2563eb;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">Refetch</button>
+      <label style="${labelStyle}">Job Title ${reqStar}</label>
+      <button type="button" id="jc-refetch" title="Refetch from page" style="font-size:11px;color:#10b981;background:none;border:none;cursor:pointer;padding:2px 0;font-weight:600;">Refetch</button>
     </div>
-    <input id="jc-title" type="text" value="${escapeHtml(initial.title)}" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;" />
-    <label style="font-size:12px;color:#475569;">Company (employer) ${reqStar}</label>
-    <input id="jc-company" type="text" value="${escapeHtml(initial.company)}" placeholder="Company posting the job" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;" />
-    <label style="font-size:12px;color:#475569;">Job URL ${reqStar}</label>
-    <input id="jc-url" type="text" value="${escapeHtml(initial.url)}" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;font-size:11px;" />
-    <label style="font-size:12px;color:#475569;">Location ${reqStar}</label>
-    <input id="jc-location" type="text" value="${escapeHtml(initialLocation)}" placeholder="e.g. Remote, New York, NY" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;" />
-    <label style="font-size:12px;color:#475569;">Work type ${reqStar}</label>
-    <select id="jc-work-type" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;">
+    <input id="jc-title" type="text" value="${escapeHtml(initial.title)}" style="${fieldStyle}" />
+    <label style="${labelStyle}">Company (employer) ${reqStar}</label>
+    <input id="jc-company" type="text" value="${escapeHtml(initial.company)}" placeholder="Company posting the job" style="${fieldStyle}" />
+    <label style="${labelStyle}">Job URL ${reqStar}</label>
+    <input id="jc-url" type="text" value="${escapeHtml(initial.url)}" style="${fieldStyle}font-size:11px;" />
+    <label style="${labelStyle}">Location ${reqStar}</label>
+    <input id="jc-location" type="text" value="${escapeHtml(initialLocation)}" placeholder="e.g. Remote, New York, NY" style="${fieldStyle}" />
+    <label style="${labelStyle}">Work type ${reqStar}</label>
+    <select id="jc-work-type" style="${fieldStyle}cursor:pointer;">
       <option value="">Select…</option>
       <option value="remote">Remote</option>
       <option value="hybrid">Hybrid</option>
       <option value="onsite">Onsite</option>
     </select>
-    <label style="font-size:12px;color:#475569;">Description (optional)</label>
-    <textarea id="jc-description" rows="3" placeholder="Paste or type job description…" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;resize:vertical;min-height:60px;font-family:inherit;">${escapeHtml(initialDesc)}</textarea>
-    <label style="font-size:12px;color:#475569;">Platform</label>
-    <select id="jc-platform" style="width:100%;margin-bottom:10px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;box-sizing:border-box;">
+    <label style="${labelStyle}">Description (optional)</label>
+    <textarea id="jc-description" rows="3" placeholder="Paste or type job description…" style="${fieldStyle}resize:vertical;min-height:56px;">${escapeHtml(initialDesc)}</textarea>
+    <label style="${labelStyle}">Platform</label>
+    <select id="jc-platform" style="${fieldStyle}margin-bottom:14px;cursor:pointer;">
       <option value="">Select (optional)</option>
       ${platformSelectOptions}
     </select>
-    <button id="jc-submit" style="width:100%;background:#10b981;color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer;font-weight:700;font-size:13px;">Save to HiredLogics</button>
-    <div id="jc-status" style="margin-top:8px;font-size:12px;display:none;text-align:center;"></div>
+    <button id="jc-submit" style="width:100%;background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:#fff;border:none;border-radius:10px;padding:12px;cursor:pointer;font-weight:700;font-size:14px;box-shadow:0 4px 14px rgba(16,185,129,0.35);font-family:inherit;transition:transform .08s,box-shadow .2s;">Save to HiredLogics</button>
+    <div id="jc-status" style="margin-top:10px;font-size:12px;display:none;text-align:center;font-weight:500;"></div>
+    </div>
   `;
+  container.querySelector('#jc-close').addEventListener('mouseenter', function () { this.style.background = 'rgba(255,255,255,0.3)'; });
+  container.querySelector('#jc-close').addEventListener('mouseleave', function () { this.style.background = 'rgba(255,255,255,0.2)'; });
+  [container.querySelector('#jc-title'), container.querySelector('#jc-company'), container.querySelector('#jc-url'), container.querySelector('#jc-location'), container.querySelector('#jc-work-type'), container.querySelector('#jc-description'), container.querySelector('#jc-platform')].forEach(el => {
+    if (!el) return;
+    el.addEventListener('focus', function () { this.style.borderColor = '#10b981'; this.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.15)'; });
+    el.addEventListener('blur', function () { this.style.borderColor = '#e2e8f0'; this.style.boxShadow = 'none'; });
+  });
 
   document.body.appendChild(container);
 
@@ -391,14 +408,25 @@ function renderMiniToggle() {
   if (document.getElementById('job-capture-mini-toggle')) return;
   const btn = document.createElement('button');
   btn.id = 'job-capture-mini-toggle';
-  btn.title = 'Open HiredLogics OneClick';
+  btn.title = 'Open HiredLogics Capture';
   btn.style.cssText = `
-    position: fixed; bottom: 14px; right: 14px; z-index: 2147483647;
-    width: 54px; height: 54px; border-radius: 999px; border: 0;
-    background: #10b981; color: #fff; cursor: pointer;
-    box-shadow: 0 10px 24px rgba(16,185,129,0.25); font-weight: 800; font-size: 18px;
+    position: fixed; bottom: 20px; right: 20px; z-index: 2147483647;
+    width: 56px; height: 56px; border-radius: 50%; border: 0;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #fff; cursor: pointer;
+    box-shadow: 0 8px 24px rgba(16,185,129,0.4), 0 2px 8px rgba(0,0,0,0.08);
+    font-weight: 800; font-size: 20px; line-height: 1;
+    transition: transform 0.12s ease, box-shadow 0.2s ease;
   `;
   btn.textContent = '▶';
+  btn.addEventListener('mouseenter', function () {
+    this.style.transform = 'scale(1.06)';
+    this.style.boxShadow = '0 12px 32px rgba(16,185,129,0.45), 0 4px 12px rgba(0,0,0,0.1)';
+  });
+  btn.addEventListener('mouseleave', function () {
+    this.style.transform = 'scale(1)';
+    this.style.boxShadow = '0 8px 24px rgba(16,185,129,0.4), 0 2px 8px rgba(0,0,0,0.08)';
+  });
   btn.addEventListener('click', () => {
     btn.remove();
     const data = extractJobData();

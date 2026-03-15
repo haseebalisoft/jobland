@@ -77,8 +77,8 @@ export async function getBdAnalytics(req, res, next) {
 }
 
 /**
- * GET /bd/oneclick-token – get or create OneClick API key for the current BD (for extension).
- * BD copies this key into the OneClick extension so the extension can POST jobs to the API.
+ * GET /bd/oneclick-token – get or create Capture API key for the current BD (for extension).
+ * BD copies this key into the HiredLogics Capture extension so the extension can POST jobs to the API.
  */
 export async function getOneClickToken(req, res, next) {
   try {
@@ -106,7 +106,7 @@ export async function getOneClickToken(req, res, next) {
 
     res.json({
       oneclick_api_key: apiKey,
-      message: 'Use this key in the OneClick extension (Settings). Do not share it.',
+      message: 'Use this key in the HiredLogics Capture extension (Settings). Do not share it.',
     });
   } catch (err) {
     next(err);

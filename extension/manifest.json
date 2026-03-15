@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "HiredLogics OneClick",
+  "name": "HiredLogics Capture",
   "version": "1.0.0",
-  "description": "Capture job details from job boards and submit to HiredLogics. For BDs: get your API key from the BD dashboard (Copy OneClick API key).",
+  "description": "Capture job details from job boards and submit to HiredLogics. For BDs: get your API key from the BD dashboard (Copy Capture API key).",
   "action": {
-    "default_title": "HiredLogics OneClick",
+    "default_title": "HiredLogics Capture",
     "default_popup": "popup.html"
   },
   "permissions": [
