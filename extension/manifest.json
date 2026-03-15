@@ -26,6 +26,9 @@
       "run_at": "document_idle"
     }
   ],
+  "web_accessible_resources": [
+    { "resources": ["content.js", "popup.html", "options.html"], "matches": ["<all_urls>"] }
+  ],
   "background": {
     "service_worker": "background.js"
   },
