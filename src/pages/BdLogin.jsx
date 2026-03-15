@@ -36,7 +36,7 @@ export default function BdLogin() {
           </Link>
           <div style={styles.badge}>BD only</div>
           <h2 style={styles.title}>BD Portal</h2>
-          <p style={styles.subtitle}>Sign in to manage leads (BD / Admin only)</p>
+          <p style={styles.subtitle}>Sign in to manage your leads</p>
         </div>
 
         <form style={styles.form} onSubmit={handleLogin}>

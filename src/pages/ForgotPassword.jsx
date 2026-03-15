@@ -1,46 +1,51 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { Mail, Lock, ArrowRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Mail, ArrowRight } from 'lucide-react'
 import '../index.css'
 import { useState } from 'react'
-import { useAuth } from '../context/AuthContext.jsx'
+import api from '../services/api.js'
 
-export default function Login() {
-    const navigate = useNavigate();
-    const { login } = useAuth();
-    const [error, setError] = useState('');
+export default function ForgotPassword() {
+    const [email, setEmail] = useState('')
+    const [error, setError] = useState('')
+    const [sent, setSent] = useState(false)
 
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        setError('');
-        const email = e.target.email.value;
-        const password = e.target.password.value;
-
-        try {
-            const loggedInUser = await login(email, password);
-
-            // BD or Admin → always go to BD portal (leads dashboard)
-            if (loggedInUser.role === 'bd' || loggedInUser.role === 'admin') {
-                navigate('/bd');
-                return;
-            }
-
-            const planName = localStorage.getItem('selectedPlanName');
-
-            if (!loggedInUser.isActive) {
-                // No active subscription: send to checkout for the selected plan or pricing
-                if (planName) {
-                    navigate(`/checkout?plan=${encodeURIComponent(planName)}`);
-                } else {
-                    navigate('/checkout');
-                }
-            } else {
-                navigate('/dashboard');
-                return;
-            }
-        } catch (err) {
-            setError(err.response?.data?.message || 'Login failed');
+    const handleSubmit = async (e) => {
+        e.preventDefault()
+        setError('')
+        const value = (e.target.email?.value || email).trim()
+        if (!value) {
+            setError('Please enter your email address.')
+            return
         }
-    };
+        try {
+            await api.post('/auth/forgot-password', { email: value })
+            setSent(true)
+        } catch (err) {
+            setError(err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || 'Something went wrong. Try again.')
+        }
+    }
+
+    if (sent) {
+        return (
+            <div className="auth-container" style={styles.container}>
+                <div className="auth-card" style={styles.card}>
+                    <div style={styles.header}>
+                        <Link to="/" style={styles.logo}>
+                            <img src="/logo.png" alt="HiredLogics" style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 8 }} />
+                            <span>HiredLogics</span>
+                        </Link>
+                        <h2 style={styles.title}>Check your email</h2>
+                        <p style={styles.subtitle}>
+                            If an account exists with that email, we&apos;ve sent a password reset link. The link expires in 1 hour.
+                        </p>
+                    </div>
+                    <p style={styles.footer}>
+                        <Link to="/login" style={styles.link}>Back to sign in</Link>
+                    </p>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="auth-container" style={styles.container}>
@@ -50,39 +55,36 @@ export default function Login() {
                         <img src="/logo.png" alt="HiredLogics" style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 8 }} />
                         <span>HiredLogics</span>
                     </Link>
-                    <h2 style={styles.title}>Welcome back</h2>
-                    <p style={styles.subtitle}>Enter your details to access your dashboard</p>
+                    <h2 style={styles.title}>Forgot password?</h2>
+                    <p style={styles.subtitle}>Enter your email and we&apos;ll send you a link to reset your password.</p>
                 </div>
 
-                <form style={styles.form} onSubmit={handleLogin}>
+                <form style={styles.form} onSubmit={handleSubmit}>
                     <div style={styles.inputGroup}>
                         <label style={styles.label}>Email Address</label>
                         <div style={styles.inputWrapper}>
                             <Mail size={18} style={styles.inputIcon} />
-                            <input type="email" name="email" placeholder="you@example.com" style={styles.input} required />
-                        </div>
-                    </div>
-
-                    <div style={styles.inputGroup}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <label style={styles.label}>Password</label>
-                            <Link to="/forgot-password" style={styles.forgot}>Forgot password?</Link>
-                        </div>
-                        <div style={styles.inputWrapper}>
-                            <Lock size={18} style={styles.inputIcon} />
-                            <input type="password" name="password" placeholder="••••••••" style={styles.input} required />
+                            <input
+                                type="email"
+                                name="email"
+                                placeholder="you@example.com"
+                                style={styles.input}
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
                         </div>
                     </div>
 
                     {error && <p style={{ color: 'red', fontSize: '14px' }}>{error}</p>}
 
                     <button type="submit" className="btn btn-primary" style={styles.button}>
-                        Sign in <ArrowRight size={18} />
+                        Send reset link <ArrowRight size={18} />
                     </button>
                 </form>
 
                 <p style={styles.footer}>
-                    Don't have an account? <Link to="/#pricing" style={styles.link}>View pricing & get started</Link>
+                    Remember your password? <Link to="/login" style={styles.link}>Sign in</Link>
                 </p>
             </div>
         </div>
@@ -119,12 +121,6 @@ const styles = {
         color: 'var(--dark)',
         textDecoration: 'none',
         marginBottom: '24px',
-    },
-    logoIcon: {
-        width: '32px',
-        height: '32px',
-        background: 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)',
-        borderRadius: '8px',
     },
     title: {
         fontSize: '28px',
@@ -169,12 +165,6 @@ const styles = {
         fontSize: '15px',
         outline: 'none',
         transition: 'all 0.2s',
-    },
-    forgot: {
-        fontSize: '13px',
-        color: 'var(--primary)',
-        textDecoration: 'none',
-        fontWeight: '600',
     },
     button: {
         width: '100%',

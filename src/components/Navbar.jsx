@@ -41,6 +41,9 @@ export default function Navbar() {
 
                 {/* CTA */}
                 <div className="navbar__actions">
+                    <Link to="/bd/login" className="navbar__bd-link">
+                        BD Portal
+                    </Link>
                     <Link to="/login" className="btn btn-primary btn-sm">
                         Get Started
                     </Link>
@@ -66,6 +69,14 @@ export default function Navbar() {
                         {link.label}
                     </a>
                 ))}
+                <Link
+                    to="/bd/login"
+                    className="navbar__mobile-link"
+                    onClick={() => setMenuOpen(false)}
+                    style={{ marginTop: '8px' }}
+                >
+                    BD Portal
+                </Link>
                 <Link
                     to="/login"
                     className="btn btn-primary"

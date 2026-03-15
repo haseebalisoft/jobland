@@ -988,3 +988,90 @@ export async function changePassword(userId, currentPassword, newPassword) {
   return true;
 }
 
+/** Build URL for the reset-password page (user clicks link in email). */
+function buildPasswordResetUrl(token) {
+  const clientBase = config.clientUrl.replace(/\/$/, '');
+  return `${clientBase}/reset-password?token=${encodeURIComponent(token)}`;
+}
+
+/**
+ * Forgot password: find user by email (role = 'user' only), create reset token, send email.
+ * Does not reveal whether the email exists (always returns success).
+ */
+export async function requestPasswordReset({ email }) {
+  const normalizedEmail = normalizeEmail(email);
+  const res = await query(
+    `SELECT id, full_name, email FROM users WHERE LOWER(email) = $1 AND role = 'user'`,
+    [normalizedEmail],
+  );
+  if (res.rowCount === 0) {
+    return;
+  }
+  const row = res.rows[0];
+  const token = jwt.sign(
+    { sub: row.id, type: 'password_reset' },
+    config.passwordReset.secret,
+    { expiresIn: config.passwordReset.expiresIn },
+  );
+  const resetUrl = buildPasswordResetUrl(token);
+  try {
+    await sendEmail({
+      to: row.email,
+      subject: 'Reset your HiredLogics password',
+      html: `
+      <p>Hi${row.full_name ? ` ${row.full_name.split(' ')[0]}` : ''},</p>
+      <p>We received a request to reset your password. Click the link below to set a new password:</p>
+      <p><a href="${resetUrl}">Reset password</a></p>
+      <p>This link expires in 1 hour. If you didn't request this, you can ignore this email.</p>
+    `,
+    });
+  } catch (e) {
+    console.error('Failed to send password reset email:', e?.message || e);
+  }
+}
+
+/**
+ * Reset password using token from email link. Verifies JWT (type password_reset), then updates password.
+ */
+export async function resetPasswordWithToken({ token, password }) {
+  if (!token || typeof token !== 'string') {
+    const err = new Error('Reset token is required');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!password || password.length < 6) {
+    const err = new Error('Password must be at least 6 characters');
+    err.statusCode = 400;
+    throw err;
+  }
+  let payload;
+  try {
+    payload = jwt.verify(token, config.passwordReset.secret);
+  } catch (e) {
+    const err = new Error('Invalid or expired reset link. Request a new one from the login page.');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (payload.type !== 'password_reset' || !payload.sub) {
+    const err = new Error('Invalid reset link.');
+    err.statusCode = 400;
+    throw err;
+  }
+  const userId = payload.sub;
+  const passwordHash = await bcrypt.hash(password, 10);
+  await query(
+    'UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1',
+    [userId, passwordHash],
+  );
+  const userRes = await query(
+    `SELECT id, full_name, email, role, is_verified, subscription_plan, is_active
+     FROM users WHERE id = $1`,
+    [userId],
+  );
+  if (userRes.rowCount === 0) return null;
+  const user = mapRowToUser(userRes.rows[0]);
+  const accessToken = signAccessToken(user);
+  const refreshToken = signRefreshToken(user);
+  return { user, accessToken, refreshToken };
+}
+

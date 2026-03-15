@@ -18,6 +18,8 @@ import VerifyEmail from './pages/VerifyEmail'
 import CheckoutSuccess from './pages/CheckoutSuccess'
 import Start from './pages/Start'
 import SetPassword from './pages/SetPassword'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import AdminLogin from './pages/AdminLogin'
 import { AuthProvider } from './context/AuthContext.jsx'
 import ProtectedRoute from './routes/ProtectedRoute.jsx'
@@ -48,6 +50,8 @@ function App() {
           <Route path="/profile-builder" element={<ProfileBuilder />} />
           <Route path="/resume-maker" element={<ProtectedRoute><ResumeMaker /></ProtectedRoute>} />
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/bd/login" element={<BdLogin />} />
           <Route path="/bd/signup" element={<BdSignup />} />
