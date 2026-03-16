@@ -65,9 +65,15 @@ export async function optimizeFullResumeHandler(req, res, next) {
 
 export async function listTemplates(req, res, next) {
   try {
+    // Keep the templates endpoint for now; all options use the same
+    // underlying pdfkit layout after reverting away from LaTeX.
     res.json([
       { id: 'classic', name: 'Classic' },
       { id: 'modern', name: 'Modern' },
+      { id: 'professional', name: 'Professional' },
+      { id: 'executive', name: 'Executive' },
+      { id: 'minimal', name: 'Minimal' },
+      { id: 'dynamics', name: 'Dynamics' },
     ]);
   } catch (err) {
     next(err);
@@ -76,11 +82,11 @@ export async function listTemplates(req, res, next) {
 
 export async function downloadPdf(req, res, next) {
   try {
-    const { profile } = req.body || {};
+    const { profile, customization } = req.body || {};
     if (!profile) {
       return res.status(400).json({ error: 'Profile is required' });
     }
-    const buffer = await buildResumePdf(profile);
+    const buffer = await buildResumePdf(profile, customization || {});
     res.setHeader('Content-Type', 'application/pdf');
     const name = (profile.personal?.fullName || 'Resume').replace(/\s+/g, '_');
     res.setHeader('Content-Disposition', `attachment; filename="Resume_${name}.pdf"`);

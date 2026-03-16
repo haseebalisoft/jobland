@@ -85,14 +85,14 @@ export default function BdLogin() {
   )
 }
 
-const theme = { primary: '#10B981', dark: '#0F172A', muted: '#64748B', border: '#E2E8F0' }
+const theme = { primary: '#2563EB', dark: '#0F172A', muted: '#64748B', border: '#E2E8F0' }
 const styles = {
   container: {
     minHeight: '100vh',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'linear-gradient(160deg, #0F172A 0%, #1e293b 50%, #334155 100%)',
+    background: 'linear-gradient(160deg, #0F172A 0%, #111827 40%, #1f2937 100%)',
     padding: '24px',
   },
   card: {

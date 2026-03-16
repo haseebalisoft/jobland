@@ -78,8 +78,8 @@ const ResumeMaker = () => {
     const [customization, setCustomization] = useState({
         fontFamily: "'Inter', sans-serif",
         headingFont: "'Outfit', sans-serif",
-        primaryColor: "#4F46E5",
-        lineHeight: 1.5,
+        primaryColor: "#111827",
+        lineHeight: 1.4,
         sectionGap: 24,
         showIcons: true,
         showProfilePic: false,
@@ -110,7 +110,11 @@ const ResumeMaker = () => {
         if (!currentProfile) return;
         setPreviewLoading(true);
         try {
-            const response = await api.post('/cv/download', { profile: currentProfile }, { responseType: 'blob' });
+            const response = await api.post(
+                '/cv/download',
+                { profile: currentProfile, customization },
+                { responseType: 'blob' }
+            );
             if (previewUrl) window.URL.revokeObjectURL(previewUrl);
             const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
             setPreviewUrl(url);
@@ -208,7 +212,11 @@ const ResumeMaker = () => {
     const handleDownload = async () => {
         setDownloading(true);
         try {
-            const response = await api.post('/cv/download', { profile }, { responseType: 'blob' });
+            const response = await api.post(
+                '/cv/download',
+                { profile, customization },
+                { responseType: 'blob' }
+            );
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
