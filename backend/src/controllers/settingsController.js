@@ -5,16 +5,25 @@ async function getLatestSubscription(userId) {
   try {
     const subRes = await query(
       `
-        SELECT id, stripe_customer_id, stripe_subscription_id, plan_id, status, current_period_end, created_at
-        FROM subscriptions
-        WHERE user_id = $1
-        ORDER BY created_at DESC
+        SELECT s.id, s.stripe_customer_id, s.stripe_subscription_id, s.status, s.current_period_end, s.created_at,
+               sp.plan_id, sp.name AS plan_name
+        FROM subscriptions s
+        LEFT JOIN subscription_plans sp ON sp.id = s.subscription_plan_id
+        WHERE s.user_id = $1
+        ORDER BY s.created_at DESC
         LIMIT 1
       `,
       [userId],
     );
 
-    return subRes.rows[0] || null;
+    const row = subRes.rows[0];
+    return row
+      ? {
+          ...row,
+          plan_id: row.plan_id ?? null,
+          plan_name: row.plan_name ?? null,
+        }
+      : null;
   } catch (err) {
     if (err?.code === '42P01') {
       return null;
@@ -29,9 +38,11 @@ export async function getSettings(req, res, next) {
 
     const userRes = await query(
       `
-        SELECT id, full_name, email, role, is_verified, subscription_plan, is_active, created_at
-        FROM users
-        WHERE id = $1
+        SELECT u.id, u.full_name, u.email, u.role, u.is_verified, u.subscription_plan, u.is_active, u.created_at,
+               sp.name AS subscription_plan_name
+        FROM users u
+        LEFT JOIN subscription_plans sp ON sp.plan_id = u.subscription_plan
+        WHERE u.id = $1
       `,
       [userId],
     );
@@ -54,12 +65,14 @@ export async function getSettings(req, res, next) {
         is_verified: user.is_verified,
         is_active: user.is_active,
         subscription_plan: user.subscription_plan,
+        subscription_plan_name: user.subscription_plan_name || null,
         created_at: user.created_at,
       },
       subscription: subscription
         ? {
             id: subscription.id,
             plan_id: subscription.plan_id,
+            plan_name: subscription.plan_name,
             status: subscription.status,
             current_period_end: subscription.current_period_end,
             created_at: subscription.created_at,

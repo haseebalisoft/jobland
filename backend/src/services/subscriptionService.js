@@ -14,23 +14,32 @@ const PLAN_CONFIG = {
       process.env.STRIPE_PRICE_PROFESSIONAL_RESUME_ID ||
       'price_test_professional_resume',
   },
-  starter_pack: {
-    id: 'starter_pack',
+  starter: {
+    id: 'starter',
     name: 'Starter Pack',
-    mode: 'payment',
-    priceId: process.env.STRIPE_PRICE_STARTER_PACK_ID || 'price_test_starter_pack',
+    mode: 'subscription',
+    priceId:
+      process.env.STRIPE_PRICE_STARTER_ID ||
+      process.env.STRIPE_PRICE_STARTER_PACK_ID ||
+      'price_test_starter',
   },
-  success_pack: {
-    id: 'success_pack',
+  success: {
+    id: 'success',
     name: 'Success Pack',
-    mode: 'payment',
-    priceId: process.env.STRIPE_PRICE_SUCCESS_PACK_ID || 'price_test_success_pack',
+    mode: 'subscription',
+    priceId:
+      process.env.STRIPE_PRICE_SUCCESS_ID ||
+      process.env.STRIPE_PRICE_SUCCESS_PACK_ID ||
+      'price_test_success',
   },
-  elite_pack: {
-    id: 'elite_pack',
+  elite: {
+    id: 'elite',
     name: 'Elite Pack',
-    mode: 'payment',
-    priceId: process.env.STRIPE_PRICE_ELITE_PACK_ID || 'price_test_elite_pack',
+    mode: 'subscription',
+    priceId:
+      process.env.STRIPE_PRICE_ELITE_ID ||
+      process.env.STRIPE_PRICE_ELITE_PACK_ID ||
+      'price_test_elite',
   },
 };
 
@@ -50,7 +59,7 @@ function getPlanConfig(planId) {
   const plan = PLAN_CONFIG[planId];
   if (!plan) {
     const err = new Error(
-      'Invalid plan selected. Use one of: professional_resume, starter_pack, success_pack, elite_pack',
+      'Invalid plan selected. Use one of: professional_resume, starter, success, elite',
     );
     err.statusCode = 400;
     throw err;
@@ -79,7 +88,7 @@ function deriveFullName(fullName, email) {
     .replace(/\s+/g, ' ')
     .trim();
 
-  return localPart || 'JobLand User';
+  return localPart || 'HiredLogics User';
 }
 
 function queuePasswordSetupEmail(userId) {
@@ -90,35 +99,35 @@ function queuePasswordSetupEmail(userId) {
   });
 }
 
+// When using 001_initial.sql (hiredlogics_prod), subscriptions already has subscription_plan_id, subscription_status enum.
 async function ensureSubscriptionsTable() {
   if (subscriptionsTableEnsured) {
     return;
   }
-
+  try {
+    const check = await query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'subscriptions' AND column_name = 'subscription_plan_id'
+    `);
+    if (check.rowCount > 0) {
+      subscriptionsTableEnsured = true;
+      return;
+    }
+  } catch (_) {}
   await query(`
     CREATE TABLE IF NOT EXISTS subscriptions (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      subscription_plan_id UUID REFERENCES subscription_plans(id) ON DELETE RESTRICT,
       stripe_customer_id TEXT,
       stripe_subscription_id TEXT UNIQUE,
       stripe_checkout_session_id TEXT UNIQUE,
-      plan_id VARCHAR(100),
       status VARCHAR(50),
       current_period_end TIMESTAMP,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     )
   `);
-
-  await query(`
-    ALTER TABLE subscriptions
-      ADD COLUMN IF NOT EXISTS stripe_checkout_session_id TEXT,
-      ADD COLUMN IF NOT EXISTS plan_id VARCHAR(100),
-      ADD COLUMN IF NOT EXISTS status VARCHAR(50),
-      ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMP,
-      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()
-  `);
-
   subscriptionsTableEnsured = true;
 }
 
@@ -169,28 +178,31 @@ async function getUserSnapshot(userId) {
   };
 }
 
+// 001_initial: subscriptions has subscription_plan_id (FK); plan_id lives on subscription_plans.plan_id
 async function getLatestSubscription(userId) {
   try {
     await ensureSubscriptionsTable();
     const result = await query(
       `
-        SELECT id,
-               stripe_customer_id,
-               stripe_subscription_id,
-               stripe_checkout_session_id,
-               plan_id,
-               status,
-               current_period_end,
-               created_at
-        FROM subscriptions
-        WHERE user_id = $1
-        ORDER BY created_at DESC
+        SELECT s.id,
+               s.stripe_customer_id,
+               s.stripe_subscription_id,
+               s.stripe_checkout_session_id,
+               s.status,
+               s.current_period_end,
+               s.created_at,
+               sp.plan_id
+        FROM subscriptions s
+        LEFT JOIN subscription_plans sp ON sp.id = s.subscription_plan_id
+        WHERE s.user_id = $1
+        ORDER BY s.created_at DESC
         LIMIT 1
       `,
       [userId],
     );
-
-    return result.rows[0] || null;
+    const row = result.rows[0];
+    if (!row) return null;
+    return { ...row, plan_id: row.plan_id ?? null };
   } catch (err) {
     if (err?.code === '42P01') {
       return null;
@@ -199,6 +211,7 @@ async function getLatestSubscription(userId) {
   }
 }
 
+// 001_initial: subscriptions uses subscription_plan_id (FK to subscription_plans), not plan_id
 async function upsertSubscriptionRecord({
   userId,
   customerId = null,
@@ -216,15 +229,25 @@ async function upsertSubscriptionRecord({
   await ensureSubscriptionsTable();
 
   const execute = client ? client.query.bind(client) : query;
+  let subscriptionPlanId = null;
+  if (planId) {
+    const planRes = await execute(
+      'SELECT id FROM subscription_plans WHERE plan_id = $1 LIMIT 1',
+      [planId],
+    );
+    subscriptionPlanId = planRes.rows[0]?.id ?? null;
+  }
+
   const lookupResult = subscriptionId
-    ? await execute('SELECT id FROM subscriptions WHERE stripe_subscription_id = $1', [
+    ? await execute('SELECT id, subscription_plan_id FROM subscriptions WHERE stripe_subscription_id = $1', [
         subscriptionId,
       ])
-    : await execute('SELECT id FROM subscriptions WHERE stripe_checkout_session_id = $1', [
+    : await execute('SELECT id, subscription_plan_id FROM subscriptions WHERE stripe_checkout_session_id = $1', [
         checkoutSessionId,
       ]);
 
   if (lookupResult.rowCount > 0) {
+    const existingPlanId = lookupResult.rows[0].subscription_plan_id;
     await execute(
       `
         UPDATE subscriptions
@@ -232,8 +255,8 @@ async function upsertSubscriptionRecord({
             stripe_customer_id = COALESCE($2, stripe_customer_id),
             stripe_subscription_id = COALESCE($3, stripe_subscription_id),
             stripe_checkout_session_id = COALESCE($4, stripe_checkout_session_id),
-            plan_id = COALESCE($5, plan_id),
-            status = COALESCE($6, status),
+            subscription_plan_id = COALESCE($5, subscription_plan_id),
+            status = COALESCE($6::subscription_status, status),
             current_period_end = $7,
             updated_at = NOW()
         WHERE id = $8
@@ -243,7 +266,7 @@ async function upsertSubscriptionRecord({
         customerId,
         subscriptionId,
         checkoutSessionId,
-        planId,
+        subscriptionPlanId ?? existingPlanId,
         status,
         currentPeriodEnd,
         lookupResult.rows[0].id,
@@ -252,26 +275,30 @@ async function upsertSubscriptionRecord({
     return;
   }
 
+  // 001: subscription_plan_id is NOT NULL; skip INSERT if we have no plan
+  if (!subscriptionPlanId) {
+    return;
+  }
   await execute(
     `
       INSERT INTO subscriptions (
         user_id,
+        subscription_plan_id,
         stripe_customer_id,
         stripe_subscription_id,
         stripe_checkout_session_id,
-        plan_id,
         status,
         current_period_end
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6::subscription_status, $7)
     `,
     [
       userId,
+      subscriptionPlanId,
       customerId,
       subscriptionId,
       checkoutSessionId,
-      planId,
-      status,
+      status ?? 'active',
       currentPeriodEnd,
     ],
   );
@@ -487,7 +514,10 @@ export async function createCheckoutSession({ userId = null, planId, email = nul
   const plan = getPlanConfig(planId);
   let customerEmail = null;
 
-  if (userId) {
+  // Use explicitly provided email first (so user can enter a different email at checkout)
+  if (email && String(email).trim()) {
+    customerEmail = String(email).trim().toLowerCase();
+  } else if (userId) {
     const user = await getCheckoutUser(userId);
     if (!user.is_verified) {
       const err = new Error('Please verify your email before starting checkout');
@@ -495,8 +525,6 @@ export async function createCheckoutSession({ userId = null, planId, email = nul
       throw err;
     }
     customerEmail = user.email;
-  } else if (email) {
-    customerEmail = String(email).trim().toLowerCase();
   }
 
   const clientBaseUrl = config.clientUrl.replace(/\/$/, '');
@@ -541,7 +569,8 @@ export async function createCheckoutSession({ userId = null, planId, email = nul
     payment_method_types: ['card'],
     ...(userId ? { client_reference_id: userId } : {}),
     ...(customerEmail ? { customer_email: customerEmail } : {}),
-    customer_creation: 'always',
+    // customer_creation is only allowed in payment mode (one-time), not subscription mode
+    ...(plan.mode === 'payment' ? { customer_creation: 'always' } : {}),
     billing_address_collection: 'auto',
     metadata: {
       ...(userId ? { userId } : {}),
@@ -635,6 +664,7 @@ export async function getOrCreateUserFromCheckoutSession(sessionId) {
   return result.user;
 }
 
+// 001_initial: subscriptions has user_id and subscription_plan_id NOT NULL; only UPDATE by stripe_subscription_id
 async function updateSubscriptionStatus({
   customerId,
   subscriptionId,
@@ -647,22 +677,17 @@ async function updateSubscriptionStatus({
 
   await ensureSubscriptionsTable();
 
+  const normalizedStatus = status === 'canceled' ? 'canceled' : status === 'past_due' ? 'past_due' : status === 'trialing' ? 'trialing' : 'active';
   await query(
     `
-      INSERT INTO subscriptions (
-        stripe_customer_id,
-        stripe_subscription_id,
-        status,
-        current_period_end
-      )
-      VALUES ($1, $2, $3, $4)
-      ON CONFLICT (stripe_subscription_id)
-      DO UPDATE SET stripe_customer_id = COALESCE(EXCLUDED.stripe_customer_id, subscriptions.stripe_customer_id),
-                    status = COALESCE(EXCLUDED.status, subscriptions.status),
-                    current_period_end = EXCLUDED.current_period_end,
-                    updated_at = NOW()
+      UPDATE subscriptions
+      SET stripe_customer_id = COALESCE($1, stripe_customer_id),
+          status = $2::subscription_status,
+          current_period_end = COALESCE($3, current_period_end),
+          updated_at = NOW()
+      WHERE stripe_subscription_id = $4
     `,
-    [customerId, subscriptionId, status, currentPeriodEnd],
+    [customerId, normalizedStatus, currentPeriodEnd, subscriptionId],
   );
 }
 

@@ -1,11 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&display=swap');
 
 .rb-scope {
-    --rb-primary: #4f46e5;
-    --rb-primary-hover: #4338ca;
-    --rb-indigo-light: #eef2ff;
-    --rb-indigo-shadow: rgba(79, 70, 229, 0.15);
-    --rb-slate-50: #f8fafc;
+    --rb-primary: #0d9488;
+    --rb-primary-hover: #0f766e;
+    --rb-indigo-light: #ccfbf1;
+    --rb-indigo-shadow: rgba(13, 148, 136, 0.15);
+    --rb-slate-50: #f0fdfa;
     --rb-slate-100: #f1f5f9;
     --rb-slate-200: #e2e8f0;
     --rb-slate-300: #cbd5e1;
@@ -20,6 +20,17 @@
     color: var(--rb-slate-800);
     background-color: var(--rb-slate-50);
     min-height: 100vh;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+}
+
+/* Resume maker main content area (beside app sidebar) - take remaining width */
+.rb-scope .rb-main-content {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -42,6 +53,8 @@
 
 .rb-main {
     flex: 1;
+    min-width: 0;
+    min-height: 0;
     display: flex;
     overflow: hidden;
     position: relative;
@@ -49,46 +62,266 @@
 
 .rb-sidebar {
     width: 440px;
-    min-width: 440px;
+    min-width: 360px;
+    max-width: 500px;
     background: #f8fafc;
     border-right: 1px solid var(--rb-slate-200);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Scrollable content area - only this scrolls when many companies/education */
+.rb-sidebar-scroll {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-    z-index: 10;
 }
 
+/* Section tabs inside Content tab (Basic Info, Summary, etc.) */
+.rb-content-section-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.rb-content-section-tabs button {
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--rb-slate-200);
+    background: white;
+    color: var(--rb-slate-600);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rb-content-section-tabs button:hover {
+    background: var(--rb-slate-50);
+    color: var(--rb-slate-800);
+    border-color: var(--rb-slate-300);
+}
+
+.rb-content-section-tabs button.active {
+    background: var(--rb-primary);
+    color: white;
+    border-color: var(--rb-primary);
+}
+
+/* Editor panel cards - accordion content spacing */
+.rb-sidebar .rb-accordion-content {
+    padding: 1rem 1.5rem 1.5rem;
+    background: #fff;
+    border-radius: 0 0 16px 16px;
+}
+
+/* Resume viewport: almost full page height */
 .rb-preview-section {
     flex: 1;
-    background: #e2e8f0;
+    min-height: 0;
+    background: linear-gradient(160deg, #e2e8f0 0%, #cbd5e1 100%);
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 70px);
     overflow: hidden;
     position: relative;
 }
 
 .rb-preview-workspace {
     flex: 1;
+    min-height: 0;
     overflow: auto;
-    padding: 2.5rem;
+    padding: 1.5rem;
+    padding-top: 72px;  /* space for floating top bar (tabs left + download right) */
     display: flex;
     justify-content: center;
-    background: #cbd5e1;
+    align-items: stretch;
+    background: linear-gradient(160deg, #e2e8f0 0%, #cbd5e1 100%);
     position: relative;
 }
 
 .rb-pdf-document {
     width: 100%;
     max-width: 850px;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     background: white;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    border-radius: 4px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
     overflow: hidden;
     position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Floating tab buttons on the top left of the resume (same row as download on right) */
+.rb-floating-tabs-left {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    z-index: 20;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.rb-floating-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--rb-slate-200);
+    background: white;
+    color: var(--rb-slate-600);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: all 0.2s;
+}
+
+.rb-floating-tab:hover {
+    background: var(--rb-slate-50);
+    color: var(--rb-slate-800);
+    border-color: var(--rb-slate-300);
+}
+
+.rb-floating-tab.active {
+    background: var(--rb-primary);
+    color: white;
+    border-color: var(--rb-primary);
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+}
+
+/* Floating actions on the top right of the resume */
+.rb-floating-actions-right {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.rb-floating-select {
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--rb-slate-200);
+    background: white;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--rb-slate-800);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.rb-floating-download {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: 10px;
+    border: none;
+    background: var(--rb-slate-900);
+    color: white;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: background 0.2s;
+}
+
+.rb-floating-download:hover:not(:disabled) {
+    background: var(--rb-slate-800);
+}
+
+.rb-floating-download:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Zoom control: center bottom of resume */
+.rb-floating-zoom {
+    position: absolute;
+    left: 50%;
+    bottom: 44px;
+    transform: translateX(-50%);
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 100px;
+    background: white;
+    border: 2px solid var(--rb-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.rb-floating-zoom button {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: var(--rb-slate-100);
+    color: var(--rb-slate-600);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rb-floating-zoom button:hover {
+    background: var(--rb-slate-200);
+}
+
+.rb-floating-zoom span {
+    font-size: 12px;
+    font-weight: 800;
+    min-width: 40px;
+    text-align: center;
+    color: var(--rb-slate-700);
+}
+
+/* Sidebar header with close */
+.rb-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rb-slate-200);
+    background: white;
+    flex-shrink: 0;
+}
+
+.rb-sidebar-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--rb-slate-200);
+    background: white;
+    color: var(--rb-slate-600);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.rb-sidebar-close:hover {
+    background: var(--rb-slate-100);
+    color: var(--rb-slate-800);
 }
 
 /* --- Navigation --- */
@@ -330,22 +563,27 @@
 .rb-label {
     font-size: 0.7rem;
     font-weight: 800;
-    color: var(--rb-slate-400);
+    color: var(--rb-slate-500);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     padding-left: 0.25rem;
+    margin-bottom: 0.25rem;
 }
 
 .rb-input {
     width: 100%;
-    padding: 0.875rem 1.25rem;
-    background: var(--rb-slate-50);
+    padding: 0.75rem 1rem;
+    background: #fff;
     border: 1px solid var(--rb-slate-200);
-    border-radius: 12px;
+    border-radius: 10px;
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 500;
     outline: none;
-    transition: all 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.rb-input::placeholder {
+    color: var(--rb-slate-400);
 }
 
 .rb-input:focus {
@@ -372,6 +610,11 @@
     background: white;
     border-color: var(--rb-primary);
     box-shadow: 0 0 0 4px var(--rb-indigo-light);
+}
+
+/* Professional summary textarea - taller */
+.rb-sidebar .rb-summary-field .rb-textarea {
+    min-height: 200px;
 }
 
 /* --- A4 Canvas --- */

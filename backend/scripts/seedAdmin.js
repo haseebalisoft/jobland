@@ -3,7 +3,7 @@
  * Run from backend folder: node scripts/seedAdmin.js
  *
  * Default credentials:
- *   Email:    admin@jobland.com  (or set ADMIN_EMAIL in .env)
+ *   Email:    admin@hiredlogics.com  (or set ADMIN_EMAIL in .env)
  *   Password: admin123
  */
 
@@ -17,7 +17,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 import bcrypt from 'bcryptjs';
 import { query } from '../src/config/db.js';
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@jobland.com';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@hiredlogics.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const ADMIN_NAME = process.env.ADMIN_NAME || 'Admin';
 

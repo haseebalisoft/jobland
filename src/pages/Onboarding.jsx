@@ -1,25 +1,80 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from '../api';
-import { ChevronRight, LogOut, Upload, Check } from 'lucide-react';
+import api from '../services/api.js';
+import { Upload, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import UserSidebar from '../components/UserSidebar.jsx';
 
 const Onboarding = () => {
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    const [profileLoading, setProfileLoading] = useState(true);
     const navigate = useNavigate();
 
     const [prefs, setPrefs] = useState({
         jobFunction: '',
+        jobFunctions: [],
         jobTypes: [],
         preferredLocations: [],
+        preferredCity: '',
+        earliestStartDate: '',
+        experienceLevel: '',
         openToRemote: false,
-        requiresSponsorship: false
+        workAuthorisation: ''
     });
 
-    const [file, setFile] = useState(null);
-    const [uploadProgress, setUploadProgress] = useState(0);
-    const [uploadStatus, setUploadStatus] = useState('');
+    // Fetch profile from DB on load so /onboarding shows saved data when user reloads
+    useEffect(() => {
+        const fetchProfile = async () => {
+            try {
+                const res = await api.get('/profile');
+                const profile = res.data?.profile ?? null;
+
+                if (profile) {
+                    const typeReverseMap = {
+                        full_time: 'Full-time',
+                        contract: 'Contract',
+                        part_time: 'Part-time',
+                        internship: 'Internship',
+                    };
+
+                    const jobFunctionsFromDb =
+                        Array.isArray(profile.job_functions) && profile.job_functions.length > 0
+                            ? profile.job_functions
+                            : (profile.title ? [profile.title] : []);
+                    const primaryJobFunction = jobFunctionsFromDb[0] || '';
+
+                    const jobTypesFromDb =
+                        Array.isArray(profile.job_types) && profile.job_types.length > 0
+                            ? profile.job_types
+                                  .map((t) => typeReverseMap[t])
+                                  .filter(Boolean)
+                            : (profile.employment_type
+                                  ? [typeReverseMap[profile.employment_type] || '']
+                                  : []);
+
+                    setPrefs(prev => ({
+                        ...prev,
+                        jobFunction: primaryJobFunction,
+                        jobFunctions: jobFunctionsFromDb,
+                        jobTypes: jobTypesFromDb,
+                        preferredLocations: profile.preferred_country ? [profile.preferred_country] : [],
+                        preferredCity: profile.preferred_city || '',
+                        earliestStartDate: profile.earliest_start_date != null ? String(profile.earliest_start_date).slice(0, 10) : '',
+                        experienceLevel: profile.experience_level || '',
+                        openToRemote: profile.remote_preference === 'remote_only',
+                        workAuthorisation: profile.work_authorisation || '',
+                    }));
+                }
+            } catch (err) {
+                console.error('Failed to fetch profile for onboarding prefill', err);
+            } finally {
+                setProfileLoading(false);
+            }
+        };
+
+        fetchProfile();
+    }, []);
 
     const jobTypes = ['Full-time', 'Contract', 'Part-time', 'Internship'];
 
@@ -30,6 +85,23 @@ const Onboarding = () => {
                 ? prev.jobTypes.filter(t => t !== type)
                 : [...prev.jobTypes, type]
         }));
+    };
+
+    const toggleJobFunction = (func) => {
+        setPrefs(prev => {
+            const alreadySelected = prev.jobFunctions.includes(func);
+            const updated = alreadySelected
+                ? prev.jobFunctions.filter(f => f !== func)
+                : [...prev.jobFunctions, func];
+
+            return {
+                ...prev,
+                jobFunctions: updated,
+                // Keep a primary jobFunction for backend/title
+                jobFunction: updated[0] || ''
+            };
+        });
+        setSearchQuery('');
     };
 
     const toggleLocation = (loc) => {
@@ -47,10 +119,35 @@ const Onboarding = () => {
     const [locationQuery, setLocationQuery] = useState('');
 
     const jobFunctions = [
-        'Software Engineering', 'Data Science', 'Product Management',
-        'Design & UX', 'Marketing', 'Sales', 'Customer Success',
-        'Finance', 'Human Resources', 'Operations', 'Legal',
-        'Project Management', 'Business Development', 'Hardware Engineering'
+        'Software Engineering',
+        'Backend Engineering',
+        'Frontend Engineering',
+        'Full-Stack Engineering',
+        'Data Science',
+        'Machine Learning Engineering',
+        'MLOps Engineering',
+        'DevOps / SRE',
+        'Cloud Engineering',
+        'Mobile Engineering',
+        'Product Management',
+        'Design & UX',
+        'Data Engineering',
+        'Analytics / BI',
+        'Marketing',
+        'Growth Marketing',
+        'Sales',
+        'Customer Success',
+        'Finance',
+        'Human Resources',
+        'Talent Acquisition / Recruiting',
+        'Operations',
+        'Legal',
+        'Project Management',
+        'Program Management',
+        'Business Development',
+        'Hardware Engineering',
+        'Security Engineering',
+        'QA / Test Engineering',
     ];
 
     const countries = [
@@ -91,8 +188,8 @@ const Onboarding = () => {
     const handleNextStep1 = async () => {
         setLoading(true);
         try {
-            await axios.post('/user/onboarding', prefs);
-            setStep(2);
+            await api.post('/user/onboarding', prefs);
+            navigate('/upload_cv');
         } catch (err) {
             console.error(err);
         } finally {
@@ -100,57 +197,22 @@ const Onboarding = () => {
         }
     };
 
-    const handleFileUpload = async (e) => {
-        const selectedFile = e.target.files[0];
-        if (!selectedFile) return;
-        setFile(selectedFile);
-    };
-
-    const startMatching = async () => {
-        if (!file) return;
-
-        setLoading(true);
-        setUploadStatus('Processing...');
-
-        const formData = new FormData();
-        formData.append('resume', file); // ✅ MUST be "resume"
-
-        try {
-            const res = await axios.post('/cv/parse', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
-            });
-
-            console.log('Parsed CV:', res.data); // optional
-            navigate('/profile');
-
-        } catch (err) {
-            setUploadStatus('Failed to process. Please try again.');
-            console.error(err.response?.data || err);
-        } finally {
-            setLoading(false);
-        }
-    };
+    if (profileLoading) {
+        return (
+            <div className="onboarding-page" style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
+                <UserSidebar />
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <p style={{ color: '#64748b', fontSize: '15px' }}>Loading your preferences...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="onboarding-page">
-            <header>
-                <div className="logo-area">
-                    <div className="logo-icon">
-                        <ChevronRight />
-                    </div>
-                    <div>
-                        <div className="logo-text">Hiredlogic</div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Your AI Copilot</div>
-                    </div>
-                </div>
-                <button className="logout-btn" onClick={() => navigate('/auth')}>
-                    <LogOut size={16} /> Logout
-                </button>
-            </header>
-
-            <main className="orion-onboarding-container">
+        <div className="onboarding-page" style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
+            <UserSidebar />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+            <main className="orion-onboarding-container" style={{ flex: 1, padding: '32px 24px' }}>
                 <AnimatePresence mode="wait">
                     {step === 1 ? (
                         <motion.div
@@ -160,16 +222,41 @@ const Onboarding = () => {
                             exit={{ opacity: 0, x: -20 }}
                             className="orion-card"
                         >
-                            <h1>Hi, I'm Hiredlogic, your AI Copilot for job search.</h1>
+                            <h1>Hi, I'm HiredLogics, your AI Copilot for job search.</h1>
                             <p className="subheading">To get started, what type of role are you looking for?</p>
 
                             <div style={{ marginBottom: '32px', position: 'relative' }}>
-                                <label className="orion-label">Job Function <span>*</span></label>
+                                <label className="orion-label">Job Functions <span>*</span></label>
+                                {/* Selected functions as chips */}
+                                {prefs.jobFunctions.length > 0 && (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                                        {prefs.jobFunctions.map(func => (
+                                            <span
+                                                key={func}
+                                                onClick={() => toggleJobFunction(func)}
+                                                style={{
+                                                    background: 'var(--accent)',
+                                                    color: 'white',
+                                                    padding: '4px 12px',
+                                                    borderRadius: '20px',
+                                                    fontSize: '12px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '6px',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                {func}
+                                                <span style={{ fontSize: '14px', fontWeight: 'bold' }}>×</span>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                                 <div style={{ position: 'relative' }}>
                                     <input
                                         type="text"
                                         className="orion-input"
-                                        placeholder="Search for your job function (e.g. Software Engineer)"
+                                        placeholder="Search and select job functions (e.g. Software Engineer)"
                                         value={searchQuery}
                                         onChange={(e) => {
                                             setSearchQuery(e.target.value);
@@ -196,21 +283,26 @@ const Onboarding = () => {
                                             {filteredFunctions.map(func => (
                                                 <div
                                                     key={func}
-                                                    style={{ padding: '12px 20px', cursor: 'pointer', transition: 'background 0.2s' }}
+                                                    style={{
+                                                        padding: '12px 20px',
+                                                        cursor: 'pointer',
+                                                        transition: 'background 0.2s',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'space-between',
+                                                        background: prefs.jobFunctions.includes(func) ? '#f0f9ff' : 'transparent'
+                                                    }}
                                                     className="dropdown-item"
                                                     onMouseDown={(e) => e.preventDefault()}
-                                                    onClick={() => {
-                                                        setPrefs({ ...prefs, jobFunction: func });
-                                                        setSearchQuery(func);
-                                                        setShowFunctions(false);
-                                                    }}
+                                                    onClick={() => toggleJobFunction(func)}
                                                 >
                                                     {func}
+                                                    {prefs.jobFunctions.includes(func) && <Check size={14} color="var(--accent)" />}
                                                 </div>
                                             ))}
                                             {filteredFunctions.length === 0 && (
                                                 <div style={{ padding: '12px 20px', color: 'var(--text-dim)' }}>
-                                                    No results found. Press enter to add.
+                                                    No results found.
                                                 </div>
                                             )}
                                         </div>
@@ -254,24 +346,19 @@ const Onboarding = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="orion-label">Availability (Earliest Start)</label>
-                                    <select
+                                    <label className="orion-label">Earliest Start Date</label>
+                                    <input
+                                        type="date"
                                         className="orion-input"
-                                        value={prefs.availability}
-                                        onChange={(e) => setPrefs({ ...prefs, availability: e.target.value })}
-                                    >
-                                        <option value="">Select Timing</option>
-                                        <option value="Immediate">Immediate / Within 1 week</option>
-                                        <option value="2weeks">In 2 weeks</option>
-                                        <option value="1month">In about 1 month</option>
-                                        <option value="Flexible">I'm flexible / Not sure yet</option>
-                                    </select>
+                                        value={prefs.earliestStartDate}
+                                        onChange={(e) => setPrefs({ ...prefs, earliestStartDate: e.target.value })}
+                                    />
                                 </div>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
                                 <div style={{ position: 'relative' }}>
-                                    <label className="orion-label">Preferred Location</label>
+                                    <label className="orion-label">Preferred Country</label>
                                     <div style={{ position: 'relative' }}>
                                         {prefs.preferredLocations.length > 0 && (
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
@@ -356,6 +443,19 @@ const Onboarding = () => {
                                         )}
                                     </div>
                                 </div>
+                                <div>
+                                    <label className="orion-label">Preferred City</label>
+                                    <input
+                                        type="text"
+                                        className="orion-input"
+                                        placeholder="e.g. New York, London"
+                                        value={prefs.preferredCity}
+                                        onChange={(e) => setPrefs({ ...prefs, preferredCity: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
                                 <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '16px' }}>
                                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}>
                                         <input
@@ -371,15 +471,16 @@ const Onboarding = () => {
 
                             <div style={{ marginBottom: '40px' }}>
                                 <label className="orion-label">Work Authorization</label>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 500 }}>
-                                    <input
-                                        type="checkbox"
-                                        style={{ width: '20px', height: '20px', accentColor: 'var(--accent)' }}
-                                        checked={prefs.requiresSponsorship}
-                                        onChange={(e) => setPrefs({ ...prefs, requiresSponsorship: e.target.checked })}
-                                    />
-                                    H1B sponsorship
-                                </label>
+                                <select
+                                    className="orion-input"
+                                    value={prefs.workAuthorisation}
+                                    onChange={(e) => setPrefs({ ...prefs, workAuthorisation: e.target.value })}
+                                >
+                                    <option value="">Select status</option>
+                                    <option value="citizen">US Citizen</option>
+                                    <option value="greencard">US Green Card / Permanent Resident</option>
+                                    <option value="requires_sponsorship">Requires H1B sponsorship</option>
+                                </select>
                             </div>
 
                             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -487,6 +588,7 @@ const Onboarding = () => {
                     )}
                 </AnimatePresence>
             </main>
+            </div>
         </div>
     );
 };

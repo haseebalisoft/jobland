@@ -5,8 +5,8 @@ import { useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import api, { setAccessToken } from '../services/api.js'
 
-// Default admin: admin@jobland.com / admin123 (create with: cd backend && npm run seed:admin)
-const DEFAULT_ADMIN_EMAIL = 'admin@jobland.com'
+// Default admin: admin@hiredlogics.com / admin123 (create with: cd backend && npm run seed:admin)
+const DEFAULT_ADMIN_EMAIL = 'admin@hiredlogics.com'
 
 export default function AdminLogin() {
   const navigate = useNavigate()
@@ -34,8 +34,8 @@ export default function AdminLogin() {
       <div className="auth-card" style={styles.card}>
         <div style={styles.header}>
           <Link to="/" style={styles.logo}>
-            <div style={styles.logoIcon}></div>
-            Hiredlogic · Admin
+            <img src="/logo.png" alt="HiredLogics" style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 8 }} />
+            <span>HiredLogics · Admin</span>
           </Link>
           <div style={styles.badge}>Admin only</div>
           <h2 style={styles.title}>Admin login</h2>

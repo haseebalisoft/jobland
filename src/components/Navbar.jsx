@@ -25,12 +25,10 @@ export default function Navbar() {
         <header className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
             <div className="container navbar__inner">
                 {/* Logo */}
-                <a href="#home" className="navbar__logo">
-                    <div className="navbar__logo-icon">
-                        <Zap size={18} fill="white" color="white" />
-                    </div>
-                    <span>Hiredlogic</span>
-                </a>
+                <Link to="/" className="navbar__logo">
+                    <img src="/logo.png" alt="HiredLogics" className="navbar__logo-img" />
+                    <span>HiredLogics</span>
+                </Link>
 
                 {/* Desktop Nav */}
                 <nav className="navbar__links">
@@ -43,6 +41,9 @@ export default function Navbar() {
 
                 {/* CTA */}
                 <div className="navbar__actions">
+                    <Link to="/bd/login" className="navbar__bd-link">
+                        BD Portal
+                    </Link>
                     <Link to="/login" className="btn btn-primary btn-sm">
                         Get Started
                     </Link>
@@ -68,6 +69,14 @@ export default function Navbar() {
                         {link.label}
                     </a>
                 ))}
+                <Link
+                    to="/bd/login"
+                    className="navbar__mobile-link"
+                    onClick={() => setMenuOpen(false)}
+                    style={{ marginTop: '8px' }}
+                >
+                    BD Portal
+                </Link>
                 <Link
                     to="/login"
                     className="btn btn-primary"

@@ -1,0 +1,221 @@
+/* BD Dashboard – blue/green theme + layout for multi-page BD portal */
+
+.bd-page {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background: #F1F5F9;
+  font-family: var(--font-primary), system-ui, sans-serif;
+}
+
+.bd-page .bd-sidebar {
+  flex-shrink: 0;
+}
+
+.bd-sidebar {
+  width: 260px;
+  background: #0F172A;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 4px 0 24px rgba(15, 23, 42, 0.12);
+  border-right: 1px solid #1E293B;
+}
+
+.bd-sidebar__logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.bd-sidebar__logo img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.bd-sidebar__logo-text {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.bd-sidebar__sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: #10B981;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 28px;
+}
+
+.bd-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bd-sidebar__nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background 0.2s, color 0.2s;
+}
+
+.bd-sidebar__nav-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.bd-sidebar__nav-item.active {
+  background: rgba(16, 185, 129, 0.18);
+  color: #10B981;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.bd-sidebar__footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bd-main {
+  flex: 1 1 0%;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bd-main__body {
+  flex: 1 1 0%;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* Ensure dashboard and other BD pages use full width */
+.bd-main__body > * {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.bd-header {
+  height: 72px;
+  background: #fff;
+  border-bottom: 1px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.bd-content {
+  padding: 32px 40px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  flex: 1 1 0%;
+  align-self: stretch;
+}
+
+.bd-content section {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Dashboard overview: cards span full width */
+.bd-dashboard-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.bd-dashboard-activity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .bd-dashboard-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bd-dashboard-activity-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bd-section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0F172A;
+  margin: 0 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bd-sidebar-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
+}
+
+.bd-stat-card:hover {
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.1) !important;
+  border-color: #E2E8F0 !important;
+}
+
+.bd-link-btn:hover {
+  background: rgba(16, 185, 129, 0.14) !important;
+  border-color: #10B981 !important;
+}
+
+.bd-primary-btn:hover:not(:disabled) {
+  background: #0d9668 !important;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35) !important;
+}
+
+.bd-primary-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.bd-table tbody tr:hover {
+  background: #F8FAFC;
+}
+
+.bd-table tbody td {
+  padding: 14px 18px;
+  border-bottom: 1px solid #E2E8F0;
+  color: #0F172A;
+}
+
+.bd-table tbody tr:last-child td {
+  border-bottom: none;
+}

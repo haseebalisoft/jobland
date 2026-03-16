@@ -176,9 +176,15 @@ export async function registerBd({ email, password }) {
  * Login BD from users table (role='bd'). Returns bd object for JWT.
  */
 export async function loginBd({ email, password }) {
+  const normalizedEmail = normalizeEmail(email);
+
   const res = await query(
-    `SELECT id, full_name, email, password_hash, is_active FROM users WHERE LOWER(email) = LOWER($1) AND role = 'bd'`,
-    [email],
+    `
+      SELECT id, full_name, email, password_hash, role, is_active, is_verified, subscription_plan
+      FROM users
+      WHERE LOWER(email) = LOWER($1) AND role = 'bd'
+    `,
+    [normalizedEmail],
   );
   if (res.rowCount === 0) {
     const err = new Error('Invalid credentials');
@@ -197,16 +203,25 @@ export async function loginBd({ email, password }) {
     err.statusCode = 403;
     throw err;
   }
-  const bd = {
-    id: row.id,
-    _id: row.id,
-    name: row.full_name,
-    full_name: row.full_name,
-    email: row.email,
-    role: 'bd',
-    isActive: true,
-  };
-  return bd;
+
+  const user = mapRowToUser(row);
+  const accessToken = signAccessToken(user);
+  const refreshToken = signRefreshToken(user);
+
+  const decoded = jwt.decode(refreshToken);
+  const expiresAt = decoded?.exp
+    ? new Date(decoded.exp * 1000)
+    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  await query(
+    `
+      INSERT INTO refresh_tokens (user_id, token, expires_at)
+      VALUES ($1, $2, $3)
+    `,
+    [user.id, refreshToken, expiresAt],
+  );
+
+  return { user, accessToken, refreshToken };
 }
 
 export async function verifyEmail(token) {
@@ -284,11 +299,16 @@ export async function loginUser({ email, password }) {
     throw err;
   }
 
-  // Enforce that this generic login is only for normal users.
-  // Admin and BD must use their own dedicated login flows.
+  // This endpoint is for regular users only. Admin and BD must use their own login pages.
   if (row.role && row.role !== 'user') {
-    const err = new Error('Invalid credentials');
-    err.statusCode = 401;
+    const err = new Error(
+      row.role === 'admin'
+        ? 'Use the Admin login page to sign in with this account.'
+        : row.role === 'bd'
+          ? 'Use the BD login page to sign in with this account.'
+          : 'Invalid credentials'
+    );
+    err.statusCode = 403;
     throw err;
   }
 
@@ -451,9 +471,9 @@ export async function sendPasswordSetupEmail({ userId }) {
 
   await sendEmail({
     to: row.email,
-    subject: 'Set your JobLand password',
+    subject: 'Set your HiredLogics password',
     html: `<p>Hi ${row.full_name || 'there'},</p>
-           <p>Your JobLand account was created after your successful Stripe checkout.</p>
+           <p>Your HiredLogics account was created after your successful Stripe checkout.</p>
            <p>Please set your password to access your dashboard:</p>
            <p><a href="${setupUrl}">Set Password</a></p>
            <p>If you already have an account with this email, you can ignore this message and sign in normally.</p>`,
@@ -726,7 +746,7 @@ export async function completeSignupWithPassword({ verificationToken, password }
         VALUES ($1, $2, $3, $4, true, 'free', true)
         RETURNING id, full_name, email, role, is_verified, subscription_plan, is_active
       `,
-      [normalizedEmail.split('@')[0] || 'JobLand User', normalizedEmail, passwordHash, role],
+      [normalizedEmail.split('@')[0] || 'HiredLogics User', normalizedEmail, passwordHash, role],
     );
     userRow = insertRes.rows[0];
   }
@@ -966,5 +986,92 @@ export async function changePassword(userId, currentPassword, newPassword) {
     [userId, passwordHash],
   );
   return true;
+}
+
+/** Build URL for the reset-password page (user clicks link in email). */
+function buildPasswordResetUrl(token) {
+  const clientBase = config.clientUrl.replace(/\/$/, '');
+  return `${clientBase}/reset-password?token=${encodeURIComponent(token)}`;
+}
+
+/**
+ * Forgot password: find user by email (role = 'user' only), create reset token, send email.
+ * Does not reveal whether the email exists (always returns success).
+ */
+export async function requestPasswordReset({ email }) {
+  const normalizedEmail = normalizeEmail(email);
+  const res = await query(
+    `SELECT id, full_name, email FROM users WHERE LOWER(email) = $1 AND role = 'user'`,
+    [normalizedEmail],
+  );
+  if (res.rowCount === 0) {
+    return;
+  }
+  const row = res.rows[0];
+  const token = jwt.sign(
+    { sub: row.id, type: 'password_reset' },
+    config.passwordReset.secret,
+    { expiresIn: config.passwordReset.expiresIn },
+  );
+  const resetUrl = buildPasswordResetUrl(token);
+  try {
+    await sendEmail({
+      to: row.email,
+      subject: 'Reset your HiredLogics password',
+      html: `
+      <p>Hi${row.full_name ? ` ${row.full_name.split(' ')[0]}` : ''},</p>
+      <p>We received a request to reset your password. Click the link below to set a new password:</p>
+      <p><a href="${resetUrl}">Reset password</a></p>
+      <p>This link expires in 1 hour. If you didn't request this, you can ignore this email.</p>
+    `,
+    });
+  } catch (e) {
+    console.error('Failed to send password reset email:', e?.message || e);
+  }
+}
+
+/**
+ * Reset password using token from email link. Verifies JWT (type password_reset), then updates password.
+ */
+export async function resetPasswordWithToken({ token, password }) {
+  if (!token || typeof token !== 'string') {
+    const err = new Error('Reset token is required');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!password || password.length < 6) {
+    const err = new Error('Password must be at least 6 characters');
+    err.statusCode = 400;
+    throw err;
+  }
+  let payload;
+  try {
+    payload = jwt.verify(token, config.passwordReset.secret);
+  } catch (e) {
+    const err = new Error('Invalid or expired reset link. Request a new one from the login page.');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (payload.type !== 'password_reset' || !payload.sub) {
+    const err = new Error('Invalid reset link.');
+    err.statusCode = 400;
+    throw err;
+  }
+  const userId = payload.sub;
+  const passwordHash = await bcrypt.hash(password, 10);
+  await query(
+    'UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1',
+    [userId, passwordHash],
+  );
+  const userRes = await query(
+    `SELECT id, full_name, email, role, is_verified, subscription_plan, is_active
+     FROM users WHERE id = $1`,
+    [userId],
+  );
+  if (userRes.rowCount === 0) return null;
+  const user = mapRowToUser(userRes.rows[0]);
+  const accessToken = signAccessToken(user);
+  const refreshToken = signRefreshToken(user);
+  return { user, accessToken, refreshToken };
 }
 

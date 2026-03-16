@@ -4,14 +4,18 @@ import {
   verifyOtp,
   completeSignupWithPassword,
   loginUser,
+  loginAdmin as loginAdminService,
   refreshTokens,
   revokeRefreshToken,
   verifyEmail,
   setPasswordFromToken,
   setPasswordForPaidUser,
   setPasswordForUserId,
+  registerUser,
   registerBd,
   loginBd,
+  requestPasswordReset,
+  resetPasswordWithToken,
 } from '../services/authService.js';
 import { getOrCreateUserFromCheckoutSession } from '../services/subscriptionService.js';
 
@@ -26,6 +30,27 @@ function buildRefreshCookieOptions() {
     sameSite: 'strict',
     maxAge: ONE_WEEK_MS,
   };
+}
+
+export async function signup(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    const full_name = req.body.full_name || req.body.name || '';
+    const { email, password } = req.body;
+    if (!full_name || typeof full_name !== 'string' || !full_name.trim()) {
+      return res.status(400).json({ message: 'Full name is required' });
+    }
+    await registerUser({ full_name: full_name.trim(), email, password });
+    res.status(201).json({ message: 'User created. Check email to verify account.' });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ message: err.message });
+    }
+    next(err);
+  }
 }
 
 export async function startSignupController(req, res, next) {
@@ -138,6 +163,57 @@ export async function setPasswordBySession(req, res, next) {
   }
 }
 
+/** Forgot password: send reset link to email (user role only). Always returns 200. */
+export async function forgotPasswordController(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    const { email } = req.body;
+    await requestPasswordReset({ email });
+    res.status(200).json({ message: 'If an account exists with this email, you will receive a password reset link.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Reset password with token from email link. Returns accessToken + user (same as login). */
+export async function resetPasswordController(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    const { token, password } = req.body;
+    const result = await resetPasswordWithToken({ token, password });
+    if (!result) {
+      return res.status(400).json({ message: 'Invalid or expired reset link.' });
+    }
+    const { user, accessToken, refreshToken } = result;
+    res
+      .cookie(REFRESH_COOKIE_NAME, refreshToken, buildRefreshCookieOptions())
+      .json({
+        message: 'Password reset successfully.',
+        accessToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          emailVerified: user.emailVerified,
+          isActive: user.isActive,
+          subscription_plan: user.subscription_plan,
+        },
+      });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ message: err.message });
+    }
+    next(err);
+  }
+}
+
 export async function login(req, res, next) {
   try {
     const errors = validationResult(req);
@@ -147,6 +223,35 @@ export async function login(req, res, next) {
 
     const { email, password } = req.body;
     const { user, accessToken, refreshToken } = await loginUser({ email, password });
+
+    res
+      .cookie(REFRESH_COOKIE_NAME, refreshToken, buildRefreshCookieOptions())
+      .json({
+        accessToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          emailVerified: user.emailVerified,
+          isActive: user.isActive,
+          subscription_plan: user.subscription_plan,
+        },
+      });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminLogin(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password } = req.body;
+    const { user, accessToken, refreshToken } = await loginAdminService({ email, password });
 
     res
       .cookie(REFRESH_COOKIE_NAME, refreshToken, buildRefreshCookieOptions())
@@ -193,18 +298,22 @@ export async function bdLogin(req, res, next) {
     }
 
     const { email, password } = req.body;
-    const bd = await loginBd({ email, password });
+    const { user, accessToken, refreshToken } = await loginBd({ email, password });
 
-    res.json({
-      accessToken: '', // JWT is created by auth middleware utilities for standard users; for BD we can rely on same JWT utils if needed later.
-      user: {
-        id: bd._id,
-        name: bd.name,
-        email: bd.email,
-        role: bd.role,
-        isActive: bd.isActive,
-      },
-    });
+    res
+      .cookie(REFRESH_COOKIE_NAME, refreshToken, buildRefreshCookieOptions())
+      .json({
+        accessToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          emailVerified: user.emailVerified,
+          isActive: user.isActive,
+          subscription_plan: user.subscription_plan,
+        },
+      });
   } catch (err) {
     next(err);
   }

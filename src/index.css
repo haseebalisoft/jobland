@@ -388,7 +388,7 @@ select {
 
 
 :root {
-/* Hiredlogic Color Palette */
+/* HiredLogics Color Palette */
   --primary: #4F46E5;
   --accent: #22C55E;
   /* Teal/Emerald */
@@ -422,7 +422,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Typography Matching Hiredlogic */
+/* Typography Matching HiredLogics */
 h1 {
   font-size: 28px;
   font-weight: 700;
@@ -436,7 +436,7 @@ h1 {
   margin-bottom: 32px;
 }
 
-/* Hiredlogic Container Card */
+/* HiredLogics Container Card */
 .orion-card {
   background: var(--card-bg);
   border-radius: var(--radius-lg);
@@ -618,6 +618,12 @@ header {
   align-items: center;
   padding: 20px;
   margin-top: 40px;
+}
+
+/* Wider form on onboarding page */
+.orion-onboarding-container .orion-card {
+  max-width: 960px;
+  width: 100%;
 }
 
 .dropdown-item:hover {

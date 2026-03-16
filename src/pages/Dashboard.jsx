@@ -1,8 +1,25 @@
 import React, { useEffect, useState } from 'react'
-import { Bell, Search, User, FileText, CheckCircle, Clock, Settings, LogOut, ExternalLink } from 'lucide-react'
+import { Bell, Search, CheckCircle, Clock, ExternalLink, FileText } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import UserSidebar from '../components/UserSidebar.jsx'
+import './Dashboard.css'
+
+const theme = {
+  primary: '#10B981',
+  blue: '#2563EB',
+  violet: '#7C3AED',
+  slate: '#0F172A',
+  slateLight: '#1E293B',
+  bg: '#F1F5F9',
+  cardBg: '#ffffff',
+  border: '#E2E8F0',
+  text: '#0F172A',
+  textMuted: '#64748B',
+  teal: '#10B981',
+  cyan: '#2563EB',
+}
 
 export default function Dashboard() {
     const { user, logout } = useAuth()
@@ -12,7 +29,6 @@ export default function Dashboard() {
     const [activeSection, setActiveSection] = useState('overview')
     const [leads, setLeads] = useState({ items: [], total: 0 })
     const [leadsLoading, setLeadsLoading] = useState(false)
-    const [applyingId, setApplyingId] = useState(null)
     const [leadsRange, setLeadsRange] = useState('all')
 
     useEffect(() => {
@@ -51,21 +67,6 @@ export default function Dashboard() {
     }, [user, leadsRange])
 
 
-    const handleMarkApplied = async (leadId) => {
-        setApplyingId(leadId)
-        try {
-            await api.post(`/leads/${leadId}/applied`)
-            setLeads((prev) => ({
-                ...prev,
-                items: prev.items.map((l) => (l.id === leadId ? { ...l, status: 'applied' } : l)),
-            }))
-        } catch (err) {
-            console.error(err)
-        } finally {
-            setApplyingId(null)
-        }
-    }
-
     if (!user) return null
 
     if (!user.emailVerified) {
@@ -103,93 +104,71 @@ export default function Dashboard() {
             .slice(0, 2)
             .toUpperCase() || 'U'
     const currentPlanLabel =
-        subscription?.plan_id || summary.user.subscription_plan || 'No active plan'
+        summary.user.subscription_plan_name ||
+        subscription?.plan_name ||
+        summary.user.subscription_plan ||
+        'No active plan'
     const renewLabel = subscription?.current_period_end
         ? new Date(subscription.current_period_end).toLocaleDateString()
         : 'N/A'
     const totalApplications = leads.total > 0 ? leads.total : (stats?.total_applications ?? 0)
     const totalInterviews = stats?.total_interviews ?? 0
 
-    return (
-        <div style={styles.layout}>
-            <aside style={styles.sidebar}>
-                <div style={styles.logo}>
-                    <div style={styles.logoIcon}></div>
-                    Hiredlogic
-                </div>
-                <nav style={styles.nav}>
-                    <NavItem icon={<User size={20} />} label="Overview" active={activeSection === 'overview'} onClick={() => setActiveSection('overview')} />
-                    <NavItem icon={<FileText size={20} />} label="Create Skill" to="/onboarding" />
-                    <NavItem icon={<CheckCircle size={20} />} label="Applications" active={activeSection === 'applications'} onClick={() => setActiveSection('applications')} />
-                    <NavItem icon={<Settings size={20} />} label="Settings" to="/settings" />
-                </nav>
-                <div style={{ marginTop: 'auto' }}>
-                    <button
-                        type="button"
-                        onClick={logout}
-                        style={{ ...styles.navItem, color: 'var(--gray)', background: 'transparent', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
-                    >
-                        <LogOut size={20} />
-                        Logout
-                    </button>
-                </div>
-            </aside>
+    const rangeLabels = { today: 'Today', '3days': 'Last 3 days', '7days': 'Last 7 days', '15days': 'Last 15 days', all: 'All time' }
 
+    return (
+        <div className="dashboard-layout" style={styles.layout}>
+            <UserSidebar />
             <main style={styles.main}>
-                <header style={styles.header}>
-                    <div style={styles.searchBar}>
-                        <Search size={18} color="var(--gray-light)" />
-                        <input type="text" placeholder="Search..." style={styles.searchInput} />
+                <header className="dashboard-header" style={styles.header}>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        <button type="button" className="dashboard-tab" onClick={() => setActiveSection('overview')} style={{ padding: '10px 20px', borderRadius: 12, border: 'none', background: activeSection === 'overview' ? theme.primary : 'transparent', color: activeSection === 'overview' ? 'white' : theme.textMuted, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Overview</button>
+                        <button type="button" className="dashboard-tab" onClick={() => setActiveSection('applications')} style={{ padding: '10px 20px', borderRadius: 12, border: 'none', background: activeSection === 'applications' ? theme.primary : 'transparent', color: activeSection === 'applications' ? 'white' : theme.textMuted, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Applications</button>
                     </div>
                     <div style={styles.profileArea}>
-                        <button style={styles.iconBtn}>
+                        <button type="button" className="dashboard-icon-btn" style={styles.iconBtn} aria-label="Notifications">
                             <Bell size={20} />
                         </button>
-                        <div style={styles.avatar}>
-                            {initials}
-                        </div>
+                        <div style={styles.avatar}>{initials}</div>
                     </div>
                 </header>
 
                 <div style={styles.content}>
                     {activeSection === 'overview' && (
                         <>
-                            <h1 style={styles.welcome}>Welcome back, {user.name}! 👋</h1>
+                            <h1 style={styles.welcome}>Welcome back, {user.name}</h1>
                             <p style={styles.subtitle}>
                                 {profile
-                                    ? `Your profile: ${profile.title || 'No title'} · ${profile.experience_years || 0} years experience`
-                                    : "Here is what's happening with your job search today."}
+                                    ? `${profile.title || 'No title'} · ${profile.experience_years ?? 0} years experience`
+                                    : "Here's what's happening with your job search."}
                             </p>
 
                             <div style={styles.statsGrid}>
-                                <StatCard number={currentPlanLabel} label="Current Plan" color="#4F46E5" icon={<FileText />} />
-                                <StatCard number={renewLabel} label="Renews on" color="#22C55E" icon={<Clock />} />
-                                <StatCard number={totalApplications} label="Total Applications" color="#F59E0B" icon={<CheckCircle />} />
+                                <StatCard number={currentPlanLabel} label="Current plan" color={theme.primary} icon={<FileText size={22} />} />
+                                <StatCard number={renewLabel} label="Renews on" color={theme.blue} icon={<Clock size={22} />} />
+                                <StatCard number={totalApplications} label="Applications" color={theme.primary} icon={<CheckCircle size={22} />} />
+                                <StatCard number={totalInterviews} label="Interviews" color={theme.violet} icon={<CheckCircle size={22} />} />
                             </div>
 
-                            <div style={styles.recentActivity}>
-                                <h3 style={styles.activityTitle}>Recent Activity</h3>
-                                <div style={styles.activityCard}>
-                                    <div style={styles.activityList}>
-                                        {leads.items.length > 0 ? (
-                                            leads.items.slice(0, 3).map((lead) => (
+                            <section style={styles.section}>
+                                <h2 style={styles.sectionTitle}>Recent activity</h2>
+                                <div className="dashboard-activity-card" style={styles.activityCard}>
+                                    {leads.items.length > 0 ? (
+                                        <div style={styles.activityList}>
+                                            {leads.items.slice(0, 5).map((lead) => (
                                                 <ActivityItem
                                                     key={lead.id}
                                                     title={lead.job_title || 'Job'}
                                                     desc={`${lead.company_name || ''} · ${lead.status || 'pending'}`}
                                                     time={lead.created_at ? new Date(lead.created_at).toLocaleDateString() : ''}
                                                 />
-                                            ))
-                                        ) : (
-                                            <>
-                                                <ActivityItem title="Application updated" desc="Google - Frontend Developer role moved to Interview" time="2h ago" />
-                                                <ActivityItem title="Resume downloaded" desc="Professional_Resume_John_Doe.pdf" time="5h ago" />
-                                                <ActivityItem title="Account created" desc="Successfully upgraded to Success Pack" time="1d ago" />
-                                            </>
-                                        )}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p style={styles.emptyText}>No recent activity. Your assigned BD will add job leads here.</p>
+                                    )}
                                 </div>
-                            </div>
+                            </section>
                         </>
                     )}
 
@@ -197,73 +176,49 @@ export default function Dashboard() {
                         <>
                             <h1 style={styles.welcome}>Applications</h1>
                             <p style={styles.subtitle}>
-                                Leads from BDs assigned to you. Open the job link to apply, then mark as applied when done.
+                                Job leads from your assigned BDs. Open the link to apply; status is updated by your BD or admin.
                             </p>
-                            <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-                                <span style={{ fontSize: 14, color: 'var(--gray)' }}>Filter:</span>
-                                {['today', '3days', '7days', '15days', 'all'].map((r) => (
+                            <div style={styles.filterRow}>
+                                {(['today', '3days', '7days', '15days', 'all']).map((r) => (
                                     <button
                                         key={r}
                                         type="button"
+                                        className="dashboard-filter-chip"
                                         onClick={() => setLeadsRange(r)}
                                         style={{
-                                            padding: '6px 12px',
-                                            borderRadius: 8,
-                                            border: leadsRange === r ? '2px solid var(--primary)' : '1px solid var(--gray-border)',
-                                            background: leadsRange === r ? 'rgba(79, 70, 229, 0.1)' : 'white',
-                                            cursor: 'pointer',
-                                            fontSize: 13,
-                                            fontWeight: leadsRange === r ? 600 : 500,
+                                            ...styles.filterChip,
+                                            ...(leadsRange === r ? styles.filterChipActive : {}),
                                         }}
                                     >
-                                        {r === 'all' ? 'All time' : r === '3days' ? 'Last 3 days' : r === '7days' ? 'Last 7 days' : r === '15days' ? 'Last 15 days' : 'Today'}
+                                        {rangeLabels[r]}
                                     </button>
                                 ))}
                             </div>
                             {leadsLoading ? (
-                                <div style={{ padding: 24 }}>Loading applications...</div>
+                                <div style={styles.loadingState}>Loading applications…</div>
                             ) : leads.items.length === 0 ? (
-                                <div style={styles.activityCard}>
-                                    <p style={{ color: 'var(--gray)', margin: 0 }}>No leads assigned yet. Your BD will assign job leads here.</p>
+                                <div className="dashboard-activity-card" style={styles.activityCard}>
+                                    <p style={styles.emptyText}>No leads yet. Your BD will assign job leads here.</p>
                                 </div>
                             ) : (
                                 <div style={styles.leadsList}>
                                     {leads.items.map((lead) => (
-                                        <div key={lead.id} style={styles.leadCard}>
-                                            <div style={{ flex: 1 }}>
+                                        <div key={lead.id} className="dashboard-lead-card" style={styles.leadCard}>
+                                            <div style={styles.leadBody}>
                                                 <div style={styles.leadTitle}>{lead.job_title || 'Untitled role'}</div>
                                                 <div style={styles.leadCompany}>{lead.company_name || '—'}</div>
                                                 <div style={styles.leadMeta}>
                                                     <span style={statusBadgeStyle(lead.status)}>{lead.status}</span>
                                                     {lead.created_at && (
-                                                        <span style={{ color: 'var(--gray)', fontSize: 13 }}>
-                                                            Added {new Date(lead.created_at).toLocaleDateString()}
-                                                        </span>
+                                                        <span style={styles.leadDate}>Added {new Date(lead.created_at).toLocaleDateString()}</span>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div style={styles.leadActions}>
-                                                {lead.job_link && (
-                                                    <a
-                                                        href={lead.job_link}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        style={styles.linkBtn}
-                                                    >
-                                                        <ExternalLink size={16} /> Job link
-                                                    </a>
-                                                )}
-                                                {lead.status === 'pending' && (
-                                                    <button
-                                                        type="button"
-                                                        disabled={!!applyingId}
-                                                        onClick={() => handleMarkApplied(lead.id)}
-                                                        style={styles.primaryBtn}
-                                                    >
-                                                        {applyingId === lead.id ? 'Applying...' : 'Mark as applied'}
-                                                    </button>
-                                                )}
-                                            </div>
+                                            {lead.job_link && (
+                                                <a href={lead.job_link} target="_blank" rel="noopener noreferrer" className="dashboard-link-btn" style={styles.linkBtn}>
+                                                    <ExternalLink size={16} /> Open link
+                                                </a>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -277,46 +232,31 @@ export default function Dashboard() {
 }
 
 function statusBadgeStyle(status) {
-    const colors = { pending: '#F59E0B', applied: '#3B82F6', interview: '#8B5CF6', rejected: '#EF4444', offer: '#22C55E' }
+    const colors = {
+        pending: theme.slateLight,
+        assigned: theme.primary,
+        completed: theme.blue,
+        failed: '#f43f5e',
+        applied: theme.blue,
+        interview: theme.violet,
+        rejection: '#ef4444',
+        acceptance: theme.primary,
+    }
+    const c = colors[status] || theme.textMuted
     return {
         padding: '4px 10px',
-        borderRadius: 999,
+        borderRadius: 8,
         fontSize: 12,
         fontWeight: 600,
-        background: `${colors[status] || '#6B7280'}20`,
-        color: colors[status] || '#6B7280',
+        background: `${c}20`,
+        color: c,
     }
-}
-
-function NavItem({ icon, label, active, to, onClick }) {
-    const style = {
-        ...styles.navItem,
-        background: active ? 'rgba(79, 70, 229, 0.1)' : 'transparent',
-        color: active ? 'var(--primary)' : 'var(--gray)',
-        fontWeight: active ? '600' : '500',
-    }
-    if (onClick) {
-        return (
-            <button type="button" onClick={onClick} style={{ ...style, border: 'none', background: style.background, cursor: 'pointer', width: '100%', textAlign: 'left' }}>
-                {icon}
-                {label}
-            </button>
-        )
-    }
-    return (
-        <a href={to || '#'} style={style}>
-            {icon}
-            {label}
-        </a>
-    )
 }
 
 function StatCard({ number, label, color, icon }) {
     return (
-        <div style={styles.statCard}>
-            <div style={{ ...styles.statIcon, background: `${color}15`, color }}>
-                {icon}
-            </div>
+        <div className="dashboard-stat-card" style={styles.statCard}>
+            <div style={{ ...styles.statIcon, background: `${color}20`, color }}>{icon}</div>
             <div>
                 <div style={styles.statNumber}>{number}</div>
                 <div style={styles.statLabel}>{label}</div>
@@ -328,7 +268,7 @@ function StatCard({ number, label, color, icon }) {
 function ActivityItem({ title, desc, time }) {
     return (
         <div style={styles.activityItem}>
-            <div style={styles.activityBlob} />
+            <div className="dashboard-activity-blob" style={styles.activityBlob} />
             <div style={{ flex: 1 }}>
                 <div style={styles.activityTitleRow}>
                     <span style={styles.actTitle}>{title}</span>
@@ -339,60 +279,18 @@ function ActivityItem({ title, desc, time }) {
         </div>
     )
 }
-
 const styles = {
     layout: {
         display: 'flex',
         minHeight: '100vh',
-        background: '#F8FAFF',
-        fontFamily: 'var(--font-primary)'
+        background: theme.bg,
+        fontFamily: 'var(--font-primary)',
     },
-    sidebar: {
-        width: '260px',
-        background: 'white',
-        borderRight: '1px solid var(--gray-border)',
-        padding: '24px',
-        display: 'flex',
-        flexDirection: 'column',
-    },
-    logo: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        fontSize: '24px',
-        fontWeight: '800',
-        color: 'var(--dark)',
-        marginBottom: '48px',
-    },
-    logoIcon: {
-        width: '32px',
-        height: '32px',
-        background: 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)',
-        borderRadius: '8px',
-    },
-    nav: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-    },
-    navItem: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        padding: '12px 16px',
-        borderRadius: '8px',
-        textDecoration: 'none',
-        transition: 'all 0.2s',
-    },
-    main: {
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-    },
+    main: { flex: 1, display: 'flex', flexDirection: 'column' },
     header: {
-        height: '72px',
-        background: 'white',
-        borderBottom: '1px solid var(--gray-border)',
+        height: 72,
+        background: theme.cardBg,
+        borderBottom: `1px solid ${theme.border}`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -401,199 +299,166 @@ const styles = {
     searchBar: {
         display: 'flex',
         alignItems: 'center',
-        gap: '8px',
-        background: '#F0F4FF',
-        padding: '8px 16px',
-        borderRadius: '20px',
-        width: '300px',
+        gap: 10,
+        background: theme.bg,
+        padding: '10px 18px',
+        borderRadius: 12,
+        width: 280,
+        border: `1px solid ${theme.border}`,
     },
     searchInput: {
         border: 'none',
         background: 'none',
         outline: 'none',
         width: '100%',
-        fontSize: '14px',
+        fontSize: 14,
+        color: theme.text,
     },
-    profileArea: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '24px',
-    },
+    profileArea: { display: 'flex', alignItems: 'center', gap: 16 },
     iconBtn: {
         background: 'none',
         border: 'none',
-        color: 'var(--gray)',
+        color: theme.textMuted,
         cursor: 'pointer',
+        padding: 10,
+        borderRadius: 10,
+        transition: 'color 0.2s, background 0.2s',
     },
     avatar: {
-        width: '40px',
-        height: '40px',
+        width: 42,
+        height: 42,
         borderRadius: '50%',
-        background: 'var(--primary)',
-        color: 'white',
+        background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.blue} 100%)`,
+        color: '#fff',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontWeight: '700',
+        fontWeight: 700,
+        fontSize: 14,
     },
-    content: {
-        padding: '40px 32px',
-        maxWidth: '1000px',
-    },
+    content: { padding: '32px 32px 48px', maxWidth: 1100 },
     welcome: {
-        fontSize: '32px',
-        fontWeight: '800',
-        color: 'var(--dark)',
-        marginBottom: '8px',
+        fontSize: 28,
+        fontWeight: 800,
+        color: theme.text,
+        marginBottom: 8,
+        letterSpacing: '-0.02em',
     },
     subtitle: {
-        color: 'var(--gray)',
-        fontSize: '16px',
-        marginBottom: '32px',
+        color: theme.textMuted,
+        fontSize: 15,
+        marginBottom: 28,
     },
     statsGrid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: '24px',
-        marginBottom: '40px',
+        gridTemplateColumns: 'repeat(4, 1fr)',
+        gap: 16,
+        marginBottom: 32,
     },
     statCard: {
-        background: 'white',
-        padding: '24px',
-        borderRadius: '16px',
-        border: '1px solid var(--gray-border)',
-        boxShadow: 'var(--shadow-sm)',
+        background: theme.cardBg,
+        padding: 22,
+        borderRadius: 18,
+        border: `1px solid ${theme.border}`,
+        boxShadow: '0 2px 8px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04)',
         display: 'flex',
         alignItems: 'center',
-        gap: '20px',
+        gap: 18,
     },
     statIcon: {
-        width: '56px',
-        height: '56px',
-        borderRadius: '16px',
+        width: 48,
+        height: 48,
+        borderRadius: 12,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
     },
     statNumber: {
-        fontSize: '28px',
-        fontWeight: '800',
-        color: 'var(--dark)',
-        lineHeight: '1',
-        marginBottom: '4px',
+        fontSize: 22,
+        fontWeight: 800,
+        color: theme.text,
+        lineHeight: 1.2,
+        marginBottom: 2,
     },
-    statLabel: {
-        color: 'var(--gray)',
-        fontSize: '14px',
-        fontWeight: '500',
-    },
-    recentActivity: {
-        marginTop: '24px',
-    },
-    activityTitle: {
-        fontSize: '20px',
-        fontWeight: '700',
-        marginBottom: '16px',
+    statLabel: { fontSize: 13, color: theme.textMuted, fontWeight: 500 },
+    section: { marginTop: 8 },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: 700,
+        color: theme.text,
+        marginBottom: 12,
     },
     activityCard: {
-        background: 'white',
-        borderRadius: '16px',
-        border: '1px solid var(--gray-border)',
-        boxShadow: 'var(--shadow-sm)',
-        padding: '24px',
+        background: theme.cardBg,
+        borderRadius: 18,
+        border: `1px solid ${theme.border}`,
+        padding: 26,
+        boxShadow: '0 2px 8px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04)',
     },
-    activityList: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '20px',
-    },
-    activityItem: {
-        display: 'flex',
-        gap: '16px',
-    },
+    activityList: { display: 'flex', flexDirection: 'column', gap: 16 },
+    activityItem: { display: 'flex', gap: 16 },
     activityBlob: {
-        width: '12px',
-        height: '12px',
+        width: 10,
+        height: 10,
         borderRadius: '50%',
-        background: 'var(--primary)',
-        marginTop: '6px',
-    },
-    activityTitleRow: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        marginBottom: '4px',
-    },
-    actTitle: {
-        fontWeight: '600',
-        color: 'var(--dark)',
-    },
-    actTime: {
-        color: 'var(--gray-light)',
-        fontSize: '13px',
-    },
-    actDesc: {
-        color: 'var(--gray)',
-        fontSize: '14px',
-    },
-    leadsList: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px',
-    },
-    leadCard: {
-        background: 'white',
-        borderRadius: '16px',
-        border: '1px solid var(--gray-border)',
-        boxShadow: 'var(--shadow-sm)',
-        padding: '20px 24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '20px',
-    },
-    leadTitle: {
-        fontSize: '18px',
-        fontWeight: 700,
-        color: 'var(--dark)',
-        marginBottom: '4px',
-    },
-    leadCompany: {
-        fontSize: '14px',
-        color: 'var(--gray)',
-        marginBottom: '8px',
-    },
-    leadMeta: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-    },
-    leadActions: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
+        background: theme.primary,
+        marginTop: 6,
         flexShrink: 0,
     },
+    activityTitleRow: { display: 'flex', justifyContent: 'space-between', marginBottom: 4 },
+    actTitle: { fontWeight: 600, color: theme.text, fontSize: 14 },
+    actTime: { color: theme.textMuted, fontSize: 13 },
+    actDesc: { color: theme.textMuted, fontSize: 14 },
+    emptyText: { color: theme.textMuted, margin: 0, fontSize: 14 },
+    filterRow: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, alignItems: 'center' },
+    filterChip: {
+        padding: '8px 14px',
+        borderRadius: 10,
+        border: `1px solid ${theme.border}`,
+        background: theme.cardBg,
+        color: theme.text,
+        fontSize: 13,
+        fontWeight: 500,
+        cursor: 'pointer',
+    },
+    filterChipActive: {
+        borderColor: theme.primary,
+        background: 'rgba(16, 185, 129, 0.12)',
+        color: theme.primary,
+        fontWeight: 600,
+    },
+    loadingState: { padding: 24, color: theme.textMuted },
+    leadsList: { display: 'flex', flexDirection: 'column', gap: 12 },
+    leadCard: {
+        background: theme.cardBg,
+        borderRadius: 18,
+        border: `1px solid ${theme.border}`,
+        padding: '22px 26px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 20,
+        boxShadow: '0 2px 8px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04)',
+    },
+    leadBody: { flex: 1 },
+    leadTitle: { fontSize: 17, fontWeight: 700, color: theme.text, marginBottom: 4 },
+    leadCompany: { fontSize: 14, color: theme.textMuted, marginBottom: 8 },
+    leadMeta: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
+    leadDate: { color: theme.textMuted, fontSize: 13 },
     linkBtn: {
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '6px',
-        padding: '8px 14px',
-        borderRadius: 8,
-        border: '1px solid var(--gray-border)',
-        background: 'white',
-        color: 'var(--primary)',
+        gap: 6,
+        padding: '10px 18px',
+        borderRadius: 12,
+        border: `1px solid ${theme.primary}`,
+        background: 'rgba(16, 185, 129, 0.12)',
+        color: theme.primary,
         textDecoration: 'none',
         fontSize: 14,
-        fontWeight: 500,
-    },
-    primaryBtn: {
-        padding: '8px 16px',
-        borderRadius: 8,
-        border: 'none',
-        background: 'var(--primary)',
-        color: 'white',
-        fontSize: 14,
         fontWeight: 600,
-        cursor: 'pointer',
+        flexShrink: 0,
+        transition: 'background 0.2s, transform 0.2s, box-shadow 0.2s',
     },
 }
+

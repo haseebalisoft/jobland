@@ -1,12 +1,137 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     CheckCircle2, Circle, ExternalLink, Loader2, Save,
     User as UserIcon, Briefcase, GraduationCap,
     Link as LinkIcon, LogOut, ChevronRight, Check, Pencil, Plus, Trash2
 } from 'lucide-react';
-import API from '../api';
+import api from '../services/api';
 import debounce from 'lodash.debounce';
+import UserSidebar from '../components/UserSidebar';
+import './ProfileBuilder.css';
+
+function formatPeriod(startDate, endDate, isCurrent) {
+  if (!startDate) return '';
+  const d = (x) => x ? new Date(x).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '';
+  if (isCurrent) return `${d(startDate)} – Present`;
+  return endDate ? `${d(startDate)} – ${d(endDate)}` : d(startDate);
+}
+function formatEduPeriod(startDate, endDate) {
+  if (startDate && endDate) return formatPeriod(startDate, endDate, false);
+  if (endDate) return String(new Date(endDate).getFullYear());
+  return '';
+}
+function mapApiToProfileState(data) {
+  const profile = data.profile || {};
+  const user = data.user || {};
+  const education = data.education || [];
+  const work_experience = data.work_experience || [];
+  return {
+    personal: {
+      fullName: user.full_name || '',
+      email: user.email || '',
+      phone: profile.phone || '',
+      location: profile.location || '',
+    },
+    professional: {
+      currentTitle: profile.title || '',
+      summary: profile.summary || '',
+      skills: (Array.isArray(profile.resume_skills) && profile.resume_skills.length) ? profile.resume_skills : (Array.isArray(profile.job_functions) ? profile.job_functions : []),
+      workExperience: work_experience.map((w) => ({
+        company: w.company_name || '',
+        role: w.job_title || '',
+        period: formatPeriod(w.start_date, w.end_date, w.is_current),
+        description: w.description || '',
+      })),
+    },
+    education: education.map((e) => ({
+      degree: e.degree || '',
+      institution: e.institution || '',
+      period: formatEduPeriod(e.start_date, e.end_date) || (e.end_date ? String(new Date(e.end_date).getFullYear()) : ''),
+      year: e.end_date ? String(new Date(e.end_date).getFullYear()) : '',
+      field_of_study: e.field_of_study || '',
+      description: e.description || '',
+    })),
+    links: {
+      linkedin: profile.linkedin_url || '',
+      github: profile.github_url || '',
+      portfolio: profile.portfolio_url || '',
+    },
+  };
+}
+
+/**
+ * Compute profile accuracy in real time using ATS-friendly and recruiter metrics.
+ * Weights: contact info, headline, summary, work experience, education, skills, links.
+ */
+function computeProfileAccuracy(profile) {
+  const missing = [];
+  let score = 0;
+  const maxScore = 100;
+
+  const personal = profile?.personal || {};
+  const professional = profile?.professional || {};
+  const education = profile?.education || [];
+  const workExperience = professional?.workExperience || [];
+  const skills = Array.isArray(professional?.skills) ? professional.skills : [];
+  const links = profile?.links || {};
+
+  // Contact info (25% total) - critical for ATS
+  if ((personal.fullName || '').trim().length >= 2) score += 8; else missing.push({ label: 'Full name', tab: 'Personal' });
+  if ((personal.email || '').trim().length >= 5) score += 8; else missing.push({ label: 'Email', tab: 'Personal' });
+  if ((personal.phone || '').trim().length >= 6) score += 4; else missing.push({ label: 'Phone', tab: 'Personal' });
+  if ((personal.location || '').trim().length >= 2) score += 5; else missing.push({ label: 'Location', tab: 'Personal' });
+
+  // Professional title (15%) - headline is key for ATS and recruiters
+  const title = (professional.currentTitle || '').trim();
+  if (title.length >= 2) score += 15; else missing.push({ label: 'Professional title', tab: 'Personal' });
+
+  // Summary (15%) - 50–300 chars is ideal for ATS
+  const summary = (professional.summary || '').trim();
+  if (summary.length >= 150) score += 15;
+  else if (summary.length >= 50) score += 10;
+  else if (summary.length >= 1) score += 5;
+  else missing.push({ label: 'Professional summary', tab: 'Personal' });
+
+  // Work experience (25%) - at least one role with company, title, description
+  if (workExperience.length === 0) {
+    missing.push({ label: 'At least one work experience', tab: 'Work Experience' });
+  } else {
+    const first = workExperience[0];
+    const hasCompany = (first.company || '').trim().length >= 1;
+    const hasRole = (first.role || '').trim().length >= 1;
+    const hasDescription = (first.description || '').trim().length >= 50;
+    if (hasCompany && hasRole && hasDescription) score += 25;
+    else if (hasCompany && hasRole) score += 18;
+    else if (hasCompany || hasRole) score += 10;
+    else missing.push({ label: 'Company & role in work experience', tab: 'Work Experience' });
+  }
+
+  // Education (12%) - at least one entry with degree and institution
+  if (education.length === 0) {
+    missing.push({ label: 'At least one education entry', tab: 'Education' });
+  } else {
+    const first = education[0];
+    const hasDegree = (first.degree || '').trim().length >= 1;
+    const hasInstitution = (first.institution || '').trim().length >= 1;
+    if (hasDegree && hasInstitution) score += 12;
+    else if (hasDegree || hasInstitution) score += 6;
+    else missing.push({ label: 'Degree & institution', tab: 'Education' });
+  }
+
+  // Skills (6%) - 3+ skills improve ATS keyword match
+  if (skills.length >= 5) score += 6;
+  else if (skills.length >= 3) score += 4;
+  else if (skills.length >= 1) score += 2;
+  else missing.push({ label: 'Add 3+ skills', tab: 'Skills' });
+
+  // LinkedIn or portfolio (2%) - improves discoverability
+  const hasLink = ((links.linkedin || '').trim().length >= 10) || ((links.portfolio || '').trim().length >= 10) || ((links.github || '').trim().length >= 10);
+  if (hasLink) score += 2;
+
+  const completionPercent = Math.min(100, Math.round(score));
+  return { completionPercent, missingFields: missing };
+}
 
 const ProfileBuilder = () => {
     const [resumes, setResumes] = useState({ base: {}, customized: [] });
@@ -19,7 +144,7 @@ const ProfileBuilder = () => {
         education: [],
         links: { linkedin: '', github: '', portfolio: '' }
     });
-    const [status, setStatus] = useState({ completionPercent: 0 });
+    const profileAccuracy = useMemo(() => computeProfileAccuracy(profile), [profile]);
     const [activeTab, setActiveTab] = useState('Personal');
     const [showModal, setShowModal] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
@@ -34,7 +159,7 @@ const ProfileBuilder = () => {
         autoSavePortal: true
     });
 
-    const tabs = ['Personal', 'Education', 'Work Experience', 'Skills', 'Equal Employment', 'Resume'];
+    const tabs = ['Personal', 'Education', 'Work Experience', 'Skills', 'Resume'];
 
     const getProfilePreferredJobTitle = useCallback(() => {
         const currentTitle = profile?.professional?.currentTitle?.trim();
@@ -71,14 +196,9 @@ const ProfileBuilder = () => {
 
     const fetchProfile = async () => {
         try {
-            const { data } = await API.get('/profile');
-            if (data.profile) {
-                setProfile(data.profile);
-                setResumes(data.resumes || { base: {}, customized: [] });
-            } else {
-                setProfile(data);
-            }
-            updateStatus();
+            const { data } = await api.get('/profile');
+            setProfile(mapApiToProfileState(data));
+            setResumes(data.resumes || { base: {}, customized: [] });
         } catch (err) {
             console.error(err);
         } finally {
@@ -89,8 +209,8 @@ const ProfileBuilder = () => {
     const generateBaseCV = async () => {
         setSaving(true);
         try {
-            const { data } = await API.post('/cv/generate-base');
-            setResumes(data.resumes);
+            const { data } = await api.post('/cv/generate-base').catch(() => ({}));
+            if (data?.resumes) setResumes(data.resumes);
         } catch (err) {
             console.error(err);
         } finally {
@@ -161,26 +281,32 @@ const ProfileBuilder = () => {
                 </div>
             ) : (
                 <div style={{ padding: '40px', textAlign: 'center', border: '2px dashed #e2e8f0', borderRadius: '12px', color: 'var(--text-dim)' }}>
-                    <p>No customized resumes yet. Hiredlogic will generate these for you during the application flow.</p>
+                    <p>No customized resumes yet. HiredLogics will generate these for you during the application flow.</p>
                 </div>
             )}
         </div>
     );
 
-    const updateStatus = async () => {
-        try {
-            const { data } = await API.get('/profile/status');
-            setStatus(data);
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
     const saveChanges = async (updatedProfile = profile) => {
         setSaving(true);
         try {
-            await API.put('/profile', updatedProfile);
-            updateStatus();
+            const payload = {
+                personal: { fullName: updatedProfile.personal?.fullName, email: updatedProfile.personal?.email },
+                links: { linkedin: updatedProfile.links?.linkedin, github: updatedProfile.links?.github, portfolio: updatedProfile.links?.portfolio },
+                profile: {
+                    title: updatedProfile.professional?.currentTitle || '',
+                    summary: updatedProfile.professional?.summary,
+                    phone: updatedProfile.personal?.phone,
+                    location: updatedProfile.personal?.location,
+                    linkedin_url: updatedProfile.links?.linkedin,
+                    portfolio_url: updatedProfile.links?.portfolio,
+                    github_url: updatedProfile.links?.github,
+                    resume_skills: Array.isArray(updatedProfile.professional?.skills) ? updatedProfile.professional.skills : null,
+                },
+                education: (updatedProfile.education || []).map((e) => ({ degree: e.degree, institution: e.institution, period: e.period || e.year, year: e.year, field_of_study: e.field_of_study, description: e.description })),
+                work_experience: (updatedProfile.professional?.workExperience || []).map((w) => ({ company: w.company, role: w.role, period: w.period, description: w.description })),
+            };
+            await api.post('/profile', payload);
         } catch (err) {
             console.error(err);
         } finally {
@@ -233,68 +359,35 @@ const ProfileBuilder = () => {
     );
 
     const TimelineItem = ({ title, subtitle, period, description, onEdit, isFirst, isLast }) => (
-        <div style={{ position: 'relative', paddingLeft: '40px', paddingBottom: '32px' }}>
+        <div className="profile-timeline-item">
             {/* Timeline Line */}
-            <div style={{
-                position: 'absolute',
-                left: '7px',
-                top: '24px',
-                bottom: isLast ? 'auto' : '0',
-                width: '2px',
-                background: 'var(--accent)',
-                opacity: 0.2,
-                height: isLast ? '0' : '100%'
-            }} />
+            <div className="profile-timeline-line" style={{ height: isLast ? '0' : '100%' }} />
             {/* Timeline Node */}
-            <div style={{
-                position: 'absolute',
-                left: '0',
-                top: '4px',
-                width: '18px',
-                height: '18px',
-                borderRadius: '50%',
-                border: '3px solid var(--accent)',
-                background: 'white',
-                zIndex: 2,
-                boxShadow: '0 0 0 4px rgba(34, 197, 94, 0.1)'
-            }} />
+            <div className="profile-timeline-node" />
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                    {period && <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '8px', fontWeight: '500' }}>{period}</div>}
-                    <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '4px' }}>{title}</h3>
-                    <div style={{ fontSize: '15px', fontWeight: '500', color: 'var(--text-dim)' }}>{subtitle}</div>
+            <div className="profile-timeline-content">
+                <div className="profile-timeline-body">
+                    {period && <div className="profile-timeline-period">{period}</div>}
+                    <h3 className="profile-timeline-title">{title}</h3>
+                    <div className="profile-timeline-subtitle">{subtitle}</div>
+                    {description && <p className="profile-timeline-description">{description}</p>}
                 </div>
-                <button
-                    onClick={onEdit}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: '8px' }}
-                >
+                <button type="button" onClick={onEdit} className="profile-timeline-edit-btn" aria-label="Edit">
                     <Pencil size={18} />
                 </button>
             </div>
-            {description && <p style={{ marginTop: '12px', color: 'var(--text-dim)', fontSize: '14px', lineHeight: '1.6' }}>{description}</p>}
         </div>
     );
 
     return (
-        <div className="onboarding-page" style={{ background: 'white' }}>
-            <header style={{ borderBottom: '1px solid #f1f5f9', background: 'white' }}>
-                <div className="logo-area">
-                    <div className="logo-icon">
-                        <ChevronRight />
-                    </div>
-                    <div>
-                        <div className="logo-text">Hiredlogic</div>
-                    </div>
-                </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <div className="mobile-hide" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-dim)', fontSize: '13px' }}>
-                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} className="text-accent" />}
-                        {saving ? 'Saving...' : 'Syncing'}
-                    </div>
-                    <button className="logout-btn" onClick={() => navigate('/auth')}>
-                        Logout
-                    </button>
+        <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
+            <UserSidebar />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+            <header style={{ borderBottom: '1px solid #e2e8f0', background: 'white', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 18, fontWeight: 600, color: '#0f172a' }}>Profile</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {saving ? <Loader2 size={16} className="animate-spin" style={{ color: '#0d9488' }} /> : <Check size={16} style={{ color: '#0d9488' }} />}
+                    <span style={{ fontSize: 13, color: '#64748b' }}>{saving ? 'Saving...' : 'Synced'}</span>
                 </div>
             </header>
 
@@ -324,13 +417,13 @@ const ProfileBuilder = () => {
                 </div>
             </div>
 
-            <main className="container" style={{ padding: '60px 20px', maxWidth: '900px', margin: '0 auto' }}>
+            <main className="container profile-page-main" style={{ padding: '40px 28px 100px', maxWidth: '900px', margin: '0 auto', flex: 1 }}>
 
                 {activeTab === 'Personal' && (
                     <div className="animate-fade-in" style={{ width: '100%' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '48px' }}>
                             {editingSection === 'personal' ? (
-                                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                <div className="profile-form-fields" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                     <div>
                                         <label className="orion-label">Full Name <span>*</span></label>
                                         <input
@@ -341,7 +434,7 @@ const ProfileBuilder = () => {
                                             autoFocus
                                         />
                                     </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                    <div className="profile-form-fields" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                                         <div>
                                             <label className="orion-label">Email Address <span>*</span></label>
                                             <input
@@ -370,9 +463,9 @@ const ProfileBuilder = () => {
                                             placeholder="e.g. New York, USA"
                                         />
                                     </div>
-                                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px', marginTop: '10px' }}>
-                                        <label className="orion-label" style={{ color: 'var(--text-dim)', marginBottom: '16px' }}>Social Links (Optional)</label>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '28px', marginTop: '24px' }}>
+                                        <label className="orion-label" style={{ color: 'var(--text-dim)', marginBottom: '18px' }}>Social Links (Optional)</label>
+                                        <div className="profile-form-fields" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                             <div style={{ position: 'relative' }}>
                                                 <input
                                                     className="orion-input"
@@ -443,8 +536,8 @@ const ProfileBuilder = () => {
                             )}
                         </div>
 
-                        <div style={{ marginTop: '60px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <div style={{ marginTop: '72px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
                                 <label className="orion-label" style={{ marginBottom: 0 }}>Bio / Summary</label>
                                 {editingSection !== 'summary' && (
                                     <button
@@ -457,10 +550,10 @@ const ProfileBuilder = () => {
                             </div>
 
                             {editingSection === 'summary' ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <div className="profile-form-fields" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                     <textarea
                                         className="orion-input"
-                                        style={{ minHeight: '180px', background: 'white' }}
+                                        style={{ minHeight: '200px', background: 'white' }}
                                         value={profile.professional.summary}
                                         onChange={(e) => handleChange('professional', 'summary', e.target.value)}
                                         placeholder="Write a brief professional summary..."
@@ -483,7 +576,7 @@ const ProfileBuilder = () => {
                                         borderRadius: '16px',
                                         border: '1px solid var(--border)',
                                         cursor: 'pointer',
-                                        minHeight: '100px',
+                                        minHeight: '140px',
                                         lineHeight: '1.6',
                                         color: profile.professional.summary ? 'inherit' : 'var(--text-dim)'
                                     }}
@@ -496,10 +589,10 @@ const ProfileBuilder = () => {
                 )}
 
                 {activeTab === 'Education' && (
-                    <div className="animate-fade-in">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '48px' }}>
-                            <h2 style={{ fontSize: '28px', fontWeight: '700' }}>Education</h2>
-                            <button className="logout-btn" onClick={() => {
+                    <div className="animate-fade-in profile-tab-content profile-education-section">
+                        <div className="profile-section-header">
+                            <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#0f172a', margin: 0 }}>Education</h2>
+                            <button className="btn-next profile-add-btn" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px' }} onClick={() => {
                                 const newEdu = [...profile.education, { degree: '', institution: '', period: '' }];
                                 setProfile({ ...profile, education: newEdu });
                                 setEditingSection(`education-${newEdu.length - 1}`);
@@ -507,11 +600,11 @@ const ProfileBuilder = () => {
                                 <Plus size={18} /> Add
                             </button>
                         </div>
-                        <div style={{ paddingLeft: '8px' }}>
+                        <div className="profile-education-list">
                             {profile.education.map((edu, i) => (
                                 editingSection === `education-${i}` ? (
-                                    <div key={i} className="orion-card" style={{ padding: '24px', marginBottom: '24px', border: '1px solid var(--accent)' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                    <div key={i} className="profile-education-card profile-education-card--editing">
+                                        <div className="profile-form-fields" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                             <input
                                                 className="orion-input"
                                                 value={edu.degree}
@@ -531,30 +624,12 @@ const ProfileBuilder = () => {
                                                 placeholder="Period (e.g. 2018 - 2022)"
                                             />
                                             <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                                                <button
-                                                    className="btn-next"
-                                                    style={{ width: 'fit-content' }}
-                                                    onClick={() => setEditingSection(null)}
-                                                >
+                                                <button className="btn-next" style={{ width: 'fit-content' }} onClick={() => setEditingSection(null)}>
                                                     Done
                                                 </button>
                                                 <button
-                                                    onClick={() => {
-                                                        if (window.confirm('Delete this education entry?')) {
-                                                            removeItem('education', i);
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        background: 'none',
-                                                        border: '1px solid #ef4444',
-                                                        color: '#ef4444',
-                                                        padding: '12px',
-                                                        borderRadius: '100px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        cursor: 'pointer'
-                                                    }}
+                                                    onClick={() => { if (window.confirm('Delete this education entry?')) removeItem('education', i); }}
+                                                    className="profile-education-delete-btn"
                                                 >
                                                     <Trash2 size={18} />
                                                 </button>
@@ -577,10 +652,10 @@ const ProfileBuilder = () => {
                 )}
 
                 {activeTab === 'Work Experience' && (
-                    <div className="animate-fade-in">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '48px' }}>
+                    <div className="animate-fade-in profile-tab-content">
+                        <div className="profile-section-header">
                             <h2 style={{ fontSize: '28px', fontWeight: '700' }}>Work Experience</h2>
-                            <button className="logout-btn" onClick={() => {
+                            <button className="logout-btn profile-add-btn" onClick={() => {
                                 const newWork = [...(profile.professional.workExperience || []), { company: '', role: '', period: '', description: '' }];
                                 setProfile({ ...profile, professional: { ...profile.professional, workExperience: newWork } });
                                 setEditingSection(`work-${newWork.length - 1}`);
@@ -591,8 +666,8 @@ const ProfileBuilder = () => {
                         <div style={{ paddingLeft: '8px' }}>
                             {profile.professional.workExperience?.map((work, i) => (
                                 editingSection === `work-${i}` ? (
-                                    <div key={i} className="orion-card" style={{ padding: '24px', marginBottom: '24px', border: '1px solid var(--accent)' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                    <div key={i} className="orion-card" style={{ padding: '28px', marginBottom: '28px', border: '1px solid var(--accent)' }}>
+                                        <div className="profile-form-fields" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                             <input
                                                 className="orion-input"
                                                 value={work.company}
@@ -667,7 +742,7 @@ const ProfileBuilder = () => {
 
                 {activeTab === 'Skills' && (
                     <div className="animate-fade-in">
-                        <h2 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '32px' }}>Skills</h2>
+                        <h2 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '40px' }}>Skills</h2>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                             {profile.professional.skills.map((skill, i) => (
                                 <div key={i} style={{ padding: '8px 20px', background: '#F0FDF4', color: 'var(--accent)', borderRadius: '100px', fontWeight: '600', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -701,35 +776,24 @@ const ProfileBuilder = () => {
                     </div>
                 )}
 
-                {activeTab === 'Equal Employment' && (
-                    <div className="animate-fade-in">
-                        <h2 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '32px' }}>Equal Employment</h2>
-                        <p style={{ color: 'var(--text-dim)' }}>Voluntary self-identification data for job applications.</p>
-                        {/* Placeholder for EEO data */}
-                        <div className="orion-card" style={{ marginTop: '32px', padding: '32px', border: '1px dashed var(--border)', background: '#f8fafc' }}>
-                            <p style={{ textAlign: 'center', color: 'var(--text-dim)' }}>No data yet. These fields will be auto-filled by the extension.</p>
-                        </div>
-                    </div>
-                )}
-
             </main>
 
-            {/* Bottom Finalize Bar */}
-            <div style={{ position: 'fixed', bottom: '0', left: '0', right: '0', background: 'white', borderTop: '1px solid #f1f5f9', padding: '16px 20px', display: 'flex', justifyContent: 'center', zIndex: 10 }}>
+            {/* Bottom Finalize Bar - only over main content so sidebar keeps full height */}
+            <div data-profile-bottom-bar style={{ position: 'fixed', bottom: 0, left: 260, right: 0, background: 'white', borderTop: '1px solid #e2e8f0', padding: '12px 24px', display: 'flex', justifyContent: 'center', zIndex: 10, boxShadow: '0 -2px 10px rgba(0,0,0,0.04)' }}>
                 <div style={{ maxWidth: '1200px', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
                     <div
                         onClick={() => setShowStatusModal(true)}
                         style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
                     >
-                        <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--accent)' }}>{status.completionPercent}%</div>
+                        <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--accent)' }}>{profileAccuracy.completionPercent}%</div>
                         <div className="mobile-hide" style={{ fontSize: '14px', color: 'var(--text-dim)', fontWeight: '500' }}>Profile accuracy</div>
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="logout-btn mobile-hide" onClick={() => navigate('/resume-maker')} style={{ fontSize: '13px' }}>
-                            Create Resume
+                        <button className="logout-btn mobile-hide" onClick={() => navigate('/onboarding')} style={{ fontSize: '13px' }}>
+                            Job Preferences
                         </button>
-                        <button className="btn-next" onClick={() => setShowModal(true)} style={{ padding: '12px 20px', fontSize: '13px' }}>
-                            Auto-Apply to Jobs
+                        <button className="btn-next" onClick={() => navigate('/resume-maker')} style={{ padding: '12px 20px', fontSize: '13px' }}>
+                            Create Resume
                         </button>
                     </div>
                 </div>
@@ -960,9 +1024,9 @@ const ProfileBuilder = () => {
 
                         <div style={{ marginBottom: '32px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                                <div style={{ fontSize: '32px', fontWeight: '800', color: 'var(--accent)' }}>{status.completionPercent}%</div>
+                                <div style={{ fontSize: '32px', fontWeight: '800', color: 'var(--accent)' }}>{profileAccuracy.completionPercent}%</div>
                                 <div style={{ flex: 1, height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                                    <div style={{ width: `${status.completionPercent}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.5s ease' }}></div>
+                                    <div style={{ width: `${profileAccuracy.completionPercent}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.5s ease' }}></div>
                                 </div>
                             </div>
                             <p style={{ color: 'var(--text-dim)', fontSize: '14px' }}>
@@ -970,20 +1034,20 @@ const ProfileBuilder = () => {
                             </p>
                         </div>
 
-                        {status.missingFields?.length > 0 ? (
+                        {profileAccuracy.missingFields?.length > 0 ? (
                             <div style={{ marginBottom: '32px' }}>
                                 <h3 style={{ fontSize: '14px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#ef4444', marginBottom: '16px' }}>
-                                    Missing Information
+                                    Missing for ATS
                                 </h3>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                    {status.missingFields.map((field, idx) => (
+                                    {profileAccuracy.missingFields.map((field, idx) => (
                                         <div
                                             key={idx}
                                             onClick={() => {
                                                 setActiveTab(field.tab || 'Personal');
                                                 setShowStatusModal(false);
                                                 // If it's the summary, we can even trigger the edit mode
-                                                if (field.label === 'Summary') {
+                                                if (field.label === 'Professional summary') {
                                                     setEditingSection('summary');
                                                 }
                                             }}
@@ -1023,6 +1087,7 @@ const ProfileBuilder = () => {
                     </div>
                 </div>
             )}
+            </div>
         </div>
     );
 };

@@ -45,6 +45,13 @@
     justify-content: center;
 }
 
+.navbar__logo-img {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
 .navbar__links {
     display: flex;
     align-items: center;
@@ -63,6 +70,21 @@
 }
 
 .navbar__link:hover {
+    color: var(--dark);
+    background: var(--gray-light);
+}
+
+.navbar__bd-link {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gray);
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: var(--radius-full);
+    transition: color var(--transition), background var(--transition);
+}
+
+.navbar__bd-link:hover {
     color: var(--dark);
     background: var(--gray-light);
 }

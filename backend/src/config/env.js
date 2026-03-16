@@ -11,7 +11,7 @@ export const config = {
     port: Number(process.env.DB_PORT) || 5432,
     user: process.env.DB_USER || "postgres",
     password: process.env.DB_PASSWORD || "",
-    name: process.env.DB_NAME || "HiredLogics",
+    name: process.env.DB_NAME || "hiredlogics_prod",
   },
 
   clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
@@ -51,6 +51,14 @@ export const config = {
     expiresIn: process.env.PASSWORD_SETUP_EXPIRES || "1d",
   },
 
+  passwordReset: {
+    secret:
+      process.env.PASSWORD_RESET_SECRET ||
+      process.env.JWT_ACCESS_SECRET ||
+      "change_me_password_reset",
+    expiresIn: process.env.PASSWORD_RESET_EXPIRES || "1h",
+  },
+
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY || "",
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
@@ -68,5 +76,5 @@ export const config = {
       "no-reply@example.com",
   },
 
-  adminEmail: process.env.ADMIN_EMAIL || "admin@jobland.com",
+  adminEmail: process.env.ADMIN_EMAIL || "admin@hiredlogics.com",
 };

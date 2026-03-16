@@ -4,15 +4,15 @@ import { config } from './env.js';
 const swaggerDefinition = {
   openapi: '3.0.0',
   info: {
-    title: 'JobLand SaaS API',
+    title: 'HiredLogics API',
     version: '1.0.0',
     description:
-      'REST API for JobLand subscription-based SaaS (auth, billing, admin dashboard).',
+      'REST API aligned with hiredlogics_prod schema (001_initial.sql): users, profiles, jobs, user_bd_assignments, job_assignments, applications, subscription_plans, subscriptions, refresh_tokens.',
   },
   servers: [
     {
       url: `${config.clientUrl.replace(/\/$/, '')}/api`.replace('5173', '5000'),
-      description: 'Local API server',
+      description: 'API server (DB: hiredlogics_prod)',
     },
   ],
   components: {
@@ -21,6 +21,12 @@ const swaggerDefinition = {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
+      },
+      oneclickApiKey: {
+        type: 'apiKey',
+        in: 'header',
+        name: 'Authorization',
+        description: 'Bearer &lt;Capture API key&gt; — get from GET /bd/oneclick-token when logged in as BD (for HiredLogics Capture extension)',
       },
     },
   },
@@ -247,7 +253,7 @@ const swaggerDefinition = {
                 type: 'object',
                 required: ['email', 'password'],
                 properties: {
-                  email: { type: 'string', format: 'email', example: 'admin@jobland.com' },
+                  email: { type: 'string', format: 'email', example: 'admin@hiredlogics.com' },
                   password: { type: 'string', example: 'admin123' },
                 },
               },
@@ -490,11 +496,30 @@ const swaggerDefinition = {
     '/plans': {
       get: {
         tags: ['Plans'],
-        summary: 'List active subscription plans',
+        summary: 'List paid subscription plans',
+        description: 'Returns plans from subscription_plans table (excludes free). Used by pricing page.',
         security: [],
         responses: {
           200: {
-            description: 'Array of plans (id, name, price, stripePriceId, etc.)',
+            description: 'Array of plans from DB',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      plan_id: { type: 'string', example: 'professional_resume', description: 'Unique plan identifier' },
+                      name: { type: 'string', example: 'Professional Resume' },
+                      price: { type: 'number', example: 14.99 },
+                      currency: { type: 'string', example: 'USD' },
+                      billing_interval: { type: 'string', example: 'one-time', enum: ['one-time', 'monthly', 'never'] },
+                      description: { type: 'string', description: 'Plan description' },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -503,16 +528,17 @@ const swaggerDefinition = {
       post: {
         tags: ['Subscriptions', 'Stripe'],
         summary: 'Create Stripe Checkout session for subscription',
-        description: 'Requires JWT. Creates Stripe Checkout Session (or mock URL if STRIPE_MOCK_MODE). Redirect user to returned url.',
+        description: 'Optional JWT (logged-in user) or anonymous. Creates Stripe Checkout Session. Send plan_id from GET /plans. Redirect user to returned url.',
         requestBody: {
           required: true,
           content: {
             'application/json': {
               schema: {
                 type: 'object',
-                required: ['planId'],
                 properties: {
-                  planId: { type: 'string', description: 'Plan identifier (e.g. pro, enterprise)' },
+                  plan_id: { type: 'string', description: 'Plan identifier from GET /plans (e.g. professional_resume, starter, success, elite)' },
+                  planId: { type: 'string', description: 'Alias for plan_id' },
+                  email: { type: 'string', format: 'email', description: 'Optional: customer email for checkout (overrides logged-in user email)' },
                 },
               },
             },
@@ -531,9 +557,66 @@ const swaggerDefinition = {
               },
             },
           },
-          400: { description: 'planId is required' },
-          401: { description: 'Unauthorized' },
+          400: { description: 'plan_id / planId required or invalid plan' },
+          401: { description: 'Unauthorized (if auth required by server)' },
           403: { description: 'Email not verified' },
+        },
+      },
+    },
+    '/subscriptions/checkout-session/{sessionId}': {
+      get: {
+        tags: ['Subscriptions', 'Stripe'],
+        summary: 'Confirm checkout session',
+        description: 'After Stripe redirect. Confirms session and activates user subscription. Requires JWT.',
+        parameters: [
+          { in: 'path', name: 'sessionId', required: true, schema: { type: 'string' }, description: 'Stripe checkout session ID from redirect URL' },
+        ],
+        responses: {
+          200: {
+            description: 'Session confirmed, user and subscription updated',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    user: { type: 'object' },
+                    subscription: { type: 'object' },
+                    planId: { type: 'string' },
+                    sessionId: { type: 'string' },
+                    accountCreated: { type: 'boolean' },
+                  },
+                },
+              },
+            },
+          },
+          403: { description: 'Session does not belong to current user' },
+        },
+      },
+    },
+    '/payments/create-checkout-session': {
+      post: {
+        tags: ['Payments', 'Stripe'],
+        summary: 'Create checkout session (verified email flow)',
+        description: 'Alternative flow: requires verificationToken and planId. Used when user verifies email then goes to checkout. Returns Stripe checkout URL.',
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['verificationToken', 'planId'],
+                properties: {
+                  verificationToken: { type: 'string' },
+                  planId: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Checkout URL' },
+          400: { description: 'Validation error' },
         },
       },
     },
@@ -566,9 +649,35 @@ const swaggerDefinition = {
       get: {
         tags: ['Dashboard'],
         summary: 'Get dashboard summary',
-        description: 'Requires JWT. Returns summary for user dashboard.',
+        description: 'Requires JWT. Returns user, subscription, stats, profile. user.subscription_plan_name is the display name from subscription_plans (e.g. "Professional Resume").',
         responses: {
-          200: { description: 'Dashboard summary' },
+          200: {
+            description: 'Dashboard summary',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    user: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'string', format: 'uuid' },
+                        full_name: { type: 'string' },
+                        email: { type: 'string' },
+                        role: { type: 'string' },
+                        subscription_plan: { type: 'string', description: 'plan_id (e.g. professional_resume)' },
+                        subscription_plan_name: { type: 'string', description: 'Display name from subscription_plans' },
+                        is_active: { type: 'boolean' },
+                      },
+                    },
+                    subscription: { type: 'object', nullable: true },
+                    stats: { type: 'object' },
+                    profile: { type: 'object', nullable: true },
+                  },
+                },
+              },
+            },
+          },
           401: { description: 'Unauthorized' },
         },
       },
@@ -616,19 +725,28 @@ const swaggerDefinition = {
       get: {
         tags: ['Settings'],
         summary: 'Get user settings',
-        description: 'Requires JWT.',
+        description: 'Requires JWT. Returns user (with subscription_plan_name from subscription_plans) and subscription.',
         responses: {
-          200: { description: 'Settings object' },
-          401: { description: 'Unauthorized' },
-        },
-      },
-      put: {
-        tags: ['Settings'],
-        summary: 'Update settings',
-        description: 'Requires JWT. Use PUT /settings/profile for profile, PUT /settings/password for password.',
-        responses: {
-          200: { description: 'Updated' },
-          400: { description: 'Validation error' },
+          200: {
+            description: 'Settings object',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    user: {
+                      type: 'object',
+                      properties: {
+                        subscription_plan: { type: 'string' },
+                        subscription_plan_name: { type: 'string', description: 'Display name for current plan' },
+                      },
+                    },
+                    subscription: { type: 'object', nullable: true },
+                  },
+                },
+              },
+            },
+          },
           401: { description: 'Unauthorized' },
         },
       },
@@ -677,6 +795,253 @@ const swaggerDefinition = {
           200: { description: 'Password changed' },
           400: { description: 'Validation error or wrong current password' },
           401: { description: 'Unauthorized' },
+        },
+      },
+    },
+    '/user/onboarding': {
+      post: {
+        tags: ['User'],
+        summary: 'Save onboarding preferences',
+        description: 'Creates/updates profile (profiles table). Uses user_bd_assignments for bd_id if set. Schema: title, employment_type, experience_years, experience_level, earliest_start_date, preferred_country, preferred_city, remote_preference, work_authorisation, job_functions (TEXT[]), job_types (employment_type[]).',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  jobFunction: { type: 'string' },
+                  jobFunctions: { type: 'array', items: { type: 'string' } },
+                  jobTypes: { type: 'array', items: { type: 'string' } },
+                  preferredLocations: { type: 'array', items: { type: 'string' } },
+                  preferredCity: { type: 'string' },
+                  earliestStartDate: { type: 'string', format: 'date' },
+                  experienceLevel: { type: 'string' },
+                  openToRemote: { type: 'boolean' },
+                  workAuthorisation: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Onboarding saved' },
+          400: { description: 'Validation error' },
+          401: { description: 'Unauthorized' },
+        },
+      },
+    },
+    '/cv/profile': {
+      get: {
+        tags: ['CV'],
+        summary: 'Get resume profile for builder',
+        description: 'Returns resume data in builder format (personal, professional, education, links) from profiles + profile_education + profile_work_experience.',
+        responses: {
+          200: { description: 'Resume profile object' },
+          401: { description: 'Unauthorized' },
+        },
+      },
+      post: {
+        tags: ['CV'],
+        summary: 'Save resume profile',
+        description: 'Accepts builder-format profile; persists to profiles, profile_education, profile_work_experience.',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  personal: { type: 'object', properties: { fullName: { type: 'string' }, email: { type: 'string' }, phone: { type: 'string' }, location: { type: 'string' } } },
+                  professional: { type: 'object', properties: { currentTitle: { type: 'string' }, summary: { type: 'string' }, skills: { type: 'array', items: { type: 'string' } }, workExperience: { type: 'array' } } },
+                  education: { type: 'array' },
+                  links: { type: 'object', properties: { linkedin: { type: 'string' }, github: { type: 'string' }, portfolio: { type: 'string' } } },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Saved' },
+          400: { description: 'Bad request' },
+          401: { description: 'Unauthorized' },
+        },
+      },
+    },
+    '/cv/improve-summary': {
+      post: {
+        tags: ['CV'],
+        summary: 'AI improve professional summary',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: { summary: { type: 'string' }, role: { type: 'string' } },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Returns { improved }' },
+          401: { description: 'Unauthorized' },
+          500: { description: 'AI error' },
+        },
+      },
+    },
+    '/cv/optimize-experience': {
+      post: {
+        tags: ['CV'],
+        summary: 'AI optimize experience bullet points',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: { description: { type: 'string' }, role: { type: 'string' } },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Returns { optimized }' },
+          401: { description: 'Unauthorized' },
+          500: { description: 'AI error' },
+        },
+      },
+    },
+    '/cv/optimize-full-resume': {
+      post: {
+        tags: ['CV'],
+        summary: 'AI optimize full resume for job description',
+        description: 'Runs gap analysis (JD vs resume) and returns optimized profile + gapAnalysis. Does not auto-save; client may apply and then POST /cv/profile.',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['profile', 'jd'],
+                properties: { profile: { type: 'object' }, jd: { type: 'string', description: 'Job description text' } },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Returns { gapAnalysis, optimizedProfile }' },
+          400: { description: 'Profile and jd required' },
+          401: { description: 'Unauthorized' },
+          500: { description: 'AI error' },
+        },
+      },
+    },
+    '/cv/templates': {
+      get: {
+        tags: ['CV'],
+        summary: 'List resume templates',
+        responses: {
+          200: { description: 'Array of { id, name }' },
+          401: { description: 'Unauthorized' },
+        },
+      },
+    },
+    '/cv/download': {
+      post: {
+        tags: ['CV'],
+        summary: 'Generate and download resume PDF',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['profile'],
+                properties: { profile: { type: 'object', description: 'Builder-format profile' } },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'application/pdf attachment' },
+          400: { description: 'Profile required' },
+          401: { description: 'Unauthorized' },
+          500: { description: 'PDF generation error' },
+        },
+      },
+    },
+    '/cv/parse': {
+      post: {
+        tags: ['CV'],
+        summary: 'Upload and parse CV/resume',
+        description: 'Accepts multipart/form-data with file field "resume". Extracts text, runs AI parse, saves to profiles + profile_education + profile_work_experience. Requires GROQ_API_KEY for AI.',
+        requestBody: {
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                properties: { resume: { type: 'string', format: 'binary' } },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Parsed profile (builder format)' },
+          400: { description: 'No file or invalid' },
+          401: { description: 'Unauthorized' },
+          429: { description: 'AI rate limit' },
+          500: { description: 'Parse error' },
+        },
+      },
+    },
+    '/bd/analytics': {
+      get: {
+        tags: ['BD'],
+        summary: 'Get BD dashboard analytics',
+        description: 'Requires JWT (BD or admin). Returns total leads, by status, over time, assigned users count, unassigned count.',
+        responses: {
+          200: {
+            description: 'Analytics object',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    total: { type: 'integer' },
+                    byStatus: { type: 'array', items: { type: 'object', properties: { status: { type: 'string' }, count: { type: 'integer' } } } },
+                    last7Days: { type: 'integer' },
+                    last30Days: { type: 'integer' },
+                    unassignedCount: { type: 'integer' },
+                    assignedUsersCount: { type: 'integer' },
+                    overTime: { type: 'array', items: { type: 'object' } },
+                  },
+                },
+              },
+            },
+          },
+          401: { description: 'Unauthorized' },
+          403: { description: 'BD or admin only' },
+        },
+      },
+    },
+    '/bd/oneclick-token': {
+      get: {
+        tags: ['BD'],
+        summary: 'Get or create Capture API key',
+        description: 'Requires JWT (BD or admin). Returns oneclick_api_key for use in the HiredLogics Capture browser extension (Authorization: Bearer &lt;key&gt;). Key is created on first call.',
+        responses: {
+          200: {
+            description: 'API key for extension',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['oneclick_api_key'],
+                  properties: {
+                    oneclick_api_key: { type: 'string', description: 'Use in extension as Bearer token' },
+                    message: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          401: { description: 'Unauthorized' },
+          403: { description: 'BD or admin only' },
         },
       },
     },
@@ -770,6 +1135,69 @@ const swaggerDefinition = {
         responses: {
           200: { description: 'Stats for admin dashboard' },
           403: { description: 'Admin only' },
+        },
+      },
+    },
+    '/admin/analytics': {
+      get: {
+        tags: ['Admin'],
+        summary: 'Get admin dashboard analytics',
+        description: 'Returns summary counts, users by role, user growth, leads by status/over time, subscriptions by plan, applications by status.',
+        responses: {
+          200: {
+            description: 'Analytics object',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    summary: { type: 'object', properties: { totalUsers: { type: 'integer' }, activeSubscriptions: { type: 'integer' }, totalLeads: { type: 'integer' }, totalApplications: { type: 'integer' } } },
+                    usersByRole: { type: 'array' },
+                    usersCreatedLast7Days: { type: 'array' },
+                    usersCreatedLast30Days: { type: 'array' },
+                    leadsByStatus: { type: 'array' },
+                    leadsOverTime: { type: 'array' },
+                    subscriptionsByPlan: { type: 'array' },
+                    applicationsByStatus: { type: 'array' },
+                    counts: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Admin only' },
+        },
+      },
+    },
+    '/admin/users/{id}/subscription-plan': {
+      put: {
+        tags: ['Admin'],
+        summary: 'Set user subscription plan',
+        description: 'Admin sets subscription_plan (plan_id) for a user. Does not create Stripe subscription.',
+        parameters: [
+          { in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' }, description: 'User ID' },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['plan_id'],
+                properties: {
+                  plan_id: { type: 'string', nullable: true, description: 'Plan ID from subscription_plans, or null for free' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'User plan updated' },
+          400: { description: 'Validation error' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Admin only' },
+          404: { description: 'User not found' },
         },
       },
     },
@@ -912,6 +1340,37 @@ const swaggerDefinition = {
         ],
         responses: {
           200: { description: 'User unblocked' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Admin only' },
+          404: { description: 'User not found' },
+        },
+      },
+    },
+    '/admin/users/{id}/reset-password': {
+      post: {
+        tags: ['Admin'],
+        summary: 'Reset user/BD password',
+        description: 'Admin sets a new password for any user (users table). Admin only.',
+        parameters: [
+          { in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' }, description: 'User ID' },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['new_password'],
+                properties: {
+                  new_password: { type: 'string', minLength: 6, description: 'New password' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Password reset' },
+          400: { description: 'Validation error' },
           401: { description: 'Unauthorized' },
           403: { description: 'Admin only' },
           404: { description: 'User not found' },
@@ -1092,7 +1551,8 @@ const swaggerDefinition = {
     '/leads/{id}/status': {
       patch: {
         tags: ['Leads'],
-        summary: 'Update lead status (BD or admin)',
+        summary: 'Update lead (job_assignment) status (BD or admin)',
+        description: 'job_assignments.status uses job_assignment_status enum: pending, assigned, completed, failed.',
         parameters: [
           {
             in: 'path',
@@ -1111,7 +1571,7 @@ const swaggerDefinition = {
                 properties: {
                   status: {
                     type: 'string',
-                    enum: ['pending', 'applied', 'interview', 'rejected', 'offer'],
+                    enum: ['pending', 'assigned', 'completed', 'failed'],
                   },
                 },
               },
@@ -1251,6 +1711,59 @@ const swaggerDefinition = {
           200: { description: 'Lead statistics' },
           401: { description: 'Unauthorized' },
           403: { description: 'Admin only' },
+        },
+      },
+    },
+    '/extension/jobs': {
+      post: {
+        tags: ['Extension (Capture)'],
+        summary: 'Submit job from HiredLogics Capture extension',
+        description: 'Creates or reuses job by job_url, then creates job_assignment for the BD. Auth via Bearer token: use the oneclick_api_key from GET /bd/oneclick-token. Data appears in BD dashboard (Your leads) and admin/user dashboards.',
+        security: [{ oneclickApiKey: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['title', 'company_name', 'job_url', 'location', 'work_type'],
+                properties: {
+                  title: { type: 'string', description: 'Job title' },
+                  company_name: { type: 'string', description: 'Company name' },
+                  job_url: { type: 'string', format: 'uri', description: 'Job listing URL (unique per job)' },
+                  location: { type: 'string', description: 'Job location e.g. Remote, New York NY' },
+                  work_type: { type: 'string', enum: ['remote', 'hybrid', 'onsite'], description: 'Work arrangement' },
+                  platform: { type: 'string', description: 'Optional e.g. linkedin.com, indeed.com' },
+                  description: { type: 'string', description: 'Optional job description' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Job saved, lead created',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    message: { type: 'string' },
+                    job_id: { type: 'string', format: 'uuid' },
+                    lead_id: { type: 'string', format: 'uuid' },
+                    job_title: { type: 'string' },
+                    company_name: { type: 'string' },
+                    job_link: { type: 'string' },
+                    status: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'title, company_name, job_url, location, and work_type required; work_type must be remote, hybrid, or onsite' },
+          401: { description: 'Missing or invalid Capture API key' },
+          403: { description: 'API key not for BD/admin' },
+          409: { description: 'Duplicate job URL (already added by you)' },
         },
       },
     },

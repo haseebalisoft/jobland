@@ -1,12 +1,14 @@
 import express from 'express';
 import { body } from 'express-validator';
 import {
+  signup,
   startSignupController,
   startEmailVerificationController,
   verifyOtpController,
   setPassword,
   setPasswordBySession,
   login,
+  adminLogin,
   refreshToken,
   logout,
   me,
@@ -14,6 +16,8 @@ import {
   setPasswordController,
   bdSignup,
   bdLogin,
+  forgotPasswordController,
+  resetPasswordController,
 } from '../controllers/authController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import {
@@ -23,6 +27,23 @@ import {
 } from '../middlewares/rateLimitMiddleware.js';
 
 const router = express.Router();
+
+// Classic signup (email + password, sends verification email) – documented in Swagger as POST /auth/signup
+router.post(
+  '/signup',
+  signupRateLimiter,
+  [
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('password')
+      .isLength({ min: 8 })
+      .matches(/[A-Z]/).withMessage('Password must contain uppercase')
+      .matches(/[a-z]/).withMessage('Password must contain lowercase')
+      .matches(/[0-9]/).withMessage('Password must contain number')
+      .matches(/[^A-Za-z0-9]/).withMessage('Password must contain special character'),
+    body('confirm_password').custom((value, { req }) => value === req.body.password).withMessage('Passwords do not match'),
+  ],
+  signup,
+);
 
 // Legacy OTP-based signup flow (pre-payment password) – kept for backwards compatibility
 router.post(
@@ -105,6 +126,17 @@ router.post(
   login,
 );
 
+// Admin login
+router.post(
+  '/admin/login',
+  loginRateLimiter,
+  [
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('password').isString().notEmpty().withMessage('Password is required'),
+  ],
+  adminLogin,
+);
+
 // BD signup
 router.post(
   '/bd/signup',
@@ -132,6 +164,24 @@ router.post(
 
 router.post('/refresh-token', refreshToken);
 router.post('/logout', logout);
+
+router.post(
+  '/forgot-password',
+  passwordSetupRateLimiter,
+  [body('email').isEmail().withMessage('Valid email is required')],
+  forgotPasswordController,
+);
+
+router.post(
+  '/reset-password',
+  passwordSetupRateLimiter,
+  [
+    body('token').isString().notEmpty().withMessage('Reset token is required'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    body('confirm_password').custom((value, { req }) => value === req.body.password).withMessage('Passwords do not match'),
+  ],
+  resetPasswordController,
+);
 
 // Support both query and path token styles for legacy email verification links
 router.get('/verify-email', verifyEmailController);
