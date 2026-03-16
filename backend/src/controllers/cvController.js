@@ -76,11 +76,11 @@ export async function listTemplates(req, res, next) {
 
 export async function downloadPdf(req, res, next) {
   try {
-    const { profile } = req.body || {};
+    const { profile, customization } = req.body || {};
     if (!profile) {
       return res.status(400).json({ error: 'Profile is required' });
     }
-    const buffer = await buildResumePdf(profile);
+    const buffer = await buildResumePdf(profile, customization);
     res.setHeader('Content-Type', 'application/pdf');
     const name = (profile.personal?.fullName || 'Resume').replace(/\s+/g, '_');
     res.setHeader('Content-Disposition', `attachment; filename="Resume_${name}.pdf"`);
