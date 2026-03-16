@@ -11,11 +11,12 @@
 }
 
 :root {
-  --primary: #4F46E5;
-  --primary-hover: #4338CA;
-  --primary-light: #EEF2FF;
-  --accent: #22C55E;
-  --accent-hover: #16A34A;
+  /* Global HiredLogics theme */
+  --primary: #2563EB;
+  --primary-hover: #1D4ED8;
+  --primary-light: #DBEAFE;
+  --accent: #10B981;
+  --accent-hover: #059669;
   --accent-light: #DCFCE7;
   --dark: #0F172A;
   --gray: #6B7280;

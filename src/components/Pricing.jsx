@@ -142,11 +142,6 @@ export default function Pricing() {
             <div
               key={plan.plan_id}
               className={`pricing-card ${plan.popular ? 'pricing-card--popular' : ''}`}
-              style={{
-                background: plan.popular
-                  ? 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)'
-                  : 'var(--white)',
-              }}
             >
               {plan.popular && (
                 <div className="pricing-badge">
@@ -155,52 +150,25 @@ export default function Pricing() {
               )}
 
               <div className="pricing-header">
-                <h3
-                  className="pricing-name"
-                  style={{
-                    color: plan.popular ? 'rgba(255,255,255,0.85)' : 'var(--gray)',
-                  }}
-                >
+                <h3 className="pricing-name">
                   {plan.name}
                 </h3>
                 <div className="pricing-price-area">
                   <div className="pricing-main-row">
-                    <span
-                      className="pricing-now"
-                      style={{
-                        color: plan.popular ? 'white' : 'var(--dark)',
-                      }}
-                    >
+                    <span className="pricing-now">
                       {plan.priceFormatted}
                     </span>
-                    <span
-                      className="pricing-period-meta"
-                      style={{
-                        color: plan.popular ? 'rgba(255,255,255,0.7)' : 'var(--gray)',
-                      }}
-                    >
+                    <span className="pricing-period-meta">
                       {plan.period}
                     </span>
                   </div>
                 </div>
-                <p
-                  className="pricing-desc"
-                  style={{
-                    color: plan.popular ? 'rgba(255,255,255,0.75)' : 'var(--gray)',
-                  }}
-                >
+                <p className="pricing-desc">
                   {plan.description}
                 </p>
               </div>
 
-              <div
-                className="pricing-divider"
-                style={{
-                  background: plan.popular
-                    ? 'rgba(255,255,255,0.15)'
-                    : 'var(--gray-border)',
-                }}
-              />
+              <div className="pricing-divider" />
 
               {plan.features && plan.features.length > 0 && (
                 <ul className="pricing-features">
@@ -208,24 +176,10 @@ export default function Pricing() {
                     <li key={j} className="pricing-feature">
                       <span
                         className="pricing-check"
-                        style={{
-                          background: plan.popular
-                            ? 'rgba(255,255,255,0.2)'
-                            : 'var(--accent-light)',
-                          color: plan.popular ? 'white' : 'var(--accent)',
-                        }}
                       >
                         <Check size={12} strokeWidth={3} />
                       </span>
-                      <span
-                        style={{
-                          color: plan.popular
-                            ? 'rgba(255,255,255,0.9)'
-                            : 'var(--dark)',
-                        }}
-                      >
-                        {f}
-                      </span>
+                      <span>{f}</span>
                     </li>
                   ))}
                 </ul>
@@ -241,7 +195,7 @@ export default function Pricing() {
               >
                 <Zap
                   size={16}
-                  fill={plan.popular ? '#4F46E5' : 'white'}
+                  fill={plan.popular ? '#2563EB' : 'white'}
                 />
                 {startingPlan === plan.plan_id ? 'Redirecting...' : 'Get Started'}
               </button>
