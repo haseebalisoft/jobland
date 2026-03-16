@@ -1,0 +1,39 @@
+\documentclass{resume}
+\usepackage[hidelinks]{hyperref}
+\usepackage{lipsum}
+\usepackage{ragged2e}
+
+\name{ {{FULL_NAME}} }
+
+\contact{ {{LOCATION}} }
+\contact{\href{tel:{{PHONE}} }{ {{PHONE}} }}
+\contact{\href{mailto:{{EMAIL}} }{ {{EMAIL}} }}
+
+\begin{document}
+\makeheader
+\begin{center}
+ \textbf{ {{TITLE}} }\\
+\end{center}
+\begin{ResumeSection}{summary}
+\begin{justify}
+{{SUMMARY}}
+\end{justify}
+\end{ResumeSection}
+
+\begin{ResumeSection}{Technical Skills}
+  \begin{justify}
+\begin{itemize}
+    \item \textbf{Skills:} {{SKILLS}}
+\end{itemize}
+   \end{justify}
+\end{ResumeSection}
+
+\begin{ResumeSection}{experience}
+    {{{EXPERIENCE}}}
+\end{ResumeSection}
+
+\begin{ResumeSection}{education}
+    {{{EDUCATION}}}
+\end{ResumeSection}
+
+\end{document}

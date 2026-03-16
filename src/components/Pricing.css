@@ -80,6 +80,13 @@
     padding-top: 8px;
 }
 
+.pricing-original-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
 .pricing-top-right-badge {
     position: absolute;
     top: 0;
@@ -102,6 +109,17 @@
     text-decoration: line-through;
     margin-bottom: 4px;
     font-weight: 700;
+}
+
+.pricing-off-tag {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #FEF2F2;
+    color: #DC2626;
 }
 
 .pricing-main-row {

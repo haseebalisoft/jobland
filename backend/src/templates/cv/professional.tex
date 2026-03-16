@@ -1,0 +1,61 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=0.6in]{geometry}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+
+\definecolor{accentcolor}{HTML}{663399} 
+
+\titleformat{\section}{\bfseries\large\uppercase}{}{0pt}{}[\titlerule]
+\titlespacing{\section}{0pt}{12pt}{6pt}
+
+\setlist[itemize]{leftmargin=1.5em, nosep, itemsep=3.5pt}
+
+\newcommand{\boldtext}[1]{\textbf{#1}}
+
+\begin{document}
+
+\pagestyle{empty}
+
+% --- HEADER ---
+\noindent
+\begin{minipage}[t]{0.65\textwidth}
+    \vspace{0pt}
+    {\Huge \bfseries {{FULL_NAME}} } \\[0.3cm] 
+    {\large \bfseries {{TITLE}} } 
+\end{minipage}
+\begin{minipage}[t]{0.34\textwidth}
+    \vspace{0pt}
+    \raggedleft
+    {{LOCATION}} \\
+    \href{mailto:{{EMAIL}} }{ {{EMAIL}} } \\
+    \href{https://{{LINKEDIN}} }{ {{LINKEDIN}} }
+\end{minipage}
+
+\vspace{2em}
+
+% --- SUMMARY ---
+\section{Summary}
+\noindent
+{{SUMMARY}}
+
+% --- TECHNICAL SKILLS ---
+\section{Technical Skills}
+\begin{itemize}
+    \item \boldtext{Skills:} {{SKILLS}}
+\end{itemize}
+
+% --- EXPERIENCE ---
+\section{Professional Experience}
+{{{EXPERIENCE}}}
+
+% --- EDUCATION ---
+\section{Education}
+\noindent
+{{{EDUCATION}}}
+
+\end{document}

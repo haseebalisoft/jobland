@@ -154,6 +154,19 @@ export default function Pricing() {
                   {plan.name}
                 </h3>
                 <div className="pricing-price-area">
+                  {/* Original price with strike-through and "OFF" tag */}
+                  {plan.price > 0 && (
+                    <div className="pricing-original-row">
+                      <span className="pricing-original-strike">
+                        {/* Simple static “before” prices for each plan */}
+                        {plan.plan_id === 'professional_resume' && '$25.55'}
+                        {plan.plan_id === 'starter' && '$39.99'}
+                        {plan.plan_id === 'success' && '$79.99'}
+                        {plan.plan_id === 'elite' && '$129.99'}
+                      </span>
+                      <span className="pricing-off-tag">OFF</span>
+                    </div>
+                  )}
                   <div className="pricing-main-row">
                     <span className="pricing-now">
                       {plan.priceFormatted}
