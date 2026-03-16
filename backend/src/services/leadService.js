@@ -167,8 +167,9 @@ export async function listBdLeads(bdId, { range, page, limit }) {
 }
 
 /**
- * List leads visible to a user: all leads created by BDs who are assigned to this user
- * via user_bd_assignments (admin assigns users to BDs). Uses existing table structure.
+ * List leads for a user: only leads assigned to this user (ja.user_id = userId).
+ * Leads must also be from BDs assigned to this user (user_bd_assignments), so users
+ * only see their own assigned leads from their BDs.
  */
 export async function listUserLeads(userId, { range, page, limit }) {
   const { page: p, limit: l, offset } = parsePagination({ page, limit });
@@ -193,7 +194,7 @@ export async function listUserLeads(userId, { range, page, limit }) {
     FROM job_assignments ja
     JOIN jobs j ON j.id = ja.job_id
     JOIN user_bd_assignments uba ON uba.bd_id = ja.bd_id AND uba.user_id = $1
-    WHERE 1=1
+    WHERE ja.user_id = $1
     ${clause}
     ORDER BY ja.created_at DESC
     LIMIT $${limitIndex} OFFSET $${offsetIndex}
@@ -203,7 +204,7 @@ export async function listUserLeads(userId, { range, page, limit }) {
     SELECT COUNT(*)::int AS count
     FROM job_assignments ja
     JOIN user_bd_assignments uba ON uba.bd_id = ja.bd_id AND uba.user_id = $1
-    WHERE 1=1
+    WHERE ja.user_id = $1
     ${clause}
   `;
 

@@ -113,6 +113,14 @@
   align-items: stretch;
 }
 
+/* Ensure dashboard and other BD pages use full width */
+.bd-main__body > * {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 .bd-header {
   height: 72px;
   background: #fff;
@@ -125,7 +133,7 @@
 }
 
 .bd-content {
-  padding: 32px;
+  padding: 32px 40px;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -138,6 +146,29 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+}
+
+/* Dashboard overview: cards span full width */
+.bd-dashboard-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.bd-dashboard-activity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .bd-dashboard-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bd-dashboard-activity-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .bd-section-title {

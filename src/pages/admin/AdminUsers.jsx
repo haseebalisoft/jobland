@@ -157,8 +157,10 @@ export default function AdminUsers() {
                     <td>{u.name || u.full_name || '—'}</td>
                     <td>{u.email}</td>
                     <td>
-                      <span className="admin-tag">{u.subscription_plan || 'free'}</span>
-                      <button type="button" className="admin-btn-secondary" style={{ marginLeft: 8 }} onClick={() => { setPlanUserModal(u); setPlanUserValue(u.subscription_plan || 'free'); }}>Set plan</button>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
+                        <span className="admin-tag">{u.subscription_plan || 'free'}</span>
+                        <button type="button" className="admin-btn-secondary" onClick={() => { setPlanUserModal(u); setPlanUserValue(u.subscription_plan || 'free'); }}>Set plan</button>
+                      </span>
                     </td>
                     <td>
                       {(u.assigned_bds || []).length > 0 ? (

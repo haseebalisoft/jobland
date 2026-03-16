@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Mail, Lock, ArrowRight } from 'lucide-react'
 import '../index.css'
+import './Auth.css'
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 
@@ -74,7 +75,7 @@ export default function Login() {
                         </div>
                     </div>
 
-                    {error && <p style={{ color: 'red', fontSize: '14px' }}>{error}</p>}
+                    {error && <p style={{ color: '#dc2626', fontSize: '14px', margin: 0 }}>{error}</p>}
 
                     <button type="submit" className="btn btn-primary" style={styles.button}>
                         Sign in <ArrowRight size={18} />
@@ -89,20 +90,21 @@ export default function Login() {
     )
 }
 
+const theme = { primary: '#10B981', dark: '#0F172A', muted: '#64748B', border: '#E2E8F0' }
 const styles = {
     container: {
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #F0F4FF 0%, #E0E7FF 100%)',
+        background: 'linear-gradient(160deg, #ecfdf5 0%, #f0fdf4 40%, #f8fafc 100%)',
         padding: '24px',
     },
     card: {
         background: 'white',
-        padding: '48px',
+        padding: '48px 40px',
         borderRadius: '24px',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0,0,0,0.05)',
+        boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(16, 185, 129, 0.08)',
         width: '100%',
         maxWidth: '440px',
     },
@@ -113,27 +115,23 @@ const styles = {
     logo: {
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '8px',
+        gap: '10px',
         fontSize: '24px',
         fontWeight: '800',
-        color: 'var(--dark)',
+        color: theme.dark,
         textDecoration: 'none',
         marginBottom: '24px',
-    },
-    logoIcon: {
-        width: '32px',
-        height: '32px',
-        background: 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)',
-        borderRadius: '8px',
+        letterSpacing: '-0.02em',
     },
     title: {
         fontSize: '28px',
         fontWeight: '700',
-        color: 'var(--dark)',
+        color: theme.dark,
         marginBottom: '8px',
+        letterSpacing: '-0.02em',
     },
     subtitle: {
-        color: 'var(--gray)',
+        color: theme.muted,
         fontSize: '15px',
     },
     form: {
@@ -149,7 +147,7 @@ const styles = {
     label: {
         fontSize: '14px',
         fontWeight: '600',
-        color: 'var(--dark)',
+        color: theme.dark,
     },
     inputWrapper: {
         position: 'relative',
@@ -159,20 +157,20 @@ const styles = {
     inputIcon: {
         position: 'absolute',
         left: '16px',
-        color: 'var(--gray-light)',
+        color: theme.muted,
     },
     input: {
         width: '100%',
-        padding: '12px 16px 12px 44px',
-        border: '1px solid var(--gray-border)',
-        borderRadius: '12px',
+        padding: '14px 16px 14px 44px',
+        border: `1px solid ${theme.border}`,
+        borderRadius: '14px',
         fontSize: '15px',
         outline: 'none',
-        transition: 'all 0.2s',
+        transition: 'border-color 0.2s, box-shadow 0.2s',
     },
     forgot: {
         fontSize: '13px',
-        color: 'var(--primary)',
+        color: theme.primary,
         textDecoration: 'none',
         fontWeight: '600',
     },
@@ -180,17 +178,18 @@ const styles = {
         width: '100%',
         justifyContent: 'center',
         marginTop: '8px',
-        padding: '14px',
+        padding: '14px 20px',
         fontSize: '16px',
+        borderRadius: '14px',
     },
     footer: {
         textAlign: 'center',
         marginTop: '24px',
-        color: 'var(--gray)',
+        color: theme.muted,
         fontSize: '14px',
     },
     link: {
-        color: 'var(--primary)',
+        color: theme.primary,
         fontWeight: '600',
         textDecoration: 'none',
     },

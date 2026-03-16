@@ -417,13 +417,13 @@ const ProfileBuilder = () => {
                 </div>
             </div>
 
-            <main className="container" style={{ padding: '32px 24px 80px', maxWidth: '900px', margin: '0 auto', flex: 1 }}>
+            <main className="container profile-page-main" style={{ padding: '40px 28px 100px', maxWidth: '900px', margin: '0 auto', flex: 1 }}>
 
                 {activeTab === 'Personal' && (
                     <div className="animate-fade-in" style={{ width: '100%' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '48px' }}>
                             {editingSection === 'personal' ? (
-                                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                <div className="profile-form-fields" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                     <div>
                                         <label className="orion-label">Full Name <span>*</span></label>
                                         <input
@@ -434,7 +434,7 @@ const ProfileBuilder = () => {
                                             autoFocus
                                         />
                                     </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                    <div className="profile-form-fields" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                                         <div>
                                             <label className="orion-label">Email Address <span>*</span></label>
                                             <input
@@ -463,9 +463,9 @@ const ProfileBuilder = () => {
                                             placeholder="e.g. New York, USA"
                                         />
                                     </div>
-                                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px', marginTop: '10px' }}>
-                                        <label className="orion-label" style={{ color: 'var(--text-dim)', marginBottom: '16px' }}>Social Links (Optional)</label>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '28px', marginTop: '24px' }}>
+                                        <label className="orion-label" style={{ color: 'var(--text-dim)', marginBottom: '18px' }}>Social Links (Optional)</label>
+                                        <div className="profile-form-fields" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                             <div style={{ position: 'relative' }}>
                                                 <input
                                                     className="orion-input"
@@ -536,8 +536,8 @@ const ProfileBuilder = () => {
                             )}
                         </div>
 
-                        <div style={{ marginTop: '60px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <div style={{ marginTop: '72px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
                                 <label className="orion-label" style={{ marginBottom: 0 }}>Bio / Summary</label>
                                 {editingSection !== 'summary' && (
                                     <button
@@ -550,10 +550,10 @@ const ProfileBuilder = () => {
                             </div>
 
                             {editingSection === 'summary' ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <div className="profile-form-fields" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                     <textarea
                                         className="orion-input"
-                                        style={{ minHeight: '180px', background: 'white' }}
+                                        style={{ minHeight: '200px', background: 'white' }}
                                         value={profile.professional.summary}
                                         onChange={(e) => handleChange('professional', 'summary', e.target.value)}
                                         placeholder="Write a brief professional summary..."
@@ -576,7 +576,7 @@ const ProfileBuilder = () => {
                                         borderRadius: '16px',
                                         border: '1px solid var(--border)',
                                         cursor: 'pointer',
-                                        minHeight: '100px',
+                                        minHeight: '140px',
                                         lineHeight: '1.6',
                                         color: profile.professional.summary ? 'inherit' : 'var(--text-dim)'
                                     }}
@@ -589,10 +589,10 @@ const ProfileBuilder = () => {
                 )}
 
                 {activeTab === 'Education' && (
-                    <div className="animate-fade-in profile-education-section">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+                    <div className="animate-fade-in profile-tab-content profile-education-section">
+                        <div className="profile-section-header">
                             <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#0f172a', margin: 0 }}>Education</h2>
-                            <button className="btn-next" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px' }} onClick={() => {
+                            <button className="btn-next profile-add-btn" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px' }} onClick={() => {
                                 const newEdu = [...profile.education, { degree: '', institution: '', period: '' }];
                                 setProfile({ ...profile, education: newEdu });
                                 setEditingSection(`education-${newEdu.length - 1}`);
@@ -604,7 +604,7 @@ const ProfileBuilder = () => {
                             {profile.education.map((edu, i) => (
                                 editingSection === `education-${i}` ? (
                                     <div key={i} className="profile-education-card profile-education-card--editing">
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                        <div className="profile-form-fields" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                             <input
                                                 className="orion-input"
                                                 value={edu.degree}
@@ -652,10 +652,10 @@ const ProfileBuilder = () => {
                 )}
 
                 {activeTab === 'Work Experience' && (
-                    <div className="animate-fade-in">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '48px' }}>
+                    <div className="animate-fade-in profile-tab-content">
+                        <div className="profile-section-header">
                             <h2 style={{ fontSize: '28px', fontWeight: '700' }}>Work Experience</h2>
-                            <button className="logout-btn" onClick={() => {
+                            <button className="logout-btn profile-add-btn" onClick={() => {
                                 const newWork = [...(profile.professional.workExperience || []), { company: '', role: '', period: '', description: '' }];
                                 setProfile({ ...profile, professional: { ...profile.professional, workExperience: newWork } });
                                 setEditingSection(`work-${newWork.length - 1}`);
@@ -666,8 +666,8 @@ const ProfileBuilder = () => {
                         <div style={{ paddingLeft: '8px' }}>
                             {profile.professional.workExperience?.map((work, i) => (
                                 editingSection === `work-${i}` ? (
-                                    <div key={i} className="orion-card" style={{ padding: '24px', marginBottom: '24px', border: '1px solid var(--accent)' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                    <div key={i} className="orion-card" style={{ padding: '28px', marginBottom: '28px', border: '1px solid var(--accent)' }}>
+                                        <div className="profile-form-fields" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                             <input
                                                 className="orion-input"
                                                 value={work.company}
@@ -742,7 +742,7 @@ const ProfileBuilder = () => {
 
                 {activeTab === 'Skills' && (
                     <div className="animate-fade-in">
-                        <h2 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '32px' }}>Skills</h2>
+                        <h2 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '40px' }}>Skills</h2>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                             {profile.professional.skills.map((skill, i) => (
                                 <div key={i} style={{ padding: '8px 20px', background: '#F0FDF4', color: 'var(--accent)', borderRadius: '100px', fontWeight: '600', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
