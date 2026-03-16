@@ -1,0 +1,67 @@
+/* User Dashboard – HiredLogics theme, cooler cards and layout */
+.dashboard-layout {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%) !important;
+  min-height: 100vh;
+}
+
+.dashboard-header {
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 2px 8px rgba(15, 23, 42, 0.04) !important;
+}
+
+.dashboard-tab {
+  transition: all 0.2s ease;
+}
+.dashboard-tab:hover {
+  transform: translateY(-1px);
+}
+
+.dashboard-stat-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.dashboard-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1), 0 4px 12px rgba(16, 185, 129, 0.06) !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+}
+
+.dashboard-activity-card {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.dashboard-activity-card:hover {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08) !important;
+  border-color: #cbd5e1 !important;
+}
+
+.dashboard-lead-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.dashboard-lead-card:hover {
+  transform: translateX(4px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.dashboard-link-btn:hover {
+  background: rgba(16, 185, 129, 0.18) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.dashboard-icon-btn:hover {
+  color: #10B981 !important;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 10px;
+}
+
+.dashboard-filter-chip {
+  transition: all 0.2s ease;
+}
+.dashboard-filter-chip:hover {
+  border-color: #10B981;
+  color: #10B981;
+}
+
+.dashboard-activity-blob {
+  background: linear-gradient(135deg, #10B981 0%, #34d399 100%);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}

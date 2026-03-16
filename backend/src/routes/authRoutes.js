@@ -16,6 +16,8 @@ import {
   setPasswordController,
   bdSignup,
   bdLogin,
+  forgotPasswordController,
+  resetPasswordController,
 } from '../controllers/authController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import {
@@ -162,6 +164,24 @@ router.post(
 
 router.post('/refresh-token', refreshToken);
 router.post('/logout', logout);
+
+router.post(
+  '/forgot-password',
+  passwordSetupRateLimiter,
+  [body('email').isEmail().withMessage('Valid email is required')],
+  forgotPasswordController,
+);
+
+router.post(
+  '/reset-password',
+  passwordSetupRateLimiter,
+  [
+    body('token').isString().notEmpty().withMessage('Reset token is required'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    body('confirm_password').custom((value, { req }) => value === req.body.password).withMessage('Passwords do not match'),
+  ],
+  resetPasswordController,
+);
 
 // Support both query and path token styles for legacy email verification links
 router.get('/verify-email', verifyEmailController);

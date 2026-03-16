@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import api from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import UserSidebar from '../components/UserSidebar.jsx'
+import './Dashboard.css'
 
 const theme = {
   primary: '#10B981',
@@ -116,16 +117,16 @@ export default function Dashboard() {
     const rangeLabels = { today: 'Today', '3days': 'Last 3 days', '7days': 'Last 7 days', '15days': 'Last 15 days', all: 'All time' }
 
     return (
-        <div style={styles.layout}>
+        <div className="dashboard-layout" style={styles.layout}>
             <UserSidebar />
             <main style={styles.main}>
-                <header style={styles.header}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <button type="button" onClick={() => setActiveSection('overview')} style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: activeSection === 'overview' ? theme.primary : 'transparent', color: activeSection === 'overview' ? 'white' : theme.textMuted, fontWeight: 600, cursor: 'pointer' }}>Overview</button>
-                        <button type="button" onClick={() => setActiveSection('applications')} style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: activeSection === 'applications' ? theme.primary : 'transparent', color: activeSection === 'applications' ? 'white' : theme.textMuted, fontWeight: 600, cursor: 'pointer' }}>Applications</button>
+                <header className="dashboard-header" style={styles.header}>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        <button type="button" className="dashboard-tab" onClick={() => setActiveSection('overview')} style={{ padding: '10px 20px', borderRadius: 12, border: 'none', background: activeSection === 'overview' ? theme.primary : 'transparent', color: activeSection === 'overview' ? 'white' : theme.textMuted, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Overview</button>
+                        <button type="button" className="dashboard-tab" onClick={() => setActiveSection('applications')} style={{ padding: '10px 20px', borderRadius: 12, border: 'none', background: activeSection === 'applications' ? theme.primary : 'transparent', color: activeSection === 'applications' ? 'white' : theme.textMuted, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Applications</button>
                     </div>
                     <div style={styles.profileArea}>
-                        <button type="button" style={styles.iconBtn} aria-label="Notifications">
+                        <button type="button" className="dashboard-icon-btn" style={styles.iconBtn} aria-label="Notifications">
                             <Bell size={20} />
                         </button>
                         <div style={styles.avatar}>{initials}</div>
@@ -151,7 +152,7 @@ export default function Dashboard() {
 
                             <section style={styles.section}>
                                 <h2 style={styles.sectionTitle}>Recent activity</h2>
-                                <div style={styles.activityCard}>
+                                <div className="dashboard-activity-card" style={styles.activityCard}>
                                     {leads.items.length > 0 ? (
                                         <div style={styles.activityList}>
                                             {leads.items.slice(0, 5).map((lead) => (
@@ -182,6 +183,7 @@ export default function Dashboard() {
                                     <button
                                         key={r}
                                         type="button"
+                                        className="dashboard-filter-chip"
                                         onClick={() => setLeadsRange(r)}
                                         style={{
                                             ...styles.filterChip,
@@ -195,13 +197,13 @@ export default function Dashboard() {
                             {leadsLoading ? (
                                 <div style={styles.loadingState}>Loading applications…</div>
                             ) : leads.items.length === 0 ? (
-                                <div style={styles.activityCard}>
+                                <div className="dashboard-activity-card" style={styles.activityCard}>
                                     <p style={styles.emptyText}>No leads yet. Your BD will assign job leads here.</p>
                                 </div>
                             ) : (
                                 <div style={styles.leadsList}>
                                     {leads.items.map((lead) => (
-                                        <div key={lead.id} style={styles.leadCard}>
+                                        <div key={lead.id} className="dashboard-lead-card" style={styles.leadCard}>
                                             <div style={styles.leadBody}>
                                                 <div style={styles.leadTitle}>{lead.job_title || 'Untitled role'}</div>
                                                 <div style={styles.leadCompany}>{lead.company_name || '—'}</div>
@@ -213,7 +215,7 @@ export default function Dashboard() {
                                                 </div>
                                             </div>
                                             {lead.job_link && (
-                                                <a href={lead.job_link} target="_blank" rel="noopener noreferrer" style={styles.linkBtn}>
+                                                <a href={lead.job_link} target="_blank" rel="noopener noreferrer" className="dashboard-link-btn" style={styles.linkBtn}>
                                                     <ExternalLink size={16} /> Open link
                                                 </a>
                                             )}
@@ -253,7 +255,7 @@ function statusBadgeStyle(status) {
 
 function StatCard({ number, label, color, icon }) {
     return (
-        <div style={styles.statCard}>
+        <div className="dashboard-stat-card" style={styles.statCard}>
             <div style={{ ...styles.statIcon, background: `${color}20`, color }}>{icon}</div>
             <div>
                 <div style={styles.statNumber}>{number}</div>
@@ -266,7 +268,7 @@ function StatCard({ number, label, color, icon }) {
 function ActivityItem({ title, desc, time }) {
     return (
         <div style={styles.activityItem}>
-            <div style={styles.activityBlob} />
+            <div className="dashboard-activity-blob" style={styles.activityBlob} />
             <div style={{ flex: 1 }}>
                 <div style={styles.activityTitleRow}>
                     <span style={styles.actTitle}>{title}</span>
@@ -318,7 +320,9 @@ const styles = {
         border: 'none',
         color: theme.textMuted,
         cursor: 'pointer',
-        padding: 8,
+        padding: 10,
+        borderRadius: 10,
+        transition: 'color 0.2s, background 0.2s',
     },
     avatar: {
         width: 42,
@@ -353,13 +357,13 @@ const styles = {
     },
     statCard: {
         background: theme.cardBg,
-        padding: 20,
-        borderRadius: 16,
+        padding: 22,
+        borderRadius: 18,
         border: `1px solid ${theme.border}`,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        boxShadow: '0 2px 8px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04)',
         display: 'flex',
         alignItems: 'center',
-        gap: 16,
+        gap: 18,
     },
     statIcon: {
         width: 48,
@@ -386,10 +390,10 @@ const styles = {
     },
     activityCard: {
         background: theme.cardBg,
-        borderRadius: 16,
+        borderRadius: 18,
         border: `1px solid ${theme.border}`,
-        padding: 24,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        padding: 26,
+        boxShadow: '0 2px 8px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04)',
     },
     activityList: { display: 'flex', flexDirection: 'column', gap: 16 },
     activityItem: { display: 'flex', gap: 16 },
@@ -427,14 +431,14 @@ const styles = {
     leadsList: { display: 'flex', flexDirection: 'column', gap: 12 },
     leadCard: {
         background: theme.cardBg,
-        borderRadius: 16,
+        borderRadius: 18,
         border: `1px solid ${theme.border}`,
-        padding: '20px 24px',
+        padding: '22px 26px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: 20,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        boxShadow: '0 2px 8px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04)',
     },
     leadBody: { flex: 1 },
     leadTitle: { fontSize: 17, fontWeight: 700, color: theme.text, marginBottom: 4 },
@@ -445,8 +449,8 @@ const styles = {
         display: 'inline-flex',
         alignItems: 'center',
         gap: 6,
-        padding: '10px 16px',
-        borderRadius: 10,
+        padding: '10px 18px',
+        borderRadius: 12,
         border: `1px solid ${theme.primary}`,
         background: 'rgba(16, 185, 129, 0.12)',
         color: theme.primary,
@@ -454,6 +458,7 @@ const styles = {
         fontSize: 14,
         fontWeight: 600,
         flexShrink: 0,
+        transition: 'background 0.2s, transform 0.2s, box-shadow 0.2s',
     },
 }
 

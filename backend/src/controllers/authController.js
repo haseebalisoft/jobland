@@ -14,6 +14,8 @@ import {
   registerUser,
   registerBd,
   loginBd,
+  requestPasswordReset,
+  resetPasswordWithToken,
 } from '../services/authService.js';
 import { getOrCreateUserFromCheckoutSession } from '../services/subscriptionService.js';
 
@@ -157,6 +159,57 @@ export async function setPasswordBySession(req, res, next) {
         },
       });
   } catch (err) {
+    next(err);
+  }
+}
+
+/** Forgot password: send reset link to email (user role only). Always returns 200. */
+export async function forgotPasswordController(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    const { email } = req.body;
+    await requestPasswordReset({ email });
+    res.status(200).json({ message: 'If an account exists with this email, you will receive a password reset link.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Reset password with token from email link. Returns accessToken + user (same as login). */
+export async function resetPasswordController(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    const { token, password } = req.body;
+    const result = await resetPasswordWithToken({ token, password });
+    if (!result) {
+      return res.status(400).json({ message: 'Invalid or expired reset link.' });
+    }
+    const { user, accessToken, refreshToken } = result;
+    res
+      .cookie(REFRESH_COOKIE_NAME, refreshToken, buildRefreshCookieOptions())
+      .json({
+        message: 'Password reset successfully.',
+        accessToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          emailVerified: user.emailVerified,
+          isActive: user.isActive,
+          subscription_plan: user.subscription_plan,
+        },
+      });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ message: err.message });
+    }
     next(err);
   }
 }

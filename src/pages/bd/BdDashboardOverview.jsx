@@ -39,8 +39,8 @@ export default function BdDashboardOverview() {
       <h1 style={{ fontSize: 26, fontWeight: 800, color: theme.text, marginBottom: 8, letterSpacing: '-0.02em' }}>Dashboard</h1>
       <p style={{ color: theme.textMuted, fontSize: 15, marginBottom: 28 }}>Your lead and assignment overview.</p>
 
-      {/* KPI cards */}
-      <section style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 18, marginBottom: 32 }}>
+      {/* KPI cards - full width row */}
+      <section className="bd-dashboard-kpi-grid" style={{ width: '100%', marginBottom: 32 }}>
         <div className="bd-stat-card" style={{ background: '#fff', padding: 22, borderRadius: 16, border: '1px solid #E2E8F0', boxShadow: '0 2px 8px rgba(15,23,42,0.06)', display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: `${theme.primary}20`, color: theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Briefcase size={22} /></div>
           <div>
@@ -75,10 +75,10 @@ export default function BdDashboardOverview() {
         </div>
       </section>
 
-      {/* Growth */}
+      {/* Growth - full width row */}
       <section style={{ width: '100%', marginBottom: 32 }}>
         <h2 className="bd-section-title"><TrendingUp size={20} /> Lead activity</h2>
-        <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
+        <div className="bd-dashboard-activity-grid" style={{ width: '100%' }}>
           <div style={{ background: '#fff', padding: 20, borderRadius: 16, border: '1px solid #E2E8F0' }}>
             <div style={{ fontSize: 13, color: theme.textMuted, marginBottom: 4 }}>Created (last 7 days)</div>
             <div style={{ fontSize: 22, fontWeight: 800, color: theme.primary }}>{leadsCreatedLast7Days}</div>

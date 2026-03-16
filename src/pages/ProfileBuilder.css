@@ -1,3 +1,63 @@
+/* Tab content full width so section headers can stretch */
+.profile-page-main .profile-tab-content {
+  width: 100%;
+}
+
+/* Section header: title left, Add button far right with clear spacing */
+.profile-page-main .profile-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  min-width: 100%;
+  margin-bottom: 40px;
+  gap: 3rem;
+}
+
+.profile-page-main .profile-section-header h2 {
+  flex: 0 0 auto;
+}
+
+.profile-page-main .profile-add-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Profile page: larger inputs and more spacing for all tabs */
+.profile-page-main .orion-label {
+  margin-bottom: 18px;
+  font-size: 15px;
+}
+
+.profile-page-main .orion-input {
+  min-height: 52px;
+  padding: 18px 22px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+.profile-page-main textarea.orion-input {
+  min-height: 160px;
+  padding: 18px 22px;
+  resize: vertical;
+}
+
+/* Form section spacing */
+.profile-page-main .profile-form-fields {
+  gap: 28px !important;
+}
+
+.profile-page-main .profile-education-card .orion-input,
+.profile-page-main .orion-card .orion-input {
+  min-height: 52px;
+  padding: 18px 22px;
+}
+
+.profile-page-main .profile-education-card textarea.orion-input,
+.profile-page-main .orion-card textarea.orion-input {
+  min-height: 140px;
+}
+
 /* Profile page - Education section and bottom bar */
 .profile-education-section {
   width: 100%;
