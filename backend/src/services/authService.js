@@ -594,18 +594,18 @@ export async function startSignup({ email }) {
   try {
     await sendEmail({
       to: normalizedEmail,
-      subject: 'Verify Your Email – Hiredlogic',
+      subject: 'Verify Your Email – HiredLogics',
       html: `
         <p>Hello,</p>
-        <p>Thank you for choosing <strong>Hiredlogic</strong>.</p>
+        <p>Thank you for choosing <strong>HiredLogics</strong>.</p>
         <p>Please use the verification code below to confirm your email address and continue your signup process.</p>
         <p><strong>Verification Code</strong></p>
         <p style="font-size: 20px; font-weight: 700; letter-spacing: 4px;"><strong>${otp}</strong></p>
         <p>This code is valid for <strong>10 minutes</strong>.</p>
         <p>If you did not request this verification, you can safely ignore this message.</p>
         <p>If you need help, please contact our support team.</p>
-        <p>Best regards,<br/><strong>Hiredlogic Team</strong></p>
-        <p style="font-size: 12px; color: #6b7280; margin-top: 24px;">© 2026 Hiredlogic. All rights reserved.</p>
+        <p>Best regards,<br/><strong>HiredLogics Team</strong></p>
+        <p style="font-size: 12px; color: #6b7280; margin-top: 24px;">© 2026 HiredLogics. All rights reserved.</p>
       `,
     });
   } catch (e) {
