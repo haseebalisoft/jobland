@@ -6,6 +6,7 @@ import {
   Target,
   Settings,
   LogOut,
+  MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import './UserSidebar.css';
@@ -51,6 +52,12 @@ export default function UserSidebar() {
           className={`user-sidebar__link ${isActive('/resume-maker') ? 'user-sidebar__link--active' : ''}`}
         >
           <FileText size={20} /> Resume Maker
+        </Link>
+        <Link
+          to="/dashboard/help"
+          className={`user-sidebar__link ${isActive('/dashboard/help') ? 'user-sidebar__link--active' : ''}`}
+        >
+          <MessageCircle size={20} /> Help
         </Link>
         <Link
           to="/settings"

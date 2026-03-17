@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import { BarChart2, PlusCircle, Users, Briefcase, LogOut, Lock, Key } from 'lucide-react';
+import { BarChart2, PlusCircle, Users, Briefcase, LogOut, Lock, Key, MessageCircle } from 'lucide-react';
 import api from '../../services/api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import '../BdDashboard.css';
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/bd/create-lead', end: false, icon: PlusCircle, label: 'Create lead' },
   { to: '/bd/assigned-profiles', end: false, icon: Users, label: 'Assigned profiles' },
   { to: '/bd/leads', end: false, icon: Briefcase, label: 'Your leads' },
+  { to: '/bd/help', end: false, icon: MessageCircle, label: 'Help' },
 ];
 
 export default function BdLayout() {

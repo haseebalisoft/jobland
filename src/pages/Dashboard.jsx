@@ -208,11 +208,83 @@ export default function Dashboard() {
                                                 <div style={styles.leadTitle}>{lead.job_title || 'Untitled role'}</div>
                                                 <div style={styles.leadCompany}>{lead.company_name || '—'}</div>
                                                 <div style={styles.leadMeta}>
-                                                    <span style={statusBadgeStyle(lead.status)}>{lead.status}</span>
+                                                    <span style={statusBadgeStyle(lead.application_status || lead.status)}>
+                                                        {lead.application_status || lead.status}
+                                                    </span>
                                                     {lead.created_at && (
                                                         <span style={styles.leadDate}>Added {new Date(lead.created_at).toLocaleDateString()}</span>
                                                     )}
                                                 </div>
+                                                {lead.interview_mode && (
+                                                    <div
+                                                        style={{
+                                                            marginTop: 14,
+                                                            padding: '14px 16px',
+                                                            borderRadius: 14,
+                                                            background: 'linear-gradient(135deg, #EEF2FF 0%, #EFF6FF 100%)',
+                                                            border: '1px solid rgba(129,140,248,0.35)',
+                                                            display: 'flex',
+                                                            alignItems: 'stretch',
+                                                            gap: 16,
+                                                        }}
+                                                    >
+                                                        <div
+                                                            style={{
+                                                                width: 36,
+                                                                height: 36,
+                                                                borderRadius: 999,
+                                                                background: '#4F46E5',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                color: 'white',
+                                                                fontSize: 16,
+                                                                fontWeight: 700,
+                                                                flexShrink: 0,
+                                                            }}
+                                                        >
+                                                            i
+                                                        </div>
+                                                        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1.6fr)', gap: 8 }}>
+                                                            <div>
+                                                                <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#4F46E5', marginBottom: 4 }}>
+                                                                    Interview scheduled
+                                                                </div>
+                                                                <div style={{ fontSize: 13, color: theme.textMuted, textTransform: 'capitalize' }}>
+                                                                    {String(lead.interview_mode).replace('_', ' ')}
+                                                                </div>
+                                                                {lead.interview_link && (
+                                                                    <a
+                                                                        href={lead.interview_link}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        style={{
+                                                                            marginTop: 6,
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            gap: 4,
+                                                                            fontSize: 12,
+                                                                            fontWeight: 600,
+                                                                            color: '#2563EB',
+                                                                            textDecoration: 'none',
+                                                                        }}
+                                                                    >
+                                                                        <ExternalLink size={12} /> Join link
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                            <div style={{ textAlign: 'right', fontSize: 12, color: theme.textMuted, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 2 }}>
+                                                                {lead.interview_date && (
+                                                                    <span style={{ fontWeight: 600, color: theme.text }}>
+                                                                        {new Date(lead.interview_date).toLocaleDateString()}
+                                                                    </span>
+                                                                )}
+                                                                {lead.interview_time && <span>{lead.interview_time}</span>}
+                                                                {lead.duration_minutes != null && <span>{lead.duration_minutes} min</span>}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                             {lead.job_link && (
                                                 <a href={lead.job_link} target="_blank" rel="noopener noreferrer" className="dashboard-link-btn" style={styles.linkBtn}>

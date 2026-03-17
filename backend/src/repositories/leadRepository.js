@@ -33,7 +33,7 @@ export async function insertLead({
   if (!resolvedJobId) {
     // Try to reuse an existing job by job_url (unique)
     const existingJob = await query(
-      `SELECT id, company_name, title, job_url FROM jobs WHERE job_url = $1`,
+      `SELECT id, company_name, title, job_url, bd_id FROM jobs WHERE job_url = $1`,
       [job_link],
     );
     if (existingJob.rowCount > 0) {
@@ -41,11 +41,11 @@ export async function insertLead({
     } else {
       const insertJob = await query(
         `
-          INSERT INTO jobs (company_name, company_website, title, job_url, platform, location, description, created_at)
-          VALUES ($1, NULL, $2, $3, NULL, NULL, NULL, NOW())
+          INSERT INTO jobs (company_name, company_website, title, job_url, platform, location, description, bd_id, created_at)
+          VALUES ($1, NULL, $2, $3, NULL, NULL, NULL, $4, NOW())
           RETURNING id
         `,
-        [company_name, job_title, job_link],
+        [company_name, job_title, job_link, bd_id],
       );
       resolvedJobId = insertJob.rows[0].id;
     }
@@ -90,7 +90,11 @@ export async function updateLeadAssignment(id, assigned_user_id) {
   await query(
     `
       UPDATE job_assignments
-      SET user_id = $2,
+      SET user_id = $2::uuid,
+          status = CASE
+                     WHEN $2::uuid IS NOT NULL THEN 'assigned'::job_assignment_status
+                     ELSE status
+                   END,
           updated_at = NOW()
       WHERE id = $1
     `,

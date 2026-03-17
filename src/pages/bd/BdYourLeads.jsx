@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Briefcase, Filter, ExternalLink } from 'lucide-react';
 import api from '../../services/api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useNavigate } from 'react-router-dom';
 import '../BdDashboard.css';
 
 const RANGE_OPTIONS = [
@@ -12,16 +13,19 @@ const RANGE_OPTIONS = [
   { value: 'all', label: 'All time' },
 ];
 const STATUS_OPTIONS = ['pending', 'assigned', 'completed', 'failed'];
+const APPLICATION_STATUS_OPTIONS = ['applied', 'interview', 'acceptance', 'rejection', 'withdrawn'];
 
 const theme = { primary: '#10B981', text: '#0F172A', textMuted: '#64748B', border: '#E2E8F0', cardBg: '#ffffff' };
 
 export default function BdYourLeads() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [range, setRange] = useState('7days');
   const [loading, setLoading] = useState(true);
   const [leads, setLeads] = useState([]);
   const [myUsers, setMyUsers] = useState([]);
   const [updatingId, setUpdatingId] = useState(null);
+  const [updatingAppId, setUpdatingAppId] = useState(null);
   const [assigningLeadId, setAssigningLeadId] = useState(null);
   const [assignUserId, setAssignUserId] = useState('');
   const [assignSaving, setAssignSaving] = useState(false);
@@ -60,6 +64,31 @@ export default function BdYourLeads() {
       console.error(e);
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleApplicationStatusChange = async (lead, status) => {
+    if (!lead.application_id) {
+      alert('No application exists yet for this lead. Once the user has an application for this job, you can set its status here.');
+      return;
+    }
+    setUpdatingAppId(lead.application_id);
+    try {
+      await api.patch(`/applications/${lead.application_id}/status`, { status });
+      setLeads((prev) =>
+        prev.map((l) =>
+          l.id === lead.id ? { ...l, application_status: status } : l,
+        ),
+      );
+
+      if (status === 'interview') {
+        navigate(`/bd/interview?applicationId=${lead.application_id}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert(e.response?.data?.message || 'Failed to update application status');
+    } finally {
+      setUpdatingAppId(null);
     }
   };
 
@@ -115,7 +144,8 @@ export default function BdYourLeads() {
                   <th style={{ textAlign: 'left', padding: '14px 18px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>Company</th>
                   <th style={{ textAlign: 'left', padding: '14px 18px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>Assigned user</th>
                   <th style={{ textAlign: 'left', padding: '14px 18px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>Created</th>
-                  <th style={{ textAlign: 'left', padding: '14px 18px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>Status</th>
+                  <th style={{ textAlign: 'left', padding: '14px 18px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>Lead status</th>
+                  <th style={{ textAlign: 'left', padding: '14px 18px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>Application status</th>
                   <th style={{ textAlign: 'left', padding: '14px 18px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.95)' }}>Job link</th>
                 </tr>
               </thead>
@@ -151,14 +181,17 @@ export default function BdYourLeads() {
                         )}
                       </td>
                       <td style={{ padding: '14px 18px', borderBottom: `1px solid ${theme.border}` }}>{lead.created_at ? new Date(lead.created_at).toLocaleDateString() : '—'}</td>
+                      <td style={{ padding: '14px 18px', borderBottom: `1px solid ${theme.border}`, fontSize: 13, color: theme.text }}>
+                        {lead.status || 'pending'}
+                      </td>
                       <td style={{ padding: '14px 18px', borderBottom: `1px solid ${theme.border}` }}>
                         <select
-                          value={lead.status || 'pending'}
-                          onChange={(e) => handleStatusChange(lead.id, e.target.value)}
-                          disabled={updatingId === lead.id}
+                          value={lead.application_status || 'applied'}
+                          onChange={(e) => handleApplicationStatusChange(lead, e.target.value)}
+                          disabled={updatingAppId === lead.application_id || !lead.assigned_user_id}
                           style={{ padding: '8px 12px', borderRadius: 10, border: `1px solid ${theme.border}`, fontSize: 13, background: theme.cardBg }}
                         >
-                          {STATUS_OPTIONS.map((s) => (
+                          {APPLICATION_STATUS_OPTIONS.map((s) => (
                             <option key={s} value={s}>{s}</option>
                           ))}
                         </select>
