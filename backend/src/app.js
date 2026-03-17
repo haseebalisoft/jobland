@@ -32,13 +32,7 @@ app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }), stripe
 
 app.use(
   cors({
-    origin: (origin, cb) => {
-      if (!origin || origin === config.clientUrl || /^chrome-extension:\/\//i.test(origin)) {
-        cb(null, true);
-      } else {
-        cb(null, false);
-      }
-    },
+    origin: true,
     credentials: true,
   }),
 );
