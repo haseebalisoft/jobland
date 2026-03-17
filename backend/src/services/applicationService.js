@@ -1,4 +1,5 @@
 import pool, { query } from '../config/db.js';
+import { sendEmail } from '../utils/email.js';
 
 const ALLOWED_APPLICATION_STATUSES = new Set([
   'applied',
@@ -136,8 +137,15 @@ export async function upsertInterview(applicationId, payload, actor) {
         a.id,
         a.job_id,
         a.bd_id,
+        a.user_id,
+        u.full_name AS user_full_name,
+        u.email AS user_email,
+        j.title AS job_title,
+        j.company_name,
         ja.id AS job_assignment_id
       FROM applications a
+      JOIN users u ON u.id = a.user_id
+      JOIN jobs j ON j.id = a.job_id
       LEFT JOIN job_assignments ja
         ON ja.job_id = a.job_id
        AND ja.bd_id = a.bd_id
@@ -164,6 +172,8 @@ export async function upsertInterview(applicationId, payload, actor) {
     [applicationId],
   );
 
+  let interviewId;
+
   if (existing.rowCount > 0) {
     await query(
       `
@@ -189,55 +199,101 @@ export async function upsertInterview(applicationId, payload, actor) {
         app.job_assignment_id || null,
       ],
     );
-    return existing.rows[0].id;
+    interviewId = existing.rows[0].id;
   }
 
-  const insertRes = await query(
-    `
-      INSERT INTO interviews (
-        id,
-        application_id,
-        job_assignment_id,
-        mode,
-        interview_date,
-        interview_time,
-        duration_minutes,
-        link,
-        notes,
-        created_by,
-        created_at,
-        updated_at
-      )
-      VALUES (
-        gen_random_uuid(),
-        $1,
-        $2,
-        $3,
-        $4,
-        $5,
-        $6,
-        $7,
-        $8,
-        $9,
-        NOW(),
-        NOW()
-      )
-      RETURNING id
-    `,
-    [
-      applicationId,
-      app.job_assignment_id || null,
-      mode || null,
-      interview_date || null,
-      interview_time || null,
-      duration_minutes || null,
-      link || null,
-      notes || null,
-      actor.id,
-    ],
-  );
+  if (!interviewId) {
+    const insertRes = await query(
+      `
+        INSERT INTO interviews (
+          id,
+          application_id,
+          job_assignment_id,
+          mode,
+          interview_date,
+          interview_time,
+          duration_minutes,
+          link,
+          notes,
+          created_by,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          gen_random_uuid(),
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7,
+          $8,
+          $9,
+          NOW(),
+          NOW()
+        )
+        RETURNING id
+      `,
+      [
+        applicationId,
+        app.job_assignment_id || null,
+        mode || null,
+        interview_date || null,
+        interview_time || null,
+        duration_minutes || null,
+        link || null,
+        notes || null,
+        actor.id,
+      ],
+    );
 
-  return insertRes.rows[0].id;
+    interviewId = insertRes.rows[0].id;
+  }
+
+  // Fire-and-forget interview confirmation email to user
+  if (app.user_email) {
+    const whenParts = [];
+    if (interview_date) whenParts.push(interview_date);
+    if (interview_time) whenParts.push(interview_time);
+    const whenLabel = whenParts.join(' at ');
+
+    const safeJobTitle = app.job_title || 'your upcoming interview';
+    const safeCompany = app.company_name || '';
+
+    const html = `
+      <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #0f172a;">
+        <h2 style="font-size: 20px; margin-bottom: 8px;">Congratulations! An interview has been scheduled 🎉</h2>
+        <p>Hi ${app.user_full_name || ''},</p>
+        <p>
+          Great news – your BD just scheduled an interview for <strong>${safeJobTitle}</strong>${safeCompany ? ` at <strong>${safeCompany}</strong>` : ''}.
+        </p>
+        <div style="margin: 16px 0; padding: 12px 14px; border-radius: 12px; background: #eff6ff; border: 1px solid #bfdbfe;">
+          ${whenLabel ? `<div><strong>Date &amp; time:</strong> ${whenLabel}</div>` : ''}
+          ${mode ? `<div><strong>Mode:</strong> ${mode.replace('_', ' ')}</div>` : ''}
+          ${duration_minutes ? `<div><strong>Duration:</strong> ${duration_minutes} minutes</div>` : ''}
+          ${link ? `<div><strong>Join link:</strong> <a href="${link}" target="_blank" rel="noreferrer">${link}</a></div>` : ''}
+        </div>
+        ${notes ? `<p><strong>Notes from your BD:</strong><br/>${notes}</p>` : ''}
+        <p>
+          You can always see these details from your HiredLogics dashboard under Applications and in your Recent activity.
+        </p>
+        <p style="margin-top: 16px;">Best of luck!<br/>HiredLogics</p>
+      </div>
+    `;
+
+    // Do not block on email failures
+    sendEmail({
+      to: app.user_email,
+      subject: 'Interview scheduled via HiredLogics',
+      html,
+    }).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error('Failed to send interview email:', err?.message || err);
+    });
+  }
+
+  return interviewId;
 }
 
 export async function getInterview(applicationId, actor) {

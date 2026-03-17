@@ -155,14 +155,35 @@ export default function Dashboard() {
                                 <div className="dashboard-activity-card" style={styles.activityCard}>
                                     {leads.items.length > 0 ? (
                                         <div style={styles.activityList}>
-                                            {leads.items.slice(0, 5).map((lead) => (
-                                                <ActivityItem
-                                                    key={lead.id}
-                                                    title={lead.job_title || 'Job'}
-                                                    desc={`${lead.company_name || ''} · ${lead.status || 'pending'}`}
-                                                    time={lead.created_at ? new Date(lead.created_at).toLocaleDateString() : ''}
-                                                />
-                                            ))}
+                                            {leads.items.slice(0, 5).map((lead) => {
+                                                const hasInterview = !!lead.interview_mode;
+                                                const title = hasInterview
+                                                    ? `Interview: ${lead.job_title || 'Job'}`
+                                                    : (lead.job_title || 'Job');
+                                                const desc = hasInterview
+                                                    ? `${lead.company_name || ''} · Interview scheduled`
+                                                    : `${lead.company_name || ''} · ${lead.status || 'pending'}`;
+                                                const when = hasInterview && (lead.interview_date || lead.interview_time)
+                                                    ? [
+                                                        lead.interview_date
+                                                            ? new Date(lead.interview_date).toLocaleDateString()
+                                                            : null,
+                                                        lead.interview_time || null,
+                                                    ]
+                                                        .filter(Boolean)
+                                                        .join(' · ')
+                                                    : (lead.created_at
+                                                        ? new Date(lead.created_at).toLocaleDateString()
+                                                        : '');
+                                                return (
+                                                    <ActivityItem
+                                                        key={lead.id}
+                                                        title={title}
+                                                        desc={desc}
+                                                        time={when}
+                                                    />
+                                                );
+                                            })}
                                         </div>
                                     ) : (
                                         <p style={styles.emptyText}>No recent activity. Your assigned BD will add job leads here.</p>
