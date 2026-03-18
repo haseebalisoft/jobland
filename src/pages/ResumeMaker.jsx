@@ -35,6 +35,104 @@ function normalizeProfile(data) {
     };
 }
 
+function tokenizeForDiff(text) {
+    // Split into word-ish tokens; we will re-join with spaces when rendering.
+    return String(text || '').trim().split(/\s+/).filter(Boolean);
+}
+
+function computeInlineWordDiff(beforeText, afterText) {
+    const beforeTokens = tokenizeForDiff(beforeText);
+    const afterTokens = tokenizeForDiff(afterText);
+
+    const n = beforeTokens.length;
+    const m = afterTokens.length;
+
+    // Trivial cases
+    if (n === 0 && m === 0) return [];
+    if (n === 0) return afterTokens.map((t) => ({ type: 'added', token: t }));
+    if (m === 0) return beforeTokens.map((t) => ({ type: 'removed', token: t }));
+
+    // Safety fallback: avoid quadratic DP on very large texts.
+    const cellCount = (n + 1) * (m + 1);
+    if (cellCount > 120000) {
+        // Best-effort fallback: mark full removed + full added.
+        return [
+            ...beforeTokens.map((t) => ({ type: 'removed', token: t })),
+            ...afterTokens.map((t) => ({ type: 'added', token: t })),
+        ];
+    }
+
+    // LCS DP for word diff
+    const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+    for (let i = 1; i <= n; i += 1) {
+        for (let j = 1; j <= m; j += 1) {
+            dp[i][j] =
+                beforeTokens[i - 1] === afterTokens[j - 1]
+                    ? dp[i - 1][j - 1] + 1
+                    : Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
+    }
+
+    // Backtrack
+    const itemsReversed = [];
+    let i = n;
+    let j = m;
+    while (i > 0 && j > 0) {
+        if (beforeTokens[i - 1] === afterTokens[j - 1]) {
+            itemsReversed.push({ type: 'equal', token: beforeTokens[i - 1] });
+            i -= 1;
+            j -= 1;
+        } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+            itemsReversed.push({ type: 'removed', token: beforeTokens[i - 1] });
+            i -= 1;
+        } else {
+            itemsReversed.push({ type: 'added', token: afterTokens[j - 1] });
+            j -= 1;
+        }
+    }
+    while (i > 0) {
+        itemsReversed.push({ type: 'removed', token: beforeTokens[i - 1] });
+        i -= 1;
+    }
+    while (j > 0) {
+        itemsReversed.push({ type: 'added', token: afterTokens[j - 1] });
+        j -= 1;
+    }
+
+    return itemsReversed.reverse();
+}
+
+function InlineDiffText({ before, after, style = {} }) {
+    const items = computeInlineWordDiff(before, after);
+
+    const baseStyle = {
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        lineHeight: 1.6,
+        ...style,
+    };
+
+    const tokenStyle = (type) => {
+        if (type === 'equal') return { background: 'transparent', color: '#0f172a' };
+        if (type === 'removed')
+            return { background: '#fee2e2', color: '#b91c1c', textDecoration: 'line-through' };
+        if (type === 'added')
+            return { background: '#dcfce7', color: '#14532d', textDecoration: 'none' };
+        return {};
+    };
+
+    return (
+        <span style={baseStyle}>
+            {items.map((it, idx) => (
+                <span key={`${idx}-${it.type}`} style={tokenStyle(it.type)}>
+                    {it.token}
+                    {idx < items.length - 1 ? ' ' : ''}
+                </span>
+            ))}
+        </span>
+    );
+}
+
 import './ResumeMaker.css';
 import UserSidebar from '../components/UserSidebar.jsx';
 
@@ -89,6 +187,10 @@ const ResumeMaker = () => {
         sideMargin: 25,
         borderRadius: 4
     });
+
+    // AI diff highlights (before/after)
+    const [aiChanges, setAiChanges] = useState([]);
+    const [previewMode, setPreviewMode] = useState('pdf'); // 'pdf' | 'diff'
 
     const saveProfile = async (updatedProfile) => {
         setSaveStatus('Saving...');
@@ -160,6 +262,19 @@ const ResumeMaker = () => {
                 role: profile.professional.currentTitle
             });
             if (res.data.improved) {
+                setAiChanges((prev) => [
+                    {
+                        id: `summary-${Date.now()}`,
+                        section: 'Summary',
+                        key: 'summary',
+                        label: 'Professional summary',
+                        before: profile.professional.summary || '',
+                        after: res.data.improved || '',
+                    },
+                    ...prev,
+                ]);
+                setPreviewMode('diff');
+                setActiveView('PDF');
                 updateProfile('professional', 'summary', res.data.improved);
             }
         } catch (err) {
@@ -175,6 +290,20 @@ const ResumeMaker = () => {
                 role: profile.professional.workExperience[index].role
             });
             if (res.data.optimized) {
+                const current = profile.professional.workExperience[index];
+                setAiChanges((prev) => [
+                    {
+                        id: `exp-${index}-${Date.now()}`,
+                        section: 'Experience',
+                        expIndex: index,
+                        label: current.role || `Experience ${index + 1}`,
+                        before: current.description || '',
+                        after: res.data.optimized || '',
+                    },
+                    ...prev,
+                ]);
+                setPreviewMode('diff');
+                setActiveView('PDF');
                 updateProfile('experience', 'description', res.data.optimized, index);
             }
         } catch (err) {
@@ -202,11 +331,51 @@ const ResumeMaker = () => {
         if (!analyzedData || !analyzedData.optimizedProfile) return;
 
         const newProfile = analyzedData.optimizedProfile;
+
+        try {
+            const changes = [];
+            // Summary diff
+            if ((profile.professional?.summary || '') !== (newProfile.professional?.summary || '')) {
+                changes.push({
+                    id: `full-summary-${Date.now()}`,
+                    section: 'Summary',
+                    key: 'summary',
+                    label: 'Professional summary',
+                    before: profile.professional?.summary || '',
+                    after: newProfile.professional?.summary || '',
+                });
+            }
+            // Work experience descriptions diff
+            const oldExp = profile.professional?.workExperience || [];
+            const newExp = newProfile.professional?.workExperience || [];
+            const maxLen = Math.max(oldExp.length, newExp.length);
+            for (let i = 0; i < maxLen; i += 1) {
+                const before = oldExp[i]?.description || '';
+                const after = newExp[i]?.description || '';
+                if (before !== after && (before || after)) {
+                    changes.push({
+                        id: `full-exp-${i}-${Date.now()}`,
+                        section: 'Experience',
+                        expIndex: i,
+                        label: newExp[i]?.role || oldExp[i]?.role || `Experience ${i + 1}`,
+                        before,
+                        after,
+                    });
+                }
+            }
+            if (changes.length) {
+                setAiChanges((prev) => [...changes, ...prev]);
+            }
+        } catch (e) {
+            console.error('Failed to compute AI diff highlights', e);
+        }
         setProfile(newProfile);
         setAnalyzedData(null);
         refreshPreview(newProfile);
         saveProfile(newProfile);
         alert("Success! Your resume has been completely transformed and optimized.");
+        setPreviewMode('diff');
+        setActiveView('PDF');
     };
 
     const handleDownload = async () => {
@@ -642,6 +811,46 @@ const ResumeMaker = () => {
                                             The AI has prepared an optimized version of your CV with these keywords naturally integrated into your summary and experience.
                                         </p>
 
+                                        {aiChanges.length > 0 && (
+                                            <div style={{ marginBottom: '1.5rem' }}>
+                                                <div style={{ fontSize: '10px', fontWeight: 900, color: '#4b5563', textTransform: 'uppercase', marginBottom: '8px' }}>
+                                                    Recent AI changes
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: 220, overflowY: 'auto' }}>
+                                                    {aiChanges.slice(0, 4).map((c) => (
+                                                        <div
+                                                            key={c.id}
+                                                            style={{ borderRadius: '0.75rem', border: '1px solid #e5e7eb', padding: '10px 12px', fontSize: '12px' }}
+                                                        >
+                                                            <div style={{ fontWeight: 700, fontSize: '11px', marginBottom: 6, color: '#111827', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                                                {c.section}: {c.label}
+                                                            </div>
+                                                            {c.before && (
+                                                                <div style={{ background: '#fee2e2', borderRadius: '0.5rem', padding: '6px 8px', marginBottom: 6 }}>
+                                                                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#b91c1c', marginBottom: 2 }}>
+                                                                        Removed / old
+                                                                    </div>
+                                                                    <div style={{ fontSize: '12px', color: '#7f1d1d', textDecoration: 'line-through', whiteSpace: 'pre-wrap' }}>
+                                                                        {c.before}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {c.after && (
+                                                                <div style={{ background: '#dcfce7', borderRadius: '0.5rem', padding: '6px 8px' }}>
+                                                                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#166534', marginBottom: 2 }}>
+                                                                        Added / new
+                                                                    </div>
+                                                                    <div style={{ fontSize: '12px', color: '#14532d', whiteSpace: 'pre-wrap' }}>
+                                                                        {c.after}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <button onClick={handleApplyAnalysis} className="rb-btn-primary" style={{ width: '100%', padding: '0.75rem', fontSize: '0.8rem', justifyContent: 'center' }}>
                                             Apply Full Optimization
                                         </button>
@@ -657,26 +866,189 @@ const ResumeMaker = () => {
                 <section className={`rb-preview-section ${activeView === 'PDF' ? 'active' : 'mobile-hide'}`}>
                     <div className="rb-preview-workspace">
                         <div className="rb-pdf-document">
-                            {previewLoading && (
-                                <div style={{ position: 'absolute', top: '24px', right: '80px', background: 'white', padding: '10px 20px', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '10px', zIndex: 5, border: '1px solid #eef2ff' }}>
-                                    <Loader2 className="animate-spin text-accent" size={16} />
-                                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--rb-primary)' }}>Live Sync Active</span>
-                                </div>
-                            )}
+                            {/* Preview mode toggle */}
+                            <div style={{ position: 'absolute', top: '18px', left: '24px', zIndex: 6, display: 'inline-flex', padding: 2, borderRadius: 999, background: 'rgba(15,23,42,0.04)', border: '1px solid #e5e7eb' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setPreviewMode('pdf')}
+                                    style={{
+                                        padding: '4px 10px',
+                                        borderRadius: 999,
+                                        border: 'none',
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        background: previewMode === 'pdf' ? '#0f172a' : 'transparent',
+                                        color: previewMode === 'pdf' ? '#ffffff' : '#4b5563',
+                                    }}
+                                >
+                                    Resume
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPreviewMode('diff')}
+                                    style={{
+                                        padding: '4px 10px',
+                                        borderRadius: 999,
+                                        border: 'none',
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        background: previewMode === 'diff' ? '#0f172a' : 'transparent',
+                                        color: previewMode === 'diff' ? '#ffffff' : '#4b5563',
+                                    }}
+                                >
+                                    AI diff
+                                </button>
+                            </div>
 
-                            {previewUrl ? (
-                                <iframe
-                                    key={previewUrl}
-                                    src={`${previewUrl}#toolbar=0&navpanes=0&view=FitH`}
-                                    width="100%"
-                                    height="100%"
-                                    style={{ border: 'none' }}
-                                    title="Resume Review"
-                                />
+                            {previewMode === 'pdf' ? (
+                                <>
+                                    {previewLoading && (
+                                        <div style={{ position: 'absolute', top: '24px', right: '80px', background: 'white', padding: '10px 20px', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '10px', zIndex: 5, border: '1px solid #eef2ff' }}>
+                                            <Loader2 className="animate-spin text-accent" size={16} />
+                                            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--rb-primary)' }}>Live Sync Active</span>
+                                        </div>
+                                    )}
+
+                                    {previewUrl ? (
+                                        <iframe
+                                            key={previewUrl}
+                                            src={`${previewUrl}#toolbar=0&navpanes=0&view=FitH`}
+                                            width="100%"
+                                            height="100%"
+                                            style={{ border: 'none' }}
+                                            title="Resume Review"
+                                        />
+                                    ) : (
+                                        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', background: 'white' }}>
+                                            <Loader2 className="animate-spin" size={40} style={{ color: '#4f46e5' }} />
+                                            <p style={{ fontWeight: 800, color: '#1e293b' }}>Generating Real Template...</p>
+                                        </div>
+                                    )}
+                                </>
                             ) : (
-                                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', background: 'white' }}>
-                                    <Loader2 className="animate-spin" size={40} style={{ color: '#4f46e5' }} />
-                                    <p style={{ fontWeight: 800, color: '#1e293b' }}>Generating Real Template...</p>
+                                <div style={{ height: '100%', padding: '32px 36px', overflowY: 'auto', background: 'white' }}>
+                                    {/* Simple HTML resume header */}
+                                    <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                                        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#0f172a' }}>{profile.personal?.fullName || 'Your Name'}</h2>
+                                        <div style={{ fontSize: 12, color: '#4b5563', marginTop: 4 }}>
+                                            {profile.professional?.currentTitle || ''}
+                                        </div>
+                                        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
+                                            {[profile.personal?.email, profile.personal?.phone, profile.personal?.location].filter(Boolean).join(' · ')}
+                                        </div>
+                                    </div>
+
+                                    {(() => {
+                                        const summaryChange = aiChanges.find((c) => c.section === 'Summary' || c.key === 'summary');
+                                        const expDiffByIndex = new Map(
+                                            aiChanges
+                                                .filter((c) => c.section === 'Experience' && c.expIndex != null)
+                                                .map((c) => [c.expIndex, c]),
+                                        );
+
+                                        const work = profile.professional?.workExperience || [];
+                                        const education = profile.education || [];
+                                        const skills = profile.professional?.skills || [];
+
+                                        return (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                                                {/* Professional Summary */}
+                                                <div>
+                                                    <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#111827', marginBottom: 8 }}>
+                                                        Professional Summary
+                                                    </div>
+                                                    {summaryChange ? (
+                                                        <InlineDiffText before={summaryChange.before} after={summaryChange.after} />
+                                                    ) : (
+                                                        <div style={{ fontSize: 12, color: '#0f172a', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                            {profile.professional?.summary || '—'}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Experience */}
+                                                <div>
+                                                    <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#111827', marginBottom: 8 }}>
+                                                        Experience
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                                        {work.length === 0 ? (
+                                                            <div style={{ fontSize: 12, color: '#6b7280' }}>Add work experience to view AI highlights.</div>
+                                                        ) : (
+                                                            work.map((w, idx) => {
+                                                                const diff = expDiffByIndex.get(idx);
+                                                                return (
+                                                                    <div key={idx}>
+                                                                        <div style={{ fontSize: 12, fontWeight: 900, color: '#0f172a' }}>
+                                                                            {w.role || w.company || `Experience ${idx + 1}`}
+                                                                        </div>
+                                                                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                                                                            {[w.company, w.period].filter(Boolean).join(' • ')}
+                                                                        </div>
+                                                                        <div style={{ marginTop: 6, fontSize: 12, color: '#0f172a', lineHeight: 1.6 }}>
+                                                                            {diff ? (
+                                                                                <InlineDiffText before={diff.before} after={diff.after} />
+                                                                            ) : (
+                                                                                <span>{w.description || ''}</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Education */}
+                                                <div>
+                                                    <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#111827', marginBottom: 8 }}>
+                                                        Education
+                                                    </div>
+                                                    {education.length === 0 ? (
+                                                        <div style={{ fontSize: 12, color: '#6b7280' }}>—</div>
+                                                    ) : (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                                            {education.map((e, i) => (
+                                                                <div key={i}>
+                                                                    <div style={{ fontSize: 12, fontWeight: 800, color: '#0f172a' }}>
+                                                                        {e.degree || e.institution || `Education ${i + 1}`}
+                                                                    </div>
+                                                                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                                                                        {[e.institution, e.period || e.year].filter(Boolean).join(' • ')}
+                                                                    </div>
+                                                                    {e.description ? (
+                                                                        <div style={{ fontSize: 12, color: '#0f172a', marginTop: 6, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                                            {e.description}
+                                                                        </div>
+                                                                    ) : null}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Skills */}
+                                                <div>
+                                                    <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#111827', marginBottom: 8 }}>
+                                                        Skills
+                                                    </div>
+                                                    {skills.length === 0 ? (
+                                                        <div style={{ fontSize: 12, color: '#6b7280' }}>—</div>
+                                                    ) : (
+                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                                            {skills.map((s, i) => (
+                                                                <span key={i} style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: 999 }}>
+                                                                    {s}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             )}
                         </div>
