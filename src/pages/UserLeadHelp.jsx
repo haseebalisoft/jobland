@@ -109,7 +109,14 @@ export default function UserLeadHelp() {
       .get(`/leads/${selectedLeadId}/messages`)
       .then((res) => {
         setLead(res.data.lead || null);
-        setMessages(Array.isArray(res.data.messages) ? res.data.messages : []);
+        const msgs = Array.isArray(res.data.messages) ? res.data.messages : [];
+        setMessages(msgs);
+        const hasBdReply = msgs.some(
+          (m) => m.sender_role === 'bd' || (m.sender_id && m.sender_id !== user.id && m.sender_role !== 'bot'),
+        );
+        if (hasBdReply) {
+          setFreeformMode(true);
+        }
       })
       .catch((err) => {
         const msg = err.response?.data?.message || 'Could not load conversation.';
