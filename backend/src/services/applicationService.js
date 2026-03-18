@@ -127,6 +127,7 @@ export async function upsertInterview(applicationId, payload, actor) {
     interview_date,
     interview_time,
     duration_minutes,
+    timezone,
     link,
     notes,
   } = payload || {};
@@ -182,9 +183,10 @@ export async function upsertInterview(applicationId, payload, actor) {
             interview_date = $3,
             interview_time = $4,
             duration_minutes = $5,
-            link = $6,
-            notes = $7,
-            job_assignment_id = $8,
+            timezone = $6,
+            link = $7,
+            notes = $8,
+            job_assignment_id = $9,
             updated_at = NOW()
         WHERE id = $1
       `,
@@ -194,6 +196,7 @@ export async function upsertInterview(applicationId, payload, actor) {
         interview_date || null,
         interview_time || null,
         duration_minutes || null,
+        timezone || null,
         link || null,
         notes || null,
         app.job_assignment_id || null,
@@ -213,6 +216,7 @@ export async function upsertInterview(applicationId, payload, actor) {
           interview_date,
           interview_time,
           duration_minutes,
+          timezone,
           link,
           notes,
           created_by,
@@ -242,6 +246,7 @@ export async function upsertInterview(applicationId, payload, actor) {
         interview_date || null,
         interview_time || null,
         duration_minutes || null,
+        timezone || null,
         link || null,
         notes || null,
         actor.id,
@@ -261,6 +266,8 @@ export async function upsertInterview(applicationId, payload, actor) {
     const safeJobTitle = app.job_title || 'your upcoming interview';
     const safeCompany = app.company_name || '';
 
+    const tzLabel = timezone ? ` (${timezone})` : '';
+
     const html = `
       <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #0f172a;">
         <h2 style="font-size: 20px; margin-bottom: 8px;">Congratulations! An interview has been scheduled 🎉</h2>
@@ -269,7 +276,7 @@ export async function upsertInterview(applicationId, payload, actor) {
           Great news – your BD just scheduled an interview for <strong>${safeJobTitle}</strong>${safeCompany ? ` at <strong>${safeCompany}</strong>` : ''}.
         </p>
         <div style="margin: 16px 0; padding: 12px 14px; border-radius: 12px; background: #eff6ff; border: 1px solid #bfdbfe;">
-          ${whenLabel ? `<div><strong>Date &amp; time:</strong> ${whenLabel}</div>` : ''}
+          ${whenLabel ? `<div><strong>Date &amp; time:</strong> ${whenLabel}${tzLabel}</div>` : ''}
           ${mode ? `<div><strong>Mode:</strong> ${mode.replace('_', ' ')}</div>` : ''}
           ${duration_minutes ? `<div><strong>Duration:</strong> ${duration_minutes} minutes</div>` : ''}
           ${link ? `<div><strong>Join link:</strong> <a href="${link}" target="_blank" rel="noreferrer">${link}</a></div>` : ''}
@@ -305,6 +312,7 @@ export async function getInterview(applicationId, actor) {
         i.interview_date,
         i.interview_time,
         i.duration_minutes,
+        i.timezone,
         i.link,
         i.notes,
         i.created_by,

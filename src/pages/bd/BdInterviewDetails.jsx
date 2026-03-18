@@ -16,6 +16,7 @@ export default function BdInterviewDetails() {
     interview_date: '',
     interview_time: '',
     duration_minutes: '',
+    timezone: 'CST',
     link: '',
     notes: '',
   });
@@ -38,6 +39,7 @@ export default function BdInterviewDetails() {
           interview_date: data.interview_date || '',
           interview_time: data.interview_time || '',
           duration_minutes: data.duration_minutes != null ? String(data.duration_minutes) : '',
+          timezone: data.timezone || 'CST',
           link: data.link || '',
           notes: data.notes || '',
         });
@@ -64,6 +66,7 @@ export default function BdInterviewDetails() {
         interview_date: form.interview_date || null,
         interview_time: form.interview_time || null,
         duration_minutes: form.duration_minutes ? Number(form.duration_minutes) : null,
+        timezone: form.timezone || null,
         link: form.link || null,
         notes: form.notes || null,
       });
@@ -177,6 +180,24 @@ export default function BdInterviewDetails() {
             />
           </div>
         </div>
+
+        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: theme.text, marginBottom: 6 }}>
+          Timezone
+        </label>
+        <select
+          name="timezone"
+          value={form.timezone}
+          onChange={handleChange}
+          className="bd-input"
+          style={{ width: '100%', marginBottom: 14, borderRadius: 10, border: `1px solid ${theme.border}`, padding: '10px 12px', fontSize: 14 }}
+        >
+          <option value="EST">EST</option>
+          <option value="CST">CST</option>
+          <option value="MST">Mountain (MST)</option>
+          <option value="PST">Pacific (PST)</option>
+          <option value="GMT">GMT</option>
+          <option value="UTC">UTC</option>
+        </select>
 
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: theme.text, marginBottom: 6 }}>
           <Link2 size={14} /> Meeting link

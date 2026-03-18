@@ -300,7 +300,12 @@ export default function Dashboard() {
                                                                         {new Date(lead.interview_date).toLocaleDateString()}
                                                                     </span>
                                                                 )}
-                                                                {lead.interview_time && <span>{lead.interview_time}</span>}
+                                                                {lead.interview_time && (
+                                                                    <span>
+                                                                        {lead.interview_time}
+                                                                        {lead.interview_timezone ? ` (${lead.interview_timezone})` : ''}
+                                                                    </span>
+                                                                )}
                                                                 {lead.duration_minutes != null && <span>{lead.duration_minutes} min</span>}
                                                             </div>
                                                         </div>

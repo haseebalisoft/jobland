@@ -229,6 +229,7 @@ export async function listUserLeads(userId, { range, page, limit }) {
       i.interview_date,
       i.interview_time,
       i.duration_minutes,
+      i.timezone AS interview_timezone,
       i.link AS interview_link
     FROM job_assignments ja
     JOIN jobs j ON j.id = ja.job_id
