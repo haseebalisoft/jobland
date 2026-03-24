@@ -286,6 +286,7 @@ export default function BdDashboard() {
               </div>
             ) : (
               <div style={styles.tableWrapper}>
+                <div className="bd-table-wrap">
                 <table className="bd-table" style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
@@ -304,6 +305,7 @@ export default function BdDashboard() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </section>
@@ -415,6 +417,7 @@ export default function BdDashboard() {
               </div>
             ) : (
               <div style={styles.tableWrapper}>
+                <div className="bd-table-wrap">
                 <table className="bd-table" style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
@@ -478,6 +481,7 @@ export default function BdDashboard() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </section>

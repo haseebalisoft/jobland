@@ -16,6 +16,7 @@ import {
   loginBd,
   requestPasswordReset,
   resetPasswordWithToken,
+  resendVerificationEmail,
 } from '../services/authService.js';
 import { getOrCreateUserFromCheckoutSession } from '../services/subscriptionService.js';
 
@@ -43,8 +44,33 @@ export async function signup(req, res, next) {
     if (!full_name || typeof full_name !== 'string' || !full_name.trim()) {
       return res.status(400).json({ message: 'Full name is required' });
     }
-    await registerUser({ full_name: full_name.trim(), email, password });
+    const result = await registerUser({ full_name: full_name.trim(), email, password });
+    if (result?.verificationResent) {
+      return res.status(200).json({ message: 'Account already exists but is unverified. Verification email has been re-sent.' });
+    }
     res.status(201).json({ message: 'User created. Check email to verify account.' });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ message: err.message });
+    }
+    next(err);
+  }
+}
+
+export async function resendVerificationController(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email } = req.body;
+    const result = await resendVerificationEmail({ email });
+    if (result.reason === 'already_verified') {
+      return res.status(200).json({ message: 'Email is already verified. You can log in.' });
+    }
+    // Keep response generic to avoid email enumeration.
+    return res.status(200).json({ message: 'If your account exists and is not verified, a verification email has been sent.' });
   } catch (err) {
     if (err.statusCode) {
       return res.status(err.statusCode).json({ message: err.message });

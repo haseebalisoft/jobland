@@ -76,13 +76,52 @@ function createPasswordSetupToken({ userId, passwordHash }) {
   );
 }
 
+async function sendVerificationEmailForUser(user) {
+  const token = jwt.sign(
+    { sub: user.id, type: 'email_verification' },
+    config.emailVerification.secret,
+    { expiresIn: config.emailVerification.expiresIn },
+  );
+
+  const apiBase = `${config.clientUrl.replace(/\/$/, '').replace('5173', '5000')}/api`;
+  const verifyUrl = `${apiBase}/auth/verify-email?token=${token}`;
+
+  await sendEmail({
+    to: user.email,
+    subject: 'Verify your email',
+    html: `<p>Hi ${user.full_name},</p>
+           <p>Please verify your email by clicking the link below:</p>
+           <p><a href="${verifyUrl}">Verify Email</a></p>
+           <p>If you did not sign up, you can ignore this email.</p>`,
+  });
+}
+
+async function sendAccountReadyEmail(user) {
+  if (!user || (user.role !== 'user' && user.role !== 'admin')) return;
+  const clientBase = config.clientUrl.replace(/\/$/, '');
+  await sendEmail({
+    to: user.email,
+    subject: 'Welcome to HiredLogics - your account is ready',
+    html: `<p>Hi ${user.full_name || user.name || 'there'},</p>
+           <p>Your HiredLogics account is now ready to use.</p>
+           <p>You can <a href="${clientBase}/login">sign in here</a> and continue your onboarding.</p>
+           <p>We're glad to have you with us.</p>
+           <p>- The HiredLogics Team</p>`,
+  });
+}
+
 export async function registerUser({ full_name, email, password }) {
   const normalizedEmail = normalizeEmail(email);
   const existingRes = await query(
-    'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
+    'SELECT id, full_name, email, role, is_verified, subscription_plan, is_active FROM users WHERE LOWER(email) = LOWER($1)',
     [normalizedEmail],
   );
   if (existingRes.rowCount > 0) {
+    const existingUser = mapRowToUser(existingRes.rows[0]);
+    if (existingUser && existingUser.emailVerified !== true) {
+      await sendVerificationEmailForUser(existingUser);
+      return { user: existingUser, newlyCreated: false, verificationResent: true };
+    }
     const err = new Error('Email already in use');
     err.statusCode = 400;
     throw err;
@@ -104,33 +143,41 @@ export async function registerUser({ full_name, email, password }) {
   const row = insertRes.rows[0];
   const user = mapRowToUser(row);
 
-  // Generate email verification JWT
-  const token = jwt.sign(
-    { sub: user.id, type: 'email_verification' },
-    config.emailVerification.secret,
-    { expiresIn: config.emailVerification.expiresIn },
-  );
-
-  const apiBase = `${config.clientUrl.replace(/\/$/, '').replace('5173', '5000')}/api`;
-  const verifyUrl = `${apiBase}/auth/verify-email?token=${token}`;
-  console.log('Verification link for new user:', verifyUrl);
-
   try {
-    await sendEmail({
-      to: user.email,
-      subject: 'Verify your email',
-      html: `<p>Hi ${user.full_name},</p>
-             <p>Please verify your email by clicking the link below:</p>
-             <p><a href="${verifyUrl}">Verify Email</a></p>
-             <p>If you did not sign up, you can ignore this email.</p>`,
-    });
+    await sendVerificationEmailForUser(user);
   } catch (e) {
-    // In production you might want to log this to an error tracker.
-    // We do not fail the signup if email sending fails.
     console.error('Failed to send verification email:', e?.message || e);
+    const err = new Error('Could not send verification email. Please try again or use resend verification.');
+    err.statusCode = 502;
+    throw err;
   }
 
-  return user;
+  return { user, newlyCreated: true, verificationResent: false };
+}
+
+export async function resendVerificationEmail({ email }) {
+  const normalizedEmail = normalizeEmail(email);
+  const res = await query(
+    `
+      SELECT id, full_name, email, role, is_verified, subscription_plan, is_active
+      FROM users
+      WHERE LOWER(email) = LOWER($1)
+      LIMIT 1
+    `,
+    [normalizedEmail],
+  );
+
+  if (res.rowCount === 0) {
+    return { sent: false, reason: 'not_found' };
+  }
+
+  const user = mapRowToUser(res.rows[0]);
+  if (!user || user.emailVerified === true) {
+    return { sent: false, reason: 'already_verified' };
+  }
+
+  await sendVerificationEmailForUser(user);
+  return { sent: true };
 }
 
 /**
@@ -245,13 +292,29 @@ export async function verifyEmail(token) {
       UPDATE users
       SET is_verified = true,
           updated_at = NOW()
-      WHERE id = $1
+      WHERE id = $1 AND is_verified = false
       RETURNING id, full_name, email, role, is_verified, subscription_plan, is_active
     `,
     [payload.sub],
   );
 
   if (updateRes.rowCount === 0) {
+    const existing = await query(
+      `
+        SELECT id, full_name, email, role, is_verified, subscription_plan, is_active
+        FROM users
+        WHERE id = $1
+      `,
+      [payload.sub],
+    );
+    if (existing.rowCount === 0) {
+      const err = new Error('Invalid or expired verification token');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (existing.rows[0].is_verified === true) {
+      return mapRowToUser(existing.rows[0]);
+    }
     const err = new Error('Invalid or expired verification token');
     err.statusCode = 400;
     throw err;
@@ -552,6 +615,11 @@ export async function setPasswordFromToken({ token, password }) {
   );
 
   const user = mapRowToUser(updateRes.rows[0]);
+  try {
+    await sendAccountReadyEmail(user);
+  } catch (e) {
+    console.error('Failed to send account-ready email (setPasswordFromToken):', e?.message || e);
+  }
   const accessToken = signAccessToken(user);
   const refreshToken = signRefreshToken(user);
   const decoded = jwt.decode(refreshToken);
@@ -752,6 +820,11 @@ export async function completeSignupWithPassword({ verificationToken, password }
   }
 
   const user = mapRowToUser(userRow);
+  try {
+    await sendAccountReadyEmail(user);
+  } catch (e) {
+    console.error('Failed to send account-ready email (completeSignupWithPassword):', e?.message || e);
+  }
   const accessToken = signAccessToken(user);
   const refreshToken = signRefreshToken(user);
 
@@ -856,6 +929,11 @@ export async function setPasswordForPaidUser({ email, password }) {
   );
 
   const updated = mapRowToUser(updateRes.rows[0]);
+  try {
+    await sendAccountReadyEmail(updated);
+  } catch (e) {
+    console.error('Failed to send account-ready email (setPasswordForPaidUser):', e?.message || e);
+  }
   const accessToken = signAccessToken(updated);
   const refreshToken = signRefreshToken(updated);
 
@@ -912,6 +990,11 @@ export async function setPasswordForUserId(userId, password) {
   }
 
   const updated = mapRowToUser(updateRes.rows[0]);
+  try {
+    await sendAccountReadyEmail(updated);
+  } catch (e) {
+    console.error('Failed to send account-ready email (setPasswordForUserId):', e?.message || e);
+  }
   const accessToken = signAccessToken(updated);
   const refreshToken = signRefreshToken(updated);
 

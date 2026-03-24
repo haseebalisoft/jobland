@@ -234,6 +234,7 @@ export async function upsertInterview(applicationId, payload, actor) {
           $7,
           $8,
           $9,
+          $10,
           NOW(),
           NOW()
         )

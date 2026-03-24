@@ -380,7 +380,7 @@ const ProfileBuilder = () => {
     );
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
+        <div className="onboarding-page" style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
             <UserSidebar />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
             <header style={{ borderBottom: '1px solid #e2e8f0', background: 'white', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

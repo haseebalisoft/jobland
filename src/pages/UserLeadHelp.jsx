@@ -285,14 +285,14 @@ export default function UserLeadHelp() {
     <div className="dashboard-layout" style={styles.layout}>
       <UserSidebar />
       <main style={styles.main}>
-        <header style={styles.header}>
+        <header className="user-lead-help-top-header" style={styles.header}>
           <button
             type="button"
             onClick={() => navigate('/dashboard')}
             style={styles.backBtn}
           >
             <ArrowLeft size={18} />
-            <span>Back to dashboard</span>
+            <span className="user-lead-help-back-label">Back to dashboard</span>
           </button>
           <div style={styles.headerRight}>
             <div style={styles.headerIcon}>
@@ -301,13 +301,13 @@ export default function UserLeadHelp() {
           </div>
         </header>
 
-        <div style={styles.content}>
-          <div style={styles.headingRow}>
-            <div>
-              <h1 style={styles.title}>{headerTitle}</h1>
+        <div className="user-lead-help-content" style={styles.content}>
+          <div className="user-lead-help-heading" style={styles.headingRow}>
+            <div className="user-lead-help-title-block">
+              <h1 className="user-lead-help-title" style={styles.title}>{headerTitle}</h1>
               <p style={styles.subtitle}>{headerSubtitle}</p>
             </div>
-            <div style={styles.badge}>
+            <div className="user-lead-help-badge" style={styles.badge}>
               Help &amp; BD chat
             </div>
           </div>
@@ -318,7 +318,7 @@ export default function UserLeadHelp() {
             </div>
           )}
 
-          <div style={styles.layoutTwoColumn}>
+          <div className="user-lead-help-columns" style={styles.layoutTwoColumn}>
             <div style={styles.leadsColumn}>
               <h2 style={styles.sectionTitle}>Your leads</h2>
               {leadsLoading ? (
@@ -328,7 +328,7 @@ export default function UserLeadHelp() {
                   No leads yet. Once your BD assigns leads to you, you can select them here to ask questions or request rescheduling.
                 </p>
               ) : (
-                <div style={styles.leadsList}>
+                <div className="user-lead-help-leads-list" style={styles.leadsList}>
                   {leads.map((l) => (
                     <button
                       key={l.id}
@@ -351,24 +351,24 @@ export default function UserLeadHelp() {
               )}
             </div>
 
-            <div style={styles.chatColumn}>
+            <div className="user-lead-help-chat-column" style={styles.chatColumn}>
               {!selectedLeadId ? (
-                <div style={styles.chatCard}>
+                <div className="user-lead-help-chat-card" style={styles.chatCard}>
                   <p style={{ color: theme.textMuted, fontSize: 14, margin: 0 }}>
-                    Select a lead on the left. Our AI assistant will then guide you through a few quick questions and send the summary to your BD.
+                    Select a lead from the list first. Our AI assistant will then guide you through a few quick questions and send the summary to your BD.
                   </p>
                 </div>
               ) : loading ? (
-                <div style={styles.chatCard}>
+                <div className="user-lead-help-chat-card" style={styles.chatCard}>
                   <div style={{ padding: 24, color: theme.textMuted }}>Loading conversation…</div>
                 </div>
               ) : freeformMode ? (
-                <div style={styles.chatCard}>
-                  <div style={styles.freeformHeader}>
+                <div className="user-lead-help-chat-card" style={styles.chatCard}>
+                  <div className="user-lead-help-freeform-header" style={styles.freeformHeader}>
                     <button type="button" onClick={resetTemplateState} style={styles.backToQuickBtn}>
                       ← Back to quick questions
                     </button>
-                    <span style={styles.freeformHint}>
+                    <span className="user-lead-help-freeform-hint" style={styles.freeformHint}>
                       You can now chat freely about this opportunity. Your BD will see these messages.
                     </span>
                   </div>
@@ -458,8 +458,9 @@ export default function UserLeadHelp() {
                   </form>
                 </div>
               ) : (
-                <div style={styles.chatCard}>
+                <div className="user-lead-help-chat-card" style={styles.chatCard}>
                   <div
+                    className="user-lead-help-quick-section"
                     style={{
                       ...styles.quickSection,
                       maxHeight: '100%',
@@ -471,7 +472,7 @@ export default function UserLeadHelp() {
                         <p style={styles.quickSubtitle}>
                           Choose one of the options. Our AI assistant will ask a few follow-up questions and send everything to your BD.
                         </p>
-                        <div style={styles.quickList}>
+                        <div className="user-lead-help-quick-list" style={styles.quickList}>
                           {QUICK_TEMPLATES.map((t) => (
                             <button
                               key={t.id}

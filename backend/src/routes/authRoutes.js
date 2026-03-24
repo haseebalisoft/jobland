@@ -18,6 +18,7 @@ import {
   bdLogin,
   forgotPasswordController,
   resetPasswordController,
+  resendVerificationController,
 } from '../controllers/authController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import {
@@ -43,6 +44,13 @@ router.post(
     body('confirm_password').custom((value, { req }) => value === req.body.password).withMessage('Passwords do not match'),
   ],
   signup,
+);
+
+router.post(
+  '/resend-verification',
+  signupRateLimiter,
+  [body('email').isEmail().withMessage('Valid email is required')],
+  resendVerificationController,
 );
 
 // Legacy OTP-based signup flow (pre-payment password) – kept for backwards compatibility

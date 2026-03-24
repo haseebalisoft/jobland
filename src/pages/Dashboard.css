@@ -65,3 +65,110 @@
   background: linear-gradient(135deg, #10B981 0%, #34d399 100%);
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
+
+.dashboard-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-header {
+    flex-wrap: wrap;
+    height: auto !important;
+    min-height: 72px;
+    padding: 12px 16px !important;
+    gap: 12px;
+    align-items: flex-start !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .dashboard-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* —— Help with your leads (/dashboard/help) —— */
+@media (max-width: 768px) {
+  .user-lead-help-top-header {
+    height: auto !important;
+    min-height: 56px;
+    padding: 12px 16px !important;
+    flex-wrap: wrap;
+    align-items: center !important;
+  }
+
+  .user-lead-help-content {
+    padding: 16px !important;
+    box-sizing: border-box;
+  }
+
+  .user-lead-help-heading {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .user-lead-help-title {
+    font-size: 20px !important;
+    line-height: 1.25 !important;
+  }
+
+  .user-lead-help-badge {
+    white-space: normal !important;
+    align-self: flex-start !important;
+    max-width: 100%;
+  }
+
+  .user-lead-help-columns {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    align-items: stretch !important;
+  }
+
+  .user-lead-help-chat-column {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  .user-lead-help-leads-list {
+    max-height: min(280px, 45vh) !important;
+  }
+
+  .user-lead-help-quick-list {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .user-lead-help-chat-card {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .user-lead-help-chat-card .user-lead-help-quick-section {
+    max-height: none !important;
+    min-height: 0 !important;
+  }
+
+  .user-lead-help-freeform-header {
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+
+  .user-lead-help-freeform-header .user-lead-help-freeform-hint {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}

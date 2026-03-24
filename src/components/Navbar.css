@@ -155,4 +155,10 @@
     .navbar--scrolled .navbar__mobile--open {
         background: rgba(255, 255, 255, 0.97);
     }
+
+    /* Slightly smaller CTA so the bar has clear space before the hamburger / right edge */
+    .navbar__actions .btn.btn-primary.btn-sm {
+        padding: 8px 15px;
+        font-size: 13px;
+    }
 }

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router-dom';
-import { BarChart2, PlusCircle, Users, Briefcase, LogOut, Lock, Key, MessageCircle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { BarChart2, PlusCircle, Users, Briefcase, LogOut, Lock, Key, MessageCircle, Menu, X } from 'lucide-react';
 import api from '../../services/api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import '../BdDashboard.css';
@@ -17,7 +17,40 @@ const navItems = [
 
 export default function BdLayout() {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const [oneClickKeyLoading, setOneClickKeyLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const hideHeaderOnMobileHelp =
+    location.pathname === '/bd/help' || location.pathname.endsWith('/bd/help');
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 769px)');
+    const onChange = () => {
+      if (mq.matches) setSidebarOpen(false);
+    };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [sidebarOpen]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') setSidebarOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   if (!user) return null;
   if (user.role !== 'bd' && user.role !== 'admin') {
@@ -32,18 +65,55 @@ export default function BdLayout() {
 
   return (
     <div className="bd-page">
-      <aside className="bd-sidebar">
-        <Link to="/" className="bd-sidebar__logo">
-          <img src="/logo.png" alt="HiredLogics" />
-          <span className="bd-sidebar__logo-text">HiredLogics</span>
-        </Link>
+      <div className="bd-mobile-bar">
+        <button
+          type="button"
+          className="bd-mobile-bar__menu"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open navigation menu"
+        >
+          <Menu size={22} />
+        </button>
+        <span className="bd-mobile-bar__title">BD Portal</span>
+      </div>
+
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="bd-sidebar-overlay"
+          aria-label="Close menu"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside className={`bd-sidebar${sidebarOpen ? ' bd-sidebar--open' : ''}`}>
+        <div className="bd-sidebar__top">
+          <Link to="/" className="bd-sidebar__logo" onClick={() => setSidebarOpen(false)}>
+            <img src="/logo.png" alt="HiredLogics" />
+            <span className="bd-sidebar__logo-text">HiredLogics</span>
+          </Link>
+          <button
+            type="button"
+            className="bd-sidebar__close"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close navigation"
+          >
+            <X size={22} />
+          </button>
+        </div>
         <div className="bd-sidebar__sub">BD Portal</div>
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.72)', marginBottom: 24 }}>
+        <div className="bd-sidebar__user-hint">
           Logged in as <strong>{user.email}</strong>
         </div>
         <nav className="bd-sidebar__nav">
           {navItems.map(({ to, end, icon: Icon, label }) => (
-            <NavLink key={to} to={to} end={end} className={({ isActive }) => `bd-sidebar__nav-item${isActive ? ' active' : ''}`}>
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) => `bd-sidebar__nav-item${isActive ? ' active' : ''}`}
+              onClick={() => setSidebarOpen(false)}
+            >
               <Icon size={18} />
               {label}
             </NavLink>
@@ -104,9 +174,11 @@ export default function BdLayout() {
         </div>
       </aside>
       <main className="bd-main">
-        <header className="bd-header">
+        <header
+          className={`bd-header${hideHeaderOnMobileHelp ? ' bd-header--hide-mobile-help' : ''}`}
+        >
           <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: theme.text }}>BD Portal</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div className="bd-header__right">
             <span style={{ fontSize: 14, color: theme.textMuted }}>{user.name || 'BD'}</span>
             <div style={{ width: 44, height: 44, borderRadius: '50%', background: `linear-gradient(135deg, ${theme.blue} 0%, ${theme.primary} 100%)`, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14 }}>{initials}</div>
           </div>

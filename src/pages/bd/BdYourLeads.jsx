@@ -137,6 +137,7 @@ export default function BdYourLeads() {
           </div>
         ) : (
           <div style={{ borderRadius: 16, border: `1px solid ${theme.border}`, overflow: 'hidden', background: theme.cardBg, boxShadow: '0 2px 8px rgba(15,23,42,0.06)' }}>
+            <div className="bd-table-wrap">
             <table className="bd-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
               <thead>
                 <tr style={{ background: '#1E293B' }}>
@@ -210,6 +211,7 @@ export default function BdYourLeads() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </section>
