@@ -18,7 +18,14 @@ function parsePagination({ page, limit }) {
 }
 
 export async function createLeadForBd(bdId, payload, actorRole = 'bd') {
-  const { job_id, job_title, company_name, job_link, assigned_user_id } = payload || {};
+  const {
+    job_id,
+    job_title,
+    company_name,
+    job_link,
+    job_description,
+    assigned_user_id,
+  } = payload || {};
 
   if (!job_title || !company_name || !job_link) {
     const err = new Error('job_title, company_name and job_link are required');
@@ -44,6 +51,7 @@ export async function createLeadForBd(bdId, payload, actorRole = 'bd') {
     job_title,
     company_name,
     job_link,
+    job_description: typeof job_description === 'string' ? job_description.trim() : null,
     status: allowedUserId ? 'assigned' : 'pending',
     assigned_user_id: allowedUserId,
     bd_id: bdId,
@@ -87,6 +95,20 @@ export async function assignLead(leadId, bdIdOrAdminId, assignedUserId, actorRol
     const err = new Error('You can only assign your own leads');
     err.statusCode = 403;
     throw err;
+  }
+
+  if (assignedUserId && lead.bd_id) {
+    const linkRes = await query(
+      'SELECT 1 FROM user_bd_assignments WHERE user_id = $1 AND bd_id = $2',
+      [assignedUserId, lead.bd_id],
+    );
+    if (linkRes.rowCount === 0) {
+      const err = new Error(
+        'That user is not assigned to this lead\'s BD. Link them in Admin → Users first.',
+      );
+      err.statusCode = 403;
+      throw err;
+    }
   }
 
   const updated = await updateLeadAssignment(leadId, assignedUserId);
@@ -154,34 +176,54 @@ export async function listBdLeads(bdId, { range, page, limit }) {
   params.push(l, offset);
 
   const dataQuery = `
+    WITH latest_assignments AS (
+      SELECT DISTINCT ON (ja.job_id, ja.user_id, ja.bd_id)
+        ja.*
+      FROM job_assignments ja
+      WHERE ja.bd_id = $1
+      ORDER BY ja.job_id, ja.user_id, ja.bd_id, ja.created_at DESC
+    )
     SELECT
       ja.id,
       ja.job_id,
       j.title AS job_title,
       j.company_name,
       j.job_url AS job_link,
+      j.description AS job_description,
       ja.status,
       ja.user_id AS assigned_user_id,
       ja.bd_id,
       ja.created_at,
       a.id AS application_id,
-      a.current_status AS application_status
-    FROM job_assignments ja
+      a.current_status AS application_status,
+      ar.source AS resume_source,
+      ar.created_at AS resume_uploaded_at,
+      (ar.id IS NOT NULL) AS has_resume
+    FROM latest_assignments ja
     JOIN jobs j ON j.id = ja.job_id
     LEFT JOIN applications a
       ON a.job_id = ja.job_id
      AND a.bd_id = ja.bd_id
      AND a.user_id = ja.user_id
-    WHERE ja.bd_id = $1
+    LEFT JOIN application_resumes ar
+      ON ar.application_id = a.id
+    WHERE 1=1
     ${clause}
     ORDER BY ja.created_at DESC
     LIMIT $${limitIndex} OFFSET $${offsetIndex}
   `;
 
   const countQuery = `
+    WITH latest_assignments AS (
+      SELECT DISTINCT ON (ja.job_id, ja.user_id, ja.bd_id)
+        ja.*
+      FROM job_assignments ja
+      WHERE ja.bd_id = $1
+      ORDER BY ja.job_id, ja.user_id, ja.bd_id, ja.created_at DESC
+    )
     SELECT COUNT(*)::int AS count
-    FROM job_assignments ja
-    WHERE ja.bd_id = $1
+    FROM latest_assignments ja
+    WHERE 1=1
     ${clause}
   `;
 
@@ -213,25 +255,36 @@ export async function listUserLeads(userId, { range, page, limit }) {
   params.push(l, offset);
 
   const dataQuery = `
+    WITH latest_assignments AS (
+      SELECT DISTINCT ON (ja.job_id, ja.user_id, ja.bd_id)
+        ja.*
+      FROM job_assignments ja
+      WHERE ja.user_id = $1
+      ORDER BY ja.job_id, ja.user_id, ja.bd_id, ja.created_at DESC
+    )
     SELECT
       ja.id,
       ja.job_id,
       j.title AS job_title,
       j.company_name,
       j.job_url AS job_link,
+      j.description AS job_description,
       ja.status,
       ja.user_id AS assigned_user_id,
       ja.bd_id,
       ja.created_at,
       a.id AS application_id,
       a.current_status AS application_status,
+      ar.source AS resume_source,
+      ar.created_at AS resume_uploaded_at,
+      (ar.id IS NOT NULL) AS has_resume,
       i.mode AS interview_mode,
       i.interview_date,
       i.interview_time,
       i.duration_minutes,
       i.timezone AS interview_timezone,
       i.link AS interview_link
-    FROM job_assignments ja
+    FROM latest_assignments ja
     JOIN jobs j ON j.id = ja.job_id
     JOIN user_bd_assignments uba ON uba.bd_id = ja.bd_id AND uba.user_id = $1
     LEFT JOIN applications a
@@ -240,17 +293,26 @@ export async function listUserLeads(userId, { range, page, limit }) {
      AND a.bd_id = ja.bd_id
     LEFT JOIN interviews i
       ON i.application_id = a.id
-    WHERE ja.user_id = $1
+    LEFT JOIN application_resumes ar
+      ON ar.application_id = a.id
+    WHERE 1=1
     ${clause}
     ORDER BY ja.created_at DESC
     LIMIT $${limitIndex} OFFSET $${offsetIndex}
   `;
 
   const countQuery = `
+    WITH latest_assignments AS (
+      SELECT DISTINCT ON (ja.job_id, ja.user_id, ja.bd_id)
+        ja.*
+      FROM job_assignments ja
+      WHERE ja.user_id = $1
+      ORDER BY ja.job_id, ja.user_id, ja.bd_id, ja.created_at DESC
+    )
     SELECT COUNT(*)::int AS count
-    FROM job_assignments ja
+    FROM latest_assignments ja
     JOIN user_bd_assignments uba ON uba.bd_id = ja.bd_id AND uba.user_id = $1
-    WHERE ja.user_id = $1
+    WHERE 1=1
     ${clause}
   `;
 

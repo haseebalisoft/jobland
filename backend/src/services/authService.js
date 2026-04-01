@@ -134,7 +134,7 @@ export async function registerUser({ full_name, email, password }) {
   const insertRes = await query(
     `
       INSERT INTO users (full_name, email, password_hash, role, subscription_plan, is_active)
-      VALUES ($1, $2, $3, $4, 'free', false)
+      VALUES ($1, $2, $3, $4, 'free', true)
       RETURNING id, full_name, email, role, is_verified, subscription_plan, is_active
     `,
     [full_name, normalizedEmail, passwordHash, role],
@@ -184,7 +184,12 @@ export async function resendVerificationEmail({ email }) {
  * Register a BD (Business Developer). Stored in users table with role='bd'.
  * No email verification; BDs can log in immediately. Appears in admin BD dropdown.
  */
-export async function registerBd({ email, password }) {
+export async function registerBd({ full_name, email, password }) {
+  if (!full_name || typeof full_name !== 'string' || !full_name.trim()) {
+    const err = new Error('Full name is required');
+    err.statusCode = 400;
+    throw err;
+  }
   const existingRes = await query(
     'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
     [email],
@@ -196,7 +201,7 @@ export async function registerBd({ email, password }) {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const fullName = (email.split('@')[0] || 'BD').replace(/[^a-zA-Z0-9\s]/g, ' ') || 'BD';
+  const fullName = full_name.trim();
 
   const insertRes = await query(
     `
@@ -291,6 +296,7 @@ export async function verifyEmail(token) {
     `
       UPDATE users
       SET is_verified = true,
+          is_active = true,
           updated_at = NOW()
       WHERE id = $1 AND is_verified = false
       RETURNING id, full_name, email, role, is_verified, subscription_plan, is_active

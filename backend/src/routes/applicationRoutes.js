@@ -4,6 +4,11 @@ import {
   updateStatusController,
   upsertInterviewController,
   getInterviewController,
+  uploadApplicationResumeMiddleware,
+  uploadApplicationResumeController,
+  getApplicationResumeController,
+  attachSavedResumeController,
+  attachProfileResumeController,
 } from '../controllers/applicationController.js';
 
 const router = express.Router();
@@ -18,6 +23,15 @@ router.post('/:id/interview', upsertInterviewController);
 
 // Get interview details for an application (user/BD/admin if authorized)
 router.get('/:id/interview', getInterviewController);
+
+// Upload and read canonical application resume
+router.post('/:id/resume', uploadApplicationResumeMiddleware, uploadApplicationResumeController);
+router.get('/:id/resume', getApplicationResumeController);
+router.post('/:id/attach-saved-resume', attachSavedResumeController);
+router.post('/:id/attach-profile-resume', attachProfileResumeController);
+// Backward/forward-compatible aliases
+router.post('/:id/use-saved-resume', attachSavedResumeController);
+router.post('/:id/use-profile-resume', attachProfileResumeController);
 
 export default router;
 

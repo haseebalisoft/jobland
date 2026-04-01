@@ -11,7 +11,8 @@ async function getLatestSubscription(userId) {
                s.current_period_end,
                s.created_at,
                sp.plan_id,
-               sp.name AS plan_name
+               sp.name AS plan_name,
+               sp.billing_interval
         FROM subscriptions s
         LEFT JOIN subscription_plans sp ON sp.id = s.subscription_plan_id
         WHERE s.user_id = $1

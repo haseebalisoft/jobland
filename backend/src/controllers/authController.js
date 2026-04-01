@@ -1,8 +1,10 @@
 import { validationResult } from 'express-validator';
+import { query } from '../config/db.js';
 import {
   startSignup,
   verifyOtp,
   completeSignupWithPassword,
+  decodeSignupVerificationToken,
   loginUser,
   loginAdmin as loginAdminService,
   refreshTokens,
@@ -119,6 +121,61 @@ export async function verifyOtpController(req, res, next) {
     const { email, otp } = req.body;
     const { verificationToken } = await verifyOtp({ email, otp });
     res.status(200).json({ verificationToken });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** After OTP verification: create free-tier account or finish onboarding without Stripe. */
+export async function completeOtpSignupController(req, res, next) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { verificationToken, password } = req.body;
+    const email = decodeSignupVerificationToken(verificationToken);
+    const existingRes = await query(
+      `
+        SELECT subscription_plan
+        FROM users
+        WHERE LOWER(email) = LOWER($1)
+        LIMIT 1
+      `,
+      [email],
+    );
+    if (existingRes.rowCount > 0) {
+      const sp = existingRes.rows[0].subscription_plan;
+      if (sp && sp !== 'free') {
+        return res.status(400).json({
+          message:
+            'An account with this email already has a paid plan. Log in to manage your subscription.',
+        });
+      }
+    }
+
+    const { user, accessToken, refreshToken } = await completeSignupWithPassword({
+      verificationToken,
+      password,
+    });
+
+    res
+      .cookie(REFRESH_COOKIE_NAME, refreshToken, buildRefreshCookieOptions())
+      .status(200)
+      .json({
+        message: 'Account ready.',
+        accessToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          emailVerified: user.emailVerified,
+          isActive: user.isActive,
+          subscription_plan: user.subscription_plan,
+        },
+      });
   } catch (err) {
     next(err);
   }
@@ -305,8 +362,8 @@ export async function bdSignup(req, res, next) {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password } = req.body;
-    await registerBd({ email, password });
+    const { full_name, email, password } = req.body;
+    await registerBd({ full_name, email, password });
 
     res.status(201).json({
       message: 'BD account created. You can sign in now.',

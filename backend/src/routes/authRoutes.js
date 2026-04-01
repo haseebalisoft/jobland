@@ -5,6 +5,7 @@ import {
   startSignupController,
   startEmailVerificationController,
   verifyOtpController,
+  completeOtpSignupController,
   setPassword,
   setPasswordBySession,
   login,
@@ -79,6 +80,27 @@ router.post(
   verifyOtpController,
 );
 
+router.post(
+  '/complete-otp-signup',
+  signupRateLimiter,
+  [
+    body('verificationToken').isString().notEmpty().withMessage('verificationToken is required'),
+    body('password')
+      .isLength({ min: 8 })
+      .matches(/[A-Z]/)
+      .matches(/[a-z]/)
+      .matches(/[0-9]/)
+      .matches(/[^A-Za-z0-9]/)
+      .withMessage(
+        'Password must be at least 8 characters and include uppercase, lowercase, number, and special character',
+      ),
+    body('confirm_password')
+      .custom((value, { req }) => value === req.body.password)
+      .withMessage('Passwords do not match'),
+  ],
+  completeOtpSignupController,
+);
+
 // Post-payment password setup for USERS (by email – use when no session_id in URL)
 router.post(
   '/set-password',
@@ -149,6 +171,12 @@ router.post(
 router.post(
   '/bd/signup',
   [
+    body('full_name')
+      .trim()
+      .notEmpty()
+      .withMessage('Full name is required')
+      .isLength({ min: 2 })
+      .withMessage('Full name must be at least 2 characters'),
     body('email').isEmail().withMessage('Valid email is required'),
     body('password')
       .isLength({ min: 6 })

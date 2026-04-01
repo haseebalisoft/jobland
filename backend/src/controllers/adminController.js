@@ -382,7 +382,7 @@ export async function getPlansAdmin(req, res, next) {
       name: row.name,
       price: Number(row.price),
       currency: row.currency || 'USD',
-      billing_interval: row.billing_interval || 'monthly',
+      billing_interval: row.billing_interval || 'per_interview',
       description: row.description || '',
       isActive: row.is_active === true,
       created_at: row.created_at,
@@ -408,7 +408,7 @@ export async function createPlanAdmin(req, res, next) {
         String(name).trim(),
         Number(price),
         (currency && String(currency).trim()) || 'USD',
-        (billing_interval && String(billing_interval).trim()) || 'monthly',
+        (billing_interval && String(billing_interval).trim()) || 'per_interview',
         description != null ? String(description).trim() : null,
       ]
     );
@@ -420,7 +420,7 @@ export async function createPlanAdmin(req, res, next) {
       name: row.name,
       price: Number(row.price),
       currency: row.currency || 'USD',
-      billing_interval: row.billing_interval || 'monthly',
+      billing_interval: row.billing_interval || 'per_interview',
       description: row.description || '',
       isActive: row.is_active === true,
       created_at: row.created_at,
@@ -483,7 +483,7 @@ export async function updatePlanAdmin(req, res, next) {
       name: row.name,
       price: Number(row.price),
       currency: row.currency || 'USD',
-      billing_interval: row.billing_interval || 'monthly',
+      billing_interval: row.billing_interval || 'per_interview',
       description: row.description || '',
       isActive: row.is_active === true,
     });
