@@ -18,10 +18,12 @@
 }
 
 .navbar__inner {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 32px;
+    gap: clamp(16px, 3vw, 40px);
+    width: 100%;
+    min-width: 0;
 }
 
 .navbar__logo {
@@ -55,9 +57,10 @@
 .navbar__links {
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex: 1;
-    justify-content: center;
+    justify-content: space-evenly;
+    gap: clamp(6px, 1.5vw, 20px);
+    min-width: 0;
+    width: 100%;
 }
 
 .navbar__link {
@@ -92,8 +95,10 @@
 .navbar__actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: flex-end;
+    gap: clamp(10px, 2vw, 18px);
     flex-shrink: 0;
+    min-width: 0;
 }
 
 .navbar__hamburger {
@@ -113,10 +118,11 @@
     display: none;
     flex-direction: column;
     gap: 4px;
-    padding: 16px 24px 20px;
+    /* Closed: no padding — avoids a hidden hit-area that stole taps from the top bar */
+    padding: 0;
     background: rgba(255, 255, 255, 0.97);
     backdrop-filter: blur(20px);
-    border-top: 1px solid var(--gray-border);
+    border-top: none;
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.35s ease, padding 0.35s ease;
@@ -124,6 +130,8 @@
 
 .navbar__mobile--open {
     max-height: 400px;
+    padding: 16px 24px 20px;
+    border-top: 1px solid var(--gray-border);
 }
 
 .navbar__mobile-link {
@@ -139,17 +147,47 @@
     background: var(--gray-light);
 }
 
-@media (max-width: 768px) {
+/* Below ~992px there is not enough width for 5 in-bar links + logo + CTAs (overlap ~779–849px) */
+@media (max-width: 992px) {
     .navbar__links {
         display: none;
     }
 
+    /* Logo flush left; CTAs + menu flush right — full use of row width */
+    .navbar__inner {
+        grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+        position: relative;
+        z-index: 2;
+    }
+
     .navbar__hamburger {
         display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .navbar__actions {
+        position: relative;
+        z-index: 3;
+        justify-content: flex-end;
+        align-items: center;
+        width: 100%;
+        gap: clamp(8px, 2vw, 14px);
     }
 
     .navbar__mobile {
         display: flex;
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 100%;
+        z-index: 1;
+        pointer-events: none;
+    }
+
+    .navbar__mobile--open {
+        pointer-events: auto;
     }
 
     .navbar--scrolled .navbar__mobile--open {
@@ -159,6 +197,26 @@
     /* Slightly smaller CTA so the bar has clear space before the hamburger / right edge */
     .navbar__actions .btn.btn-primary.btn-sm {
         padding: 8px 15px;
+        font-size: 13px;
+    }
+}
+
+/* Narrow phones / odd widths: keep brand from forcing overflow over the actions */
+@media (max-width: 520px) {
+    .navbar__logo {
+        gap: 8px;
+        font-size: 17px;
+    }
+
+    .navbar__logo span {
+        max-width: 42vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .navbar__bd-link {
+        padding: 8px 8px;
         font-size: 13px;
     }
 }

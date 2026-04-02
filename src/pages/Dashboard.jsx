@@ -26,10 +26,12 @@ export default function Dashboard() {
     const navigate = useNavigate()
     const [summary, setSummary] = useState(null)
     const [loading, setLoading] = useState(true)
+    const [summaryError, setSummaryError] = useState('')
     const [activeSection, setActiveSection] = useState('overview')
     const [leads, setLeads] = useState({ items: [], total: 0 })
     const [leadsLoading, setLeadsLoading] = useState(false)
     const [leadsRange, setLeadsRange] = useState('all')
+    const [expandedDescriptions, setExpandedDescriptions] = useState({})
     const [showNotifications, setShowNotifications] = useState(false)
     const [readNotificationIds, setReadNotificationIds] = useState(() => {
         try {
@@ -41,14 +43,19 @@ export default function Dashboard() {
     })
     const notificationRef = useRef(null)
 
-    useEffect(() => {
+    const fetchSummary = () => {
         let isMounted = true
+        setSummaryError('')
+        setLoading(true)
         api.get('/dashboard')
             .then((res) => {
                 if (isMounted) setSummary(res.data)
             })
             .catch(() => {
-                if (isMounted) setSummary(null)
+                if (isMounted) {
+                    setSummary(null)
+                    setSummaryError('Unable to load dashboard data right now. Please try again.')
+                }
             })
             .finally(() => {
                 if (isMounted) setLoading(false)
@@ -56,6 +63,11 @@ export default function Dashboard() {
         return () => {
             isMounted = false
         }
+    }
+
+    useEffect(() => {
+        const cleanup = fetchSummary()
+        return cleanup
     }, [])
 
     const fetchLeads = () => {
@@ -75,6 +87,120 @@ export default function Dashboard() {
         if (!user) return
         fetchLeads()
     }, [user, leadsRange])
+
+    const toggleDescription = (leadId) => {
+        setExpandedDescriptions((prev) => ({ ...prev, [leadId]: !prev[leadId] }))
+    }
+
+    const handleOpenResume = async (applicationId) => {
+        if (!applicationId) {
+            window.alert('Application is not ready yet for this lead.')
+            return
+        }
+        try {
+            const res = await api.get(`/applications/${applicationId}/resume`, {
+                responseType: 'blob',
+            })
+            const url = window.URL.createObjectURL(res.data)
+            window.open(url, '_blank', 'noopener,noreferrer')
+            window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000)
+        } catch (err) {
+            const status = err?.response?.status
+            if (status === 404) {
+                // Keep UI in sync when backend has no canonical resume for this application.
+                setLeads((prev) => ({
+                    ...prev,
+                    items: (prev.items || []).map((item) => (
+                        item.application_id === applicationId
+                            ? { ...item, has_resume: false, resume_source: null, resume_uploaded_at: null }
+                            : item
+                    )),
+                }))
+                window.alert('No resume is currently attached to this application. Please upload one first.')
+                return
+            }
+            console.error(err)
+            window.alert('Failed to open resume.')
+        }
+    }
+
+    const handleUploadResumeForLead = (lead) => {
+        if (!lead?.application_id) {
+            window.alert('Application is not ready yet for this lead.')
+            return
+        }
+        const picker = document.createElement('input')
+        picker.type = 'file'
+        picker.accept = 'application/pdf'
+        picker.onchange = async () => {
+            const file = picker.files?.[0]
+            if (!file) return
+            const formData = new FormData()
+            formData.append('resume', file)
+            formData.append('source', 'user_provided')
+            try {
+                await api.post(`/applications/${lead.application_id}/resume`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                })
+                fetchLeads()
+            } catch (err) {
+                window.alert(err.response?.data?.message || 'Failed to upload resume.')
+            }
+        }
+        picker.click()
+    }
+
+    const handleUseSavedResumeForLead = async (lead) => {
+        if (!lead?.application_id) {
+            window.alert('Application is not ready yet for this lead.')
+            return
+        }
+        try {
+            let listRes
+            try {
+                listRes = await api.get('/cv/saved')
+            } catch (err) {
+                if (err?.response?.status === 404) {
+                    listRes = await api.get('/cv/saved-resumes')
+                } else {
+                    throw err
+                }
+            }
+            const items = Array.isArray(listRes.data) ? listRes.data : []
+            if (items.length === 0) {
+                window.alert('You have no saved resume versions yet. Save one from Resume Maker first.')
+                return
+            }
+            const choiceText = items
+                .map((item, index) => `${index + 1}. ${item.title} (${new Date(item.created_at).toLocaleDateString()})`)
+                .join('\n')
+            const selected = window.prompt(`Select saved resume number:\n${choiceText}`, '1')
+            const selectedIndex = Number(selected) - 1
+            if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= items.length) return
+            const picked = items[selectedIndex]
+            try {
+                await api.post(`/applications/${lead.application_id}/attach-saved-resume`, {
+                    saved_resume_id: picked.id,
+                })
+            } catch (err) {
+                if (err?.response?.status === 404) {
+                    await api.post(`/applications/${lead.application_id}/use-saved-resume`, {
+                        saved_resume_id: picked.id,
+                    })
+                } else {
+                    throw err
+                }
+            }
+            fetchLeads()
+        } catch (err) {
+            const msg = err.response?.data?.message || 'Failed to attach saved resume.'
+            if (msg === 'Route not found') {
+                window.alert('Saved resume route not found on backend. Please restart backend server and try again.')
+                return
+            }
+            window.alert(msg)
+        }
+    }
 
     useEffect(() => {
         try {
@@ -161,8 +287,24 @@ export default function Dashboard() {
         )
     }
 
-    if (loading || !summary) {
+    if (loading) {
         return <div style={{ padding: 40 }}>Loading dashboard...</div>
+    }
+    if (!summary) {
+        return (
+            <div style={{ padding: 40 }}>
+                <div>{summaryError || 'Unable to load dashboard right now.'}</div>
+                <div style={{ marginTop: 16 }}>
+                    <button
+                        type="button"
+                        onClick={fetchSummary}
+                        style={{ padding: '8px 16px' }}
+                    >
+                        Retry
+                    </button>
+                </div>
+            </div>
+        )
     }
 
     const { subscription, stats, profile } = summary
@@ -179,9 +321,17 @@ export default function Dashboard() {
         subscription?.plan_name ||
         summary.user.subscription_plan ||
         'No active plan'
-    const renewLabel = subscription?.current_period_end
+    const showRenewalDate = Boolean(
+        subscription?.stripe_subscription_id && subscription?.current_period_end
+    )
+    const renewStatLabel = showRenewalDate ? 'Renews on' : 'Plan billing'
+    const renewStatValue = showRenewalDate
         ? new Date(subscription.current_period_end).toLocaleDateString()
-        : 'N/A'
+        : ((summary.user.subscription_plan && summary.user.subscription_plan !== 'free') || subscription?.plan_id
+            ? (subscription?.billing_interval === 'monthly' || subscription?.billing_interval === 'yearly'
+                ? 'Recurring'
+                : 'One-time')
+            : '—')
     const totalApplications = leads.total > 0 ? leads.total : (stats?.total_applications ?? 0)
     const totalInterviews = stats?.total_interviews ?? 0
 
@@ -255,7 +405,7 @@ export default function Dashboard() {
 
                             <div className="dashboard-stats-grid">
                                 <StatCard number={currentPlanLabel} label="Current plan" color={theme.primary} icon={<FileText size={22} />} />
-                                <StatCard number={renewLabel} label="Renews on" color={theme.blue} icon={<Clock size={22} />} />
+                                <StatCard number={renewStatValue} label={renewStatLabel} color={theme.blue} icon={<Clock size={22} />} />
                                 <StatCard number={totalApplications} label="Applications" color={theme.primary} icon={<CheckCircle size={22} />} />
                                 <StatCard number={totalInterviews} label="Interviews" color={theme.violet} icon={<CheckCircle size={22} />} />
                             </div>
@@ -421,6 +571,63 @@ export default function Dashboard() {
                                                         </div>
                                                     </div>
                                                 )}
+                                                <div style={{ marginTop: 12 }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleDescription(lead.id)}
+                                                        style={{
+                                                            ...styles.secondaryBtn,
+                                                            marginBottom: expandedDescriptions[lead.id] ? 8 : 0,
+                                                        }}
+                                                    >
+                                                        {expandedDescriptions[lead.id] ? 'Hide job description' : 'View job description'}
+                                                    </button>
+                                                    {expandedDescriptions[lead.id] && (
+                                                        <div style={styles.jobDescriptionBox}>
+                                                            {lead.job_description || 'No job description was added for this lead yet.'}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div style={{ marginTop: 10 }}>
+                                                    {lead.application_id ? (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleUploadResumeForLead(lead)}
+                                                                    style={styles.secondaryBtn}
+                                                                >
+                                                                    Upload resume
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleUseSavedResumeForLead(lead)}
+                                                                    style={styles.secondaryBtn}
+                                                                >
+                                                                    Use saved
+                                                                </button>
+                                                                {lead.has_resume && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleOpenResume(lead.application_id)}
+                                                                        style={styles.secondaryBtn}
+                                                                    >
+                                                                        View resume used
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                            {lead.has_resume ? (
+                                                                <span style={styles.resumeMetaText}>
+                                                                    Source: {lead.resume_source === 'bd_provided' ? 'BD optimized/provided' : 'User provided'}
+                                                                </span>
+                                                            ) : (
+                                                                <div style={styles.resumeEmptyText}>No resume uploaded for this application yet.</div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div style={styles.resumeEmptyText}>Application is not ready yet for this lead.</div>
+                                                    )}
+                                                </div>
                                             </div>
                                             {lead.job_link && (
                                                 <a href={lead.job_link} target="_blank" rel="noopener noreferrer" className="dashboard-link-btn" style={styles.linkBtn}>
@@ -736,6 +943,34 @@ const styles = {
         fontWeight: 600,
         flexShrink: 0,
         transition: 'background 0.2s, transform 0.2s, box-shadow 0.2s',
+    },
+    secondaryBtn: {
+        border: `1px solid ${theme.border}`,
+        background: '#f8fafc',
+        color: theme.text,
+        borderRadius: 10,
+        fontSize: 12,
+        fontWeight: 600,
+        padding: '8px 12px',
+        cursor: 'pointer',
+    },
+    jobDescriptionBox: {
+        border: `1px solid ${theme.border}`,
+        borderRadius: 12,
+        background: '#f8fafc',
+        color: theme.text,
+        fontSize: 13,
+        lineHeight: 1.5,
+        padding: '10px 12px',
+        whiteSpace: 'pre-wrap',
+    },
+    resumeEmptyText: {
+        fontSize: 12,
+        color: theme.textMuted,
+    },
+    resumeMetaText: {
+        fontSize: 12,
+        color: theme.textMuted,
     },
 }
 

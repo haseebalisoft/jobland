@@ -122,6 +122,21 @@ Create the following file (it is already in `.gitignore`):
   PORT=5000
   ```
 
+#### Stripe (checkout)
+
+Pack plans (**starter**, **success**, **elite**) use **one-time** Stripe Prices with Checkout `mode: payment`. In the [Stripe Dashboard](https://dashboard.stripe.com), create a **one-time** Price for each product and set:
+
+```env
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_PROFESSIONAL_RESUME_ID=price_...
+STRIPE_PRICE_STARTER_ID=price_...
+STRIPE_PRICE_SUCCESS_ID=price_...
+STRIPE_PRICE_ELITE_ID=price_...
+```
+
+Recurring monthly Price IDs **cannot** be used for pack checkout. Optional aliases: `STRIPE_PRICE_STARTER_PACK_ID`, `STRIPE_PRICE_SUCCESS_PACK_ID`, `STRIPE_PRICE_ELITE_PACK_ID`.
+
 ### Build for Production
 
 ```bash

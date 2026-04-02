@@ -25,17 +25,13 @@ export default function Login() {
                 return;
             }
 
-            const planName = localStorage.getItem('selectedPlanName');
-
             if (!loggedInUser.isActive) {
-                // No active subscription: send to checkout for the selected plan or pricing
-                if (planName) {
-                    navigate(`/checkout?plan=${encodeURIComponent(planName)}`);
-                } else {
-                    navigate('/checkout');
-                }
+                // No active subscription: send logged-in users to account-bound billing flow.
+                navigate('/billing');
             } else {
-                navigate('/dashboard');
+                const free =
+                    String(loggedInUser.subscription_plan || 'free').toLowerCase() === 'free';
+                navigate(free ? '/free-tools' : '/dashboard');
                 return;
             }
         } catch (err) {

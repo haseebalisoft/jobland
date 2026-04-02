@@ -304,6 +304,17 @@
   border-color: #CBD5E1;
 }
 
+.settings-btn-danger {
+  background: #dc2626;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
+}
+
+.settings-btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
 /* Subscription card */
 .settings-subscription-card {
   background: #ffffff;
@@ -388,6 +399,30 @@
 .settings-link-btn:hover {
   background: rgba(16, 185, 129, 0.15);
   color: #059669;
+}
+
+.settings-cancel-section {
+  margin-top: 16px;
+}
+
+.settings-cancel-confirm {
+  margin-top: 12px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.settings-cancel-confirm p {
+  margin: 0 0 12px;
+  color: #7f1d1d;
+  font-size: 13px;
+}
+
+.settings-cancel-confirm-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* Loading / empty states */

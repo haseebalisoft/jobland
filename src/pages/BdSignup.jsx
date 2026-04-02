@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Mail, Lock, ArrowRight } from 'lucide-react'
+import { Mail, Lock, ArrowRight, User } from 'lucide-react'
 import '../index.css'
 import { useState } from 'react'
 import api from '../services/api.js'
@@ -12,9 +12,15 @@ export default function BdSignup() {
   const handleSignup = async (e) => {
     e.preventDefault()
     setError('')
+    const full_name = e.target.full_name.value.trim()
     const email = e.target.email.value
     const password = e.target.password.value
     const confirm_password = e.target.confirm_password.value
+
+    if (!full_name) {
+      setError('Full name is required')
+      return
+    }
 
     if (password !== confirm_password) {
       setError('Passwords do not match')
@@ -26,7 +32,7 @@ export default function BdSignup() {
     }
 
     try {
-      await api.post('/auth/bd/signup', { email, password, confirm_password })
+      await api.post('/auth/bd/signup', { full_name, email, password, confirm_password })
       setSuccess(true)
       setTimeout(() => navigate('/bd/login'), 1500)
     } catch (err) {
@@ -51,6 +57,14 @@ export default function BdSignup() {
           <p style={styles.success}>Account created. Redirecting to sign in...</p>
         ) : (
           <form style={styles.form} onSubmit={handleSignup}>
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>Full name</label>
+              <div style={styles.inputWrapper}>
+                <User size={18} style={styles.inputIcon} />
+                <input type="text" name="full_name" placeholder="Enter your full name" style={styles.input} required />
+              </div>
+            </div>
+
             <div style={styles.inputGroup}>
               <label style={styles.label}>Email</label>
               <div style={styles.inputWrapper}>

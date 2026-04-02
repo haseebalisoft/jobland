@@ -1,9 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Briefcase, ExternalLink, Users } from 'lucide-react';
 import api from '../../services/api.js';
 import '../AdminDashboard.css';
 
 const theme = { primary: '#10B981', text: '#0F172A', textMuted: '#64748B' };
+
+/** Users who appear in BD’s roster (Admin → Users → Assign BD). */
+function usersForBd(users, bdId) {
+  if (!bdId) return [];
+  return (users || []).filter(
+    (u) => Array.isArray(u.assigned_bds) && u.assigned_bds.some((bd) => bd.id === bdId),
+  );
+}
 
 export default function AdminLeads() {
   const [leads, setLeads] = useState({ items: [], total: 0 });
@@ -54,6 +62,17 @@ export default function AdminLeads() {
       setAssignSaving(false);
     }
   };
+
+  const assignModalUserOptions = useMemo(() => {
+    if (!assignModal?.bd_id) return [];
+    const eligible = usersForBd(users, assignModal.bd_id);
+    const curId = assignModal.assigned_user_id;
+    if (curId && !eligible.some((u) => u.id === curId)) {
+      const cur = (users || []).find((x) => x.id === curId);
+      if (cur) return [{ ...cur, _notOnBdRoster: true }, ...eligible];
+    }
+    return eligible;
+  }, [assignModal, users]);
 
   const userLabel = (id) => {
     const u = (users || []).find((x) => x.id === id);
@@ -168,6 +187,11 @@ export default function AdminLeads() {
             <p style={{ margin: '0 0 16px', fontSize: 14, color: theme.textMuted }}>
               {assignModal.job_title || 'Job'} — {assignModal.company_name || 'Company'}
             </p>
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: theme.textMuted }}>
+              BD: <strong style={{ color: theme.text }}>{bdLabel(assignModal.bd_id)}</strong>
+              {' · '}
+              Only users assigned to this BD (in Admin → Users) can be selected.
+            </p>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: theme.text, marginBottom: 6 }}>
               Select user
             </label>
@@ -178,12 +202,20 @@ export default function AdminLeads() {
               style={{ width: '100%', marginBottom: 16 }}
             >
               <option value="">Choose user…</option>
-              {(users || []).map((u) => (
+              {assignModalUserOptions.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {(u.full_name || u.name || u.email) + ' — ' + u.email}
+                  {(u._notOnBdRoster ? '[Not on BD roster] ' : '') +
+                    (u.full_name || u.name || u.email) +
+                    ' — ' +
+                    u.email}
                 </option>
               ))}
             </select>
+            {assignModal.bd_id && assignModalUserOptions.filter((u) => !u._notOnBdRoster).length === 0 && (
+              <p style={{ margin: '0 0 12px', fontSize: 13, color: '#B45309' }}>
+                No users are linked to this BD yet. Add assignments under Admin → Users, then try again.
+              </p>
+            )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button type="button" className="admin-btn-secondary" onClick={closeAssignModal} disabled={assignSaving}>
                 Cancel

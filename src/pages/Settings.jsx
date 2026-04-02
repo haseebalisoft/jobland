@@ -11,6 +11,8 @@ export default function Settings() {
   const [loading, setLoading] = useState(true)
   const [savingProfile, setSavingProfile] = useState(false)
   const [savingPassword, setSavingPassword] = useState(false)
+  const [cancelingSubscription, setCancelingSubscription] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [message, setMessage] = useState('')
 
   const [fullName, setFullName] = useState('')
@@ -113,6 +115,33 @@ export default function Settings() {
     }
   }
 
+  const handleCancelSubscription = async () => {
+    if (cancelingSubscription) return
+    setCancelingSubscription(true)
+    setMessage('')
+    try {
+      const res = await api.post('/subscriptions/opt-out-free')
+      if (res.data?.user) {
+        setUser(res.data.user)
+      }
+      setSubscription((prev) => ({
+        ...(prev || {}),
+        status: 'canceled',
+      }))
+      setSubscriptionPlanName('Free Plan')
+      setShowCancelConfirm(false)
+      setMessage(
+        res.data?.already_on_free
+          ? 'Subscription already canceled. You are on the free plan.'
+          : 'Subscription canceled successfully. Your account is now on the free plan.',
+      )
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Failed to cancel subscription')
+    } finally {
+      setCancelingSubscription(false)
+    }
+  }
+
   const currentPlan =
     subscriptionPlanName ||
     subscription?.plan_name ||
@@ -123,6 +152,9 @@ export default function Settings() {
   const renewDate = subscription?.current_period_end
     ? new Date(subscription.current_period_end).toLocaleDateString()
     : 'N/A'
+  const normalizedPlan = String(subscription?.plan_id || user.subscription_plan || '').toLowerCase()
+  const canCancelSubscription =
+    normalizedPlan !== 'free' && ['active', 'trialing', 'past_due'].includes(subscriptionStatus)
   const isSuccess = message && message.toLowerCase().includes('success')
 
   return (
@@ -262,6 +294,44 @@ export default function Settings() {
             <a href="/#pricing" className="settings-link-btn">
               Change plan
             </a>
+            {canCancelSubscription && (
+              <div className="settings-cancel-section">
+                {!showCancelConfirm ? (
+                  <button
+                    type="button"
+                    className="settings-btn settings-btn-danger"
+                    onClick={() => setShowCancelConfirm(true)}
+                    disabled={cancelingSubscription}
+                  >
+                    Cancel subscription
+                  </button>
+                ) : (
+                  <div className="settings-cancel-confirm">
+                    <p>
+                      This will cancel your paid subscription and move your account to the free plan.
+                    </p>
+                    <div className="settings-cancel-confirm-actions">
+                      <button
+                        type="button"
+                        className="settings-btn settings-btn-secondary"
+                        onClick={() => setShowCancelConfirm(false)}
+                        disabled={cancelingSubscription}
+                      >
+                        Keep subscription
+                      </button>
+                      <button
+                        type="button"
+                        className="settings-btn settings-btn-danger"
+                        onClick={handleCancelSubscription}
+                        disabled={cancelingSubscription}
+                      >
+                        {cancelingSubscription ? 'Canceling...' : 'Confirm cancel'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </section>
         </div>
       </main>

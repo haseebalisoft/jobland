@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { BarChart2, PlusCircle, Users, Briefcase, LogOut, Lock, Key, MessageCircle, Menu, X } from 'lucide-react';
+import { BarChart2, PlusCircle, Users, Briefcase, LogOut, Key, MessageCircle, Menu, X, Settings, FileText } from 'lucide-react';
 import api from '../../services/api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import '../BdDashboard.css';
@@ -12,7 +12,9 @@ const navItems = [
   { to: '/bd/create-lead', end: false, icon: PlusCircle, label: 'Create lead' },
   { to: '/bd/assigned-profiles', end: false, icon: Users, label: 'Assigned profiles' },
   { to: '/bd/leads', end: false, icon: Briefcase, label: 'Your leads' },
+  { to: '/bd/resumes', end: false, icon: FileText, label: 'Resumes' },
   { to: '/bd/help', end: false, icon: MessageCircle, label: 'Help' },
+  { to: '/bd/settings', end: false, icon: Settings, label: 'Settings' },
 ];
 
 export default function BdLayout() {
@@ -141,26 +143,6 @@ export default function BdLayout() {
           >
             <Key size={18} />
             {oneClickKeyLoading ? 'Copying…' : 'Copy Capture API key'}
-          </button>
-          <button
-            type="button"
-            className="bd-sidebar-btn"
-            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 12, fontSize: 14, color: 'rgba(255,255,255,0.88)', background: 'transparent', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
-            onClick={async () => {
-              const current = window.prompt('Enter your current password:');
-              if (!current) return;
-              const newPwd = window.prompt('Enter new password (min 6 chars):');
-              if (!newPwd) return;
-              try {
-                await api.put('/settings/password', { current_password: current, new_password: newPwd });
-                alert('Password updated.');
-              } catch (e) {
-                alert(e.response?.data?.message || 'Failed');
-              }
-            }}
-          >
-            <Lock size={18} />
-            Change password
           </button>
           <button
             type="button"

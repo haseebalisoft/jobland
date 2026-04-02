@@ -2,8 +2,17 @@ import { useEffect, useState } from 'react'
 import { Check, Zap, Star } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import './Pricing.css'
-import api from '../services/api.js'
+import api, { setAccessToken } from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
+
+const FREE_PLAN_CARD = {
+  plan_id: 'free',
+  name: 'Free',
+  price: 0,
+  currency: 'USD',
+  billing_interval: 'never',
+  description: 'Use the app without a paid subscription. Upgrade anytime.',
+}
 
 function formatPrice(price, currency = 'USD') {
   if (price === 0) return 'Free'
@@ -14,7 +23,9 @@ function formatPrice(price, currency = 'USD') {
 function formatPeriod(billing_interval) {
   if (!billing_interval || billing_interval === 'never') return ''
   if (billing_interval === 'one-time') return 'One-time'
+  if (billing_interval === 'per_interview') return '/interview'
   if (billing_interval === 'monthly') return '/month'
+  if (billing_interval === 'yearly') return '/year'
   return billing_interval
 }
 
@@ -44,36 +55,60 @@ const DEFAULT_FEATURES = {
     'Job Applications included',
     'WhatsApp Priority Support',
   ],
+  free: [
+    'Limited product access',
+    'No card required',
+    'Upgrade when you need more',
+  ],
 }
 
 export default function Pricing() {
-  const { user } = useAuth()
+  const { user, setUser } = useAuth()
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
   const [startingPlan, setStartingPlan] = useState('')
   const navigate = useNavigate()
+  const isLoggedInEndUser = Boolean(user?.id) && (user.role === 'user' || !user.role)
 
   useEffect(() => {
     api
       .get('/plans')
       .then((res) => {
         const apiPlans = res.data || []
-        setPlans(
-          apiPlans.map((p) => ({
-            plan_id: p.plan_id,
-            name: p.name,
-            price: p.price,
-            currency: p.currency || 'USD',
-            billing_interval: p.billing_interval || 'monthly',
-            description: p.description || '',
-            period: formatPeriod(p.billing_interval),
-            priceFormatted: formatPrice(p.price, p.currency),
-            popular: p.plan_id === 'success',
-            features: DEFAULT_FEATURES[p.plan_id] || [],
-          })),
-        )
+        const paidCards = apiPlans.map((p) => ({
+          plan_id: p.plan_id,
+          name: p.name,
+          price: p.price,
+          currency: p.currency || 'USD',
+          billing_interval: p.billing_interval || 'per_interview',
+          description: p.description || '',
+          period: formatPeriod(p.billing_interval),
+          priceFormatted: formatPrice(p.price, p.currency),
+          popular: p.plan_id === 'success',
+          features: DEFAULT_FEATURES[p.plan_id] || [],
+        }))
+        setPlans([
+          {
+            ...FREE_PLAN_CARD,
+            period: formatPeriod(FREE_PLAN_CARD.billing_interval),
+            priceFormatted: formatPrice(FREE_PLAN_CARD.price, FREE_PLAN_CARD.currency),
+            popular: false,
+            features: DEFAULT_FEATURES.free,
+          },
+          ...paidCards,
+        ])
       })
-      .catch(() => setPlans([]))
+      .catch(() =>
+        setPlans([
+          {
+            ...FREE_PLAN_CARD,
+            period: formatPeriod(FREE_PLAN_CARD.billing_interval),
+            priceFormatted: formatPrice(FREE_PLAN_CARD.price, FREE_PLAN_CARD.currency),
+            popular: false,
+            features: DEFAULT_FEATURES.free,
+          },
+        ]),
+      )
       .finally(() => setLoading(false))
   }, [])
 
@@ -81,8 +116,31 @@ export default function Pricing() {
     localStorage.setItem('selectedPlanName', plan.name)
     setStartingPlan(plan.plan_id)
 
-    if (user && user.role === 'user') {
+    if (plan.plan_id === 'free') {
+      if (isLoggedInEndUser) {
+        try {
+          const res = await api.post('/subscriptions/opt-out-free')
+          setUser(res.data.user)
+          setStartingPlan('')
+          navigate('/dashboard')
+        } catch (err) {
+          console.error('Unable to switch to free access', err)
+          setStartingPlan('')
+        }
+        return
+      }
+      setStartingPlan('')
+      navigate(`/start?plan=${encodeURIComponent(plan.name)}`)
+      return
+    }
+
+    if (isLoggedInEndUser) {
       try {
+        // Mirror existing signup/checkout behavior while ensuring auth is fresh.
+        const refresh = await api.post('/auth/refresh-token')
+        if (refresh?.data?.accessToken) {
+          setAccessToken(refresh.data.accessToken)
+        }
         const res = await api.post('/subscriptions/checkout-session', {
           plan_id: plan.plan_id,
         })
@@ -119,7 +177,9 @@ export default function Pricing() {
           <div className="text-center">
             <div className="section-label">💰 Pricing</div>
             <h2 className="section-title">Simple, Transparent Pricing</h2>
-            <p className="section-subtitle">No plans available at the moment.</p>
+            <p className="section-subtitle">
+              Paid plans are unavailable right now. Try again later.
+            </p>
           </div>
         </div>
       </section>
@@ -210,7 +270,15 @@ export default function Pricing() {
                   size={16}
                   fill={plan.popular ? '#2563EB' : 'white'}
                 />
-                {startingPlan === plan.plan_id ? 'Redirecting...' : 'Get Started'}
+                {startingPlan === plan.plan_id
+                  ? plan.plan_id === 'free'
+                    ? 'Applying...'
+                    : 'Redirecting...'
+                  : plan.plan_id === 'free'
+                    ? isLoggedInEndUser
+                      ? 'Use free access'
+                      : 'Continue without paying'
+                    : 'Get Started'}
               </button>
             </div>
           ))}
