@@ -127,6 +127,15 @@
   color: #10B981;
 }
 
+.user-sidebar__link--locked {
+  color: rgba(241, 245, 249, 0.5);
+}
+
+.user-sidebar__link--locked:hover {
+  color: rgba(241, 245, 249, 0.85);
+  background: rgba(30, 41, 59, 0.5);
+}
+
 .user-sidebar__link svg {
   flex-shrink: 0;
   opacity: 0.9;

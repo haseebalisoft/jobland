@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Lock } from 'lucide-react'
 import api, { setAccessToken } from '../services/api.js'
@@ -7,13 +7,20 @@ import { useAuth } from '../context/AuthContext.jsx'
 export default function SetPassword() {
     const navigate = useNavigate()
     const [searchParams] = useSearchParams()
-    const { setUser } = useAuth()
+    const { user, setUser } = useAuth()
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
     const [email, setEmail] = useState('')
 
     const sessionId = useMemo(() => searchParams.get('session_id') || '', [searchParams])
     const useSession = Boolean(sessionId.trim())
+
+    useEffect(() => {
+        // Logged-in users should never continue in set-password flow.
+        if (user?.id && useSession) {
+            navigate(`/checkout-success?session_id=${encodeURIComponent(sessionId)}`, { replace: true })
+        }
+    }, [navigate, sessionId, useSession, user?.id])
 
     const handleSubmit = async (e) => {
         e.preventDefault()

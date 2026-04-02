@@ -12,6 +12,11 @@ export default function CheckoutSuccess() {
   const [message, setMessage] = useState('Finalizing your Stripe payment...');
   const sessionId = useMemo(() => searchParams.get('session_id') || '', [searchParams]);
 
+  const hasPaidAccess = (u) => {
+    const plan = String(u?.subscription_plan || 'free').toLowerCase();
+    return Boolean(u?.isActive) && plan !== 'free';
+  };
+
   useEffect(() => {
     localStorage.removeItem('selectedPlanId');
 
@@ -37,7 +42,24 @@ export default function CheckoutSuccess() {
         return;
       }
 
-      for (let attempt = 0; attempt < 4; attempt += 1) {
+      // For logged-in users, finalize this exact checkout session first.
+      // This avoids relying only on webhook timing before redirecting.
+      try {
+        const confirm = await api.get(`/subscriptions/checkout-session/${encodeURIComponent(sessionId)}`);
+        if (!cancelled && confirm?.data?.user) {
+          setUser(confirm.data.user);
+          if (hasPaidAccess(confirm.data.user)) {
+            setStatus('success');
+            setMessage('Payment confirmed. Redirecting you to your dashboard...');
+            window.setTimeout(() => navigate('/dashboard'), 400);
+            return;
+          }
+        }
+      } catch (_) {
+        // Fall back to auth polling below.
+      }
+
+      for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
           const res = await api.get('/auth/me');
           if (cancelled) {
@@ -48,10 +70,10 @@ export default function CheckoutSuccess() {
             setUser(res.data);
           }
 
-          if (res.data?.isActive) {
+          if (hasPaidAccess(res.data)) {
             setStatus('success');
             setMessage('Payment confirmed. Redirecting you to your dashboard...');
-            window.setTimeout(() => navigate('/dashboard'), 1200);
+            window.setTimeout(() => navigate('/dashboard'), 500);
             return;
           }
         } catch (err) {
@@ -60,7 +82,7 @@ export default function CheckoutSuccess() {
           }
         }
 
-        await sleep(1500);
+        await sleep(700);
       }
 
       if (cancelled) {
@@ -69,7 +91,7 @@ export default function CheckoutSuccess() {
 
       setStatus('success');
       setMessage(
-        'Payment received. Your subscription is being activated in the background. You can open your dashboard in a moment.',
+        'Payment received. Your paid access is still activating. Please wait a few seconds and then open dashboard again.',
       );
     };
 

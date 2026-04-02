@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { ArrowRight, Mail, KeyRound } from 'lucide-react';
-import api from '../services/api.js';
+import { ArrowRight, Mail, KeyRound, Lock } from 'lucide-react';
+import api, { setAccessToken } from '../services/api.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const PLAN_COPY = {
   'Professional Resume': {
@@ -24,20 +25,30 @@ const PLAN_COPY = {
     headline: 'Maximum exposure for serious career moves.',
     price: '$100',
   },
+  Free: {
+    name: 'Free',
+    headline: 'Get started with limited access—no payment.',
+    price: '$0',
+  },
 };
 
 export default function Start() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { setUser } = useAuth();
 
   const planName =
     searchParams.get('plan') || localStorage.getItem('selectedPlanName') || 'Success Pack';
 
   const copy = PLAN_COPY[planName] || PLAN_COPY['Success Pack'];
+  const isFreePlan = planName === 'Free';
 
-  const [step, setStep] = useState('email'); // 'email' | 'otp'
+  const [step, setStep] = useState('email'); // 'email' | 'otp' | 'password'
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
+  const [verificationToken, setVerificationToken] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -66,7 +77,14 @@ export default function Start() {
     setLoading(true);
     try {
       const verifyRes = await api.post('/auth/verify-otp', { email, otp });
-      const verificationToken = verifyRes.data.verificationToken;
+      const token = verifyRes.data.verificationToken;
+
+      if (isFreePlan) {
+        setVerificationToken(token);
+        setStep('password');
+        setLoading(false);
+        return;
+      }
 
       const normalizedPlanId =
         planName === 'Professional Resume'
@@ -78,7 +96,7 @@ export default function Start() {
           : 'success_pack';
 
       const checkoutRes = await api.post('/payments/create-checkout-session', {
-        verificationToken,
+        verificationToken: token,
         planId: normalizedPlanId,
       });
       window.location.href = checkoutRes.data.checkoutUrl;
@@ -87,6 +105,29 @@ export default function Start() {
         err.response?.data?.message ||
         (Array.isArray(err.response?.data?.errors) && err.response.data.errors[0]?.msg) ||
         'Unable to verify code or start checkout';
+      setError(message);
+      setLoading(false);
+    }
+  };
+
+  const handleFreePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await api.post('/auth/complete-otp-signup', {
+        verificationToken,
+        password,
+        confirm_password: confirmPassword,
+      });
+      setAccessToken(res.data.accessToken);
+      setUser(res.data.user);
+      navigate('/dashboard');
+    } catch (err) {
+      const message =
+        err.response?.data?.message ||
+        (Array.isArray(err.response?.data?.errors) && err.response.data.errors[0]?.msg) ||
+        'Unable to create your account';
       setError(message);
       setLoading(false);
     }
@@ -117,10 +158,13 @@ export default function Start() {
             <div style={styles.logoIcon}></div>
             HiredLogics
           </Link>
-          <h1 style={styles.heading}>Secure your plan in two steps</h1>
+          <h1 style={styles.heading}>
+            {isFreePlan ? 'Create a free account' : 'Secure your plan in two steps'}
+          </h1>
           <p style={styles.subheading}>
-            We verify your email with a one‑time code, then redirect you to secure Stripe checkout
-            for payment.
+            {isFreePlan
+              ? 'We verify your email with a one-time code, then you choose a password. No card required.'
+              : 'We verify your email with a one‑time code, then redirect you to secure Stripe checkout for payment.'}
           </p>
 
           <div style={styles.planCard}>
@@ -138,8 +182,16 @@ export default function Start() {
             </div>
             <div style={styles.stepDivider} />
             <div style={{ ...styles.stepPill, ...(step === 'otp' ? styles.stepPillActive : {}) }}>
-              <span style={styles.stepNumber}>2</span>Verification code
+              <span style={styles.stepNumber}>2</span>Code
             </div>
+            {isFreePlan && (
+              <>
+                <div style={styles.stepDivider} />
+                <div style={{ ...styles.stepPill, ...(step === 'password' ? styles.stepPillActive : {}) }}>
+                  <span style={styles.stepNumber}>3</span>Password
+                </div>
+              </>
+            )}
           </div>
 
           {step === 'email' && (
@@ -157,8 +209,9 @@ export default function Start() {
                 />
               </div>
               <p style={styles.helper}>
-                We’ll send a 6‑digit code to this email. Use the same address for Stripe so we can
-                activate your account automatically.
+                {isFreePlan
+                  ? 'We’ll send a 6-digit code to this email to confirm it’s yours.'
+                  : 'We’ll send a 6‑digit code to this email. Use the same address for Stripe so we can activate your account automatically.'}
               </p>
               {error && <p style={styles.error}>{error}</p>}
               <button type="submit" style={styles.primaryButton} disabled={loading}>
@@ -183,12 +236,14 @@ export default function Start() {
                 />
               </div>
               <p style={styles.helper}>
-                Enter the 6‑digit code we sent to <strong>{email}</strong>. After verification you’ll
-                be redirected to Stripe to complete payment.
+                Enter the 6‑digit code we sent to <strong>{email}</strong>.
+                {isFreePlan
+                  ? ' Then you’ll create a password to finish.'
+                  : ' After verification you’ll be redirected to Stripe to complete payment.'}
               </p>
               {error && <p style={styles.error}>{error}</p>}
               <button type="submit" style={styles.primaryButton} disabled={loading}>
-                {loading ? 'Redirecting…' : 'Verify & continue to payment'}
+                {loading ? 'Redirecting…' : isFreePlan ? 'Continue' : 'Verify & continue to payment'}
                 <ArrowRight size={18} />
               </button>
               <button
@@ -202,9 +257,65 @@ export default function Start() {
               <button
                 type="button"
                 style={styles.secondaryButton}
-                onClick={() => setStep('email')}
+                onClick={() => {
+                  setStep('email')
+                  setVerificationToken('')
+                  setPassword('')
+                  setConfirmPassword('')
+                }}
               >
                 Use a different email
+              </button>
+            </form>
+          )}
+
+          {step === 'password' && isFreePlan && (
+            <form style={styles.form} onSubmit={handleFreePasswordSubmit}>
+              <label style={styles.label}>Password</label>
+              <div style={styles.inputWrapper}>
+                <Lock size={18} style={styles.inputIcon} />
+                <input
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  placeholder="At least 8 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={styles.input}
+                />
+              </div>
+              <label style={styles.label}>Confirm password</label>
+              <div style={styles.inputWrapper}>
+                <Lock size={18} style={styles.inputIcon} />
+                <input
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  placeholder="Repeat password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  style={styles.input}
+                />
+              </div>
+              <p style={styles.helper}>
+                Use at least 8 characters with uppercase, lowercase, a number, and a special character.
+              </p>
+              {error && <p style={styles.error}>{error}</p>}
+              <button type="submit" style={styles.primaryButton} disabled={loading}>
+                {loading ? 'Creating account…' : 'Create account'}
+                <ArrowRight size={18} />
+              </button>
+              <button
+                type="button"
+                style={styles.secondaryButton}
+                onClick={() => {
+                  setStep('otp')
+                  setPassword('')
+                  setConfirmPassword('')
+                  setError('')
+                }}
+              >
+                Back to code
               </button>
             </form>
           )}

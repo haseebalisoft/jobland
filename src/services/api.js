@@ -2,8 +2,32 @@ import axios from 'axios';
 
 const ACCESS_TOKEN_STORAGE_KEY = 'hiredlogics_access_token';
 
+/**
+ * Ensure requests hit /api/... on this Express app when the env is only host:port.
+ * If VITE_API_URL is http://localhost:5000 (path /), axios + /cv/... becomes /cv/... (404).
+ * If you mount the API at a custom path (e.g. /v1), set VITE_API_URL to that full base — we won't append /api.
+ */
+function getApiBaseUrl() {
+  const raw = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const trimmed = String(raw).trim().replace(/\/+$/, '');
+  try {
+    const u = new URL(trimmed);
+    let path = u.pathname || '/';
+    if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1);
+    if (path === '/' || path === '') {
+      return `${trimmed}/api`;
+    }
+    if (path.includes('/api')) {
+      return trimmed;
+    }
+    return trimmed;
+  } catch {
+    return `${trimmed}/api`;
+  }
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: getApiBaseUrl(),
   withCredentials: true,
 });
 

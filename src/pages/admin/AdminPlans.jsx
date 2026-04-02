@@ -7,7 +7,7 @@ const theme = { primary: '#10B981', text: '#0F172A', textMuted: '#64748B', borde
 
 export default function AdminPlans() {
   const [plans, setPlans] = useState([]);
-  const [newPlan, setNewPlan] = useState({ plan_id: '', name: '', price: '', currency: 'USD', billing_interval: 'monthly', description: '' });
+  const [newPlan, setNewPlan] = useState({ plan_id: '', name: '', price: '', currency: 'USD', billing_interval: 'per_interview', description: '' });
 
   const fetchPlans = () => {
     api.get('/admin/plans').then((res) => setPlans(res.data || [])).catch(() => setPlans([]));
@@ -29,10 +29,10 @@ export default function AdminPlans() {
         name: newPlan.name.trim(),
         price: Number(newPlan.price),
         currency: (newPlan.currency || 'USD').trim(),
-        billing_interval: (newPlan.billing_interval || 'monthly').trim(),
+        billing_interval: (newPlan.billing_interval || 'per_interview').trim(),
         description: newPlan.description?.trim() || null,
       });
-      setNewPlan({ plan_id: '', name: '', price: '', currency: 'USD', billing_interval: 'monthly', description: '' });
+      setNewPlan({ plan_id: '', name: '', price: '', currency: 'USD', billing_interval: 'per_interview', description: '' });
       fetchPlans();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to create plan');
@@ -69,7 +69,9 @@ export default function AdminPlans() {
               <option value="EUR">EUR</option>
               <option value="GBP">GBP</option>
             </select>
-            <select name="billing_interval" value={newPlan.billing_interval} onChange={handleNewPlanChange} className="admin-select" style={{ width: 110 }}>
+            <select name="billing_interval" value={newPlan.billing_interval} onChange={handleNewPlanChange} className="admin-select" style={{ width: 130 }}>
+              <option value="per_interview">Per interview</option>
+              <option value="one-time">One-time</option>
               <option value="monthly">Monthly</option>
               <option value="yearly">Yearly</option>
             </select>
@@ -102,7 +104,19 @@ export default function AdminPlans() {
                       <td>
                         <input type="number" step="0.01" defaultValue={p.price} onBlur={(e) => updatePlan(planIdForUpdate(p), { price: Number(e.target.value) })} className="admin-input" style={{ width: 80 }} />
                       </td>
-                      <td>{p.billing_interval || 'monthly'}</td>
+                      <td>
+                        <select
+                          className="admin-select"
+                          style={{ width: 130 }}
+                          value={p.billing_interval || 'per_interview'}
+                          onChange={(e) => updatePlan(planIdForUpdate(p), { billing_interval: e.target.value })}
+                        >
+                          <option value="per_interview">Per interview</option>
+                          <option value="one-time">One-time</option>
+                          <option value="monthly">Monthly</option>
+                          <option value="yearly">Yearly</option>
+                        </select>
+                      </td>
                       <td>
                         <input defaultValue={p.description} onBlur={(e) => updatePlan(planIdForUpdate(p), { description: e.target.value })} className="admin-input" style={{ width: '100%', maxWidth: 200 }} placeholder="Optional" />
                       </td>

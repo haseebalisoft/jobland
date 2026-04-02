@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useLocation, Link } from 'react-router-dom'
+import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ShieldCheck, CheckCircle, Lock } from 'lucide-react'
-import api from '../services/api.js'
+import api, { setAccessToken } from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
 function CheckoutForm({ planId, price, user }) {
@@ -15,6 +15,20 @@ function CheckoutForm({ planId, price, user }) {
         setMessage(null);
 
         try {
+            // /subscriptions/checkout-session allows guest access.
+            // Ensure authenticated users attach a fresh access token so backend can
+            // generate the logged-in success URL (checkout-success) instead of set-password.
+            if (user?.id) {
+                try {
+                    const refresh = await api.post('/auth/refresh-token');
+                    if (refresh?.data?.accessToken) {
+                        setAccessToken(refresh.data.accessToken);
+                    }
+                } catch (_) {
+                    // If refresh fails, request still proceeds as guest flow.
+                    // User can still complete checkout and set password via session flow.
+                }
+            }
             localStorage.setItem('selectedPlanId', planId);
             const res = await api.post('/subscriptions/checkout-session', {
                 plan_id: planId,
@@ -87,6 +101,7 @@ function CheckoutForm({ planId, price, user }) {
 
 export default function Checkout() {
     const location = useLocation()
+    const navigate = useNavigate()
     const queryParams = new URLSearchParams(location.search)
     const { user } = useAuth()
     const [isMobile, setIsMobile] = useState(() =>
@@ -109,6 +124,12 @@ export default function Checkout() {
     }
     const price = planPrices[planName] || '$60.00'
     const resolvedPlanId = planId || planIdMap[planName] || 'success_pack'
+
+    useEffect(() => {
+        if (user?.id) {
+            navigate('/billing', { replace: true })
+        }
+    }, [navigate, user?.id])
 
     useEffect(() => {
         const handleResize = () => {
