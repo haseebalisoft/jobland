@@ -304,6 +304,17 @@
   border-color: #CBD5E1;
 }
 
+.settings-btn-danger {
+  background: #dc2626;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
+}
+
+.settings-btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
 /* Subscription card */
 .settings-subscription-card {
   background: #ffffff;
@@ -390,6 +401,30 @@
   color: #059669;
 }
 
+.settings-cancel-section {
+  margin-top: 16px;
+}
+
+.settings-cancel-confirm {
+  margin-top: 12px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.settings-cancel-confirm p {
+  margin: 0 0 12px;
+  color: #7f1d1d;
+  font-size: 13px;
+}
+
+.settings-cancel-confirm-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 /* Loading / empty states */
 .settings-empty {
   display: flex;
@@ -408,4 +443,51 @@
 .settings-empty p {
   color: #64748B;
   font-size: 15px;
+}
+
+@media (max-width: 1024px) {
+  .settings-header {
+    height: auto;
+    min-height: 72px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .settings-search {
+    width: 100%;
+    max-width: none;
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .settings-header-right {
+    margin-left: auto;
+  }
+
+  .settings-content {
+    padding: 20px 16px 40px;
+  }
+
+  .settings-card,
+  .settings-subscription-card {
+    padding: 20px;
+  }
+
+  .settings-input {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .settings-title {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 768px) {
+  .settings-empty main {
+    padding: calc(52px + env(safe-area-inset-top, 0px)) 20px 40px;
+    box-sizing: border-box;
+  }
 }

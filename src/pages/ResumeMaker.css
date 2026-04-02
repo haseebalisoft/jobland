@@ -62,7 +62,7 @@
 
 .rb-sidebar {
     width: 440px;
-    min-width: 360px;
+    min-width: 320px;
     max-width: 500px;
     background: #f8fafc;
     border-right: 1px solid var(--rb-slate-200);
@@ -72,6 +72,10 @@
     z-index: 10;
     min-height: 0;
     overflow: hidden;
+}
+
+.rb-sidebar.rb-sidebar-collapsed {
+    display: none;
 }
 
 /* Scrollable content area - only this scrolls when many companies/education */
@@ -128,6 +132,7 @@
 /* Resume viewport: almost full page height */
 .rb-preview-section {
     flex: 1;
+    min-width: 0;
     min-height: 0;
     background: linear-gradient(160deg, #e2e8f0 0%, #cbd5e1 100%);
     display: flex;
@@ -136,12 +141,36 @@
     position: relative;
 }
 
+.rb-reopen-editor {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    z-index: 21;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--rb-slate-200);
+    background: white;
+    color: var(--rb-slate-700);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.rb-reopen-editor:hover {
+    background: var(--rb-slate-50);
+    color: var(--rb-slate-900);
+}
+
 .rb-preview-workspace {
     flex: 1;
     min-height: 0;
     overflow: auto;
     padding: 1.5rem;
-    padding-top: 72px;  /* space for floating top bar (tabs left + download right) */
+    padding-top: 88px;  /* compact top controls row */
     display: flex;
     justify-content: center;
     align-items: stretch;
@@ -163,28 +192,45 @@
     flex-direction: column;
 }
 
-/* Floating tab buttons on the top left of the resume (same row as download on right) */
-.rb-floating-tabs-left {
+/* Unified top controls bar so tab/actions never overlap */
+.rb-floating-top-bar {
     position: absolute;
     left: 12px;
+    right: 12px;
     top: 12px;
     z-index: 20;
     display: flex;
-    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
     flex-wrap: wrap;
+    gap: 8px;
+}
+
+.rb-floating-tabs-left {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
     gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    max-width: 100%;
+}
+
+.rb-floating-tabs-left::-webkit-scrollbar {
+    display: none;
 }
 
 .rb-floating-tab {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
+    gap: 6px;
+    padding: 7px 12px;
     border-radius: 10px;
     border: 1px solid var(--rb-slate-200);
     background: white;
     color: var(--rb-slate-600);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
@@ -206,22 +252,21 @@
 
 /* Floating actions on the top right of the resume */
 .rb-floating-actions-right {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    z-index: 20;
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-left: auto;
 }
 
 .rb-floating-select {
-    padding: 8px 14px;
+    padding: 7px 12px;
     border-radius: 10px;
     border: 1px solid var(--rb-slate-200);
     background: white;
     font-weight: 600;
-    font-size: 13px;
+    font-size: 12px;
     color: var(--rb-slate-800);
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
@@ -231,16 +276,17 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 18px;
+    padding: 7px 14px;
     border-radius: 10px;
     border: none;
     background: var(--rb-slate-900);
     color: white;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 12px;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     transition: background 0.2s;
+    white-space: nowrap;
 }
 
 .rb-floating-download:hover:not(:disabled) {
@@ -292,6 +338,44 @@
     min-width: 40px;
     text-align: center;
     color: var(--rb-slate-700);
+}
+
+@media (max-width: 1400px) {
+    .rb-sidebar {
+        width: 380px;
+        min-width: 300px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .rb-main {
+        display: block;
+        overflow: hidden;
+    }
+
+    .rb-sidebar,
+    .rb-preview-section {
+        width: 100%;
+        min-width: 100%;
+        height: calc(100vh - 140px);
+    }
+
+    .rb-sidebar {
+        border-right: none;
+    }
+
+    .rb-sidebar.mobile-hide,
+    .rb-preview-section.mobile-hide {
+        display: none !important;
+    }
+
+    .rb-preview-section.active {
+        display: flex;
+    }
+
+    .rb-preview-workspace {
+        padding-bottom: 86px;
+    }
 }
 
 /* Sidebar header with close */
@@ -835,12 +919,119 @@
     }
 }
 
+/* Keep floating top controls readable on medium widths */
+@media (max-width: 1240px) {
+    .rb-preview-workspace {
+        padding-top: 128px;
+    }
+
+    .rb-floating-top-bar {
+        left: 8px;
+        right: 8px;
+        top: 8px;
+    }
+
+    .rb-floating-actions-right {
+        justify-content: flex-start;
+        gap: 6px;
+        margin-left: 0;
+        width: 100%;
+    }
+}
+
+/* Compact labels and spacing for narrow desktop/tablet */
+@media (max-width: 980px) {
+    .rb-preview-workspace {
+        padding-top: 150px;
+    }
+
+    .rb-floating-tab span {
+        font-size: 11px;
+    }
+
+    .rb-floating-download {
+        padding: 7px 10px;
+        gap: 6px;
+    }
+
+    .rb-floating-select {
+        max-width: 170px;
+    }
+
+    .rb-floating-actions-right {
+        width: 100%;
+    }
+}
+
 .mobile-only-dock {
     display: none;
 }
 
-@media (max-width: 768px) {
-    .mobile-only-dock {
-        display: flex;
-    }
+/* Bottom dock is mobile-only (≤768px). Do not show it on tablet/desktop widths or it duplicates Save/Download and Edit/Preview controls. */
+
+/* Cursor-style AI hunk review (Keep / Discard) */
+.rb-scope .rb-ai-hunk {
+    border: 1px solid var(--rb-slate-200);
+    border-radius: 12px;
+    background: #fafafa;
+    overflow: hidden;
+}
+
+.rb-scope .rb-ai-hunk--batch {
+    margin-bottom: 16px;
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.rb-scope .rb-ai-hunk-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--rb-slate-200);
+    background: #fff;
+}
+
+.rb-scope .rb-ai-hunk-actions--batch {
+    justify-content: space-between;
+    border-bottom: none;
+    padding: 10px 12px;
+}
+
+.rb-scope .rb-ai-hunk-body {
+    padding: 10px 12px 12px;
+    font-size: 12px;
+}
+
+.rb-scope .rb-ai-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.rb-scope .rb-ai-btn--keep {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #6ee7b7;
+}
+
+.rb-scope .rb-ai-btn--keep:hover {
+    background: #d1fae5;
+}
+
+.rb-scope .rb-ai-btn--discard {
+    background: #fff1f2;
+    color: #be123c;
+    border-color: #fecdd3;
+}
+
+.rb-scope .rb-ai-btn--discard:hover {
+    background: #ffe4e6;
 }

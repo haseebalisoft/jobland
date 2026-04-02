@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { BarChart2, Briefcase, CheckCircle, Clock, ExternalLink, Filter, LogOut, Search, Users, Lock } from 'lucide-react'
 import api from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -15,6 +15,8 @@ const RANGE_OPTIONS = [
 
 // job_assignments.status enum in 001_initial: pending, assigned, completed, failed
 const STATUS_OPTIONS = ['pending', 'assigned', 'completed', 'failed']
+// applications.current_status enum in 001_initial: applied, interview, acceptance, rejection, withdrawn
+const APPLICATION_STATUS_OPTIONS = ['applied', 'interview', 'acceptance', 'rejection', 'withdrawn']
 
 const theme = {
   primary: '#10B981',
@@ -33,11 +35,13 @@ const theme = {
 
 export default function BdDashboard() {
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const [range, setRange] = useState('7days')
   const [loading, setLoading] = useState(true)
   const [leads, setLeads] = useState([])
   const [creating, setCreating] = useState(false)
   const [updatingId, setUpdatingId] = useState(null)
+  const [updatingAppId, setUpdatingAppId] = useState(null)
   const [myUsers, setMyUsers] = useState([])
   const [myUsersLoading, setMyUsersLoading] = useState(false)
   const [myUsersError, setMyUsersError] = useState('')
@@ -45,6 +49,7 @@ export default function BdDashboard() {
     job_title: '',
     company_name: '',
     job_link: '',
+    job_description: '',
     assigned_user_id: '',
   })
 
@@ -144,6 +149,7 @@ export default function BdDashboard() {
         job_title: newLead.job_title,
         company_name: newLead.company_name,
         job_link: newLead.job_link,
+        job_description: newLead.job_description || '',
       }
       if (newLead.assigned_user_id.trim()) {
         payload.assigned_user_id = newLead.assigned_user_id.trim()
@@ -154,6 +160,7 @@ export default function BdDashboard() {
         job_title: '',
         company_name: '',
         job_link: '',
+        job_description: '',
         assigned_user_id: '',
       })
     } catch (err) {
@@ -172,6 +179,166 @@ export default function BdDashboard() {
       console.error(e)
     } finally {
       setUpdatingId(null)
+    }
+  }
+
+  const handleApplicationStatusChange = async (lead, status) => {
+    if (!lead.application_id) {
+      alert('Application record does not exist yet for this lead. Ask the user to mark it applied first.')
+      return
+    }
+    if (status === 'interview' && !lead.has_resume) {
+      alert('Please attach a resume first (Upload or Use saved) before scheduling interview.')
+      return
+    }
+    setUpdatingAppId(lead.application_id)
+    try {
+      await api.patch(`/applications/${lead.application_id}/status`, { status })
+      // Reflect application_status change locally
+      setLeads((prev) =>
+        prev.map((l) =>
+          l.id === lead.id ? { ...l, application_status: status } : l,
+        ),
+      )
+      if (status === 'interview') {
+        navigate(`/bd/interview?applicationId=${lead.application_id}`)
+      }
+    } catch (e) {
+      console.error(e)
+      alert(e.response?.data?.message || 'Failed to update application status')
+    } finally {
+      setUpdatingAppId(null)
+    }
+  }
+
+  const handleUploadResume = async (lead) => {
+    if (!lead.application_id) {
+      alert('Assign this lead to a user first so an application record exists.')
+      return
+    }
+    const sourceInput = window.prompt('Resume source? Type "user" for user_provided or "bd" for bd_provided.', 'bd')
+    if (!sourceInput) return
+    const normalized = String(sourceInput).toLowerCase().trim()
+    const source = normalized === 'user' ? 'user_provided' : 'bd_provided'
+
+    const picker = document.createElement('input')
+    picker.type = 'file'
+    picker.accept = 'application/pdf'
+    picker.onchange = async () => {
+      const file = picker.files?.[0]
+      if (!file) return
+      const formData = new FormData()
+      formData.append('resume', file)
+      formData.append('source', source)
+      try {
+        await api.post(`/applications/${lead.application_id}/resume`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+        setLeads((prev) =>
+          prev.map((l) =>
+            l.id === lead.id
+              ? { ...l, has_resume: true, resume_source: source, resume_uploaded_at: new Date().toISOString() }
+              : l,
+          ),
+        )
+      } catch (err) {
+        alert(err.response?.data?.message || 'Failed to upload resume')
+      }
+    }
+    picker.click()
+  }
+
+  const handleOpenResume = async (applicationId) => {
+    try {
+      const res = await api.get(`/applications/${applicationId}/resume`, {
+        responseType: 'blob',
+      })
+      const url = window.URL.createObjectURL(res.data)
+      window.open(url, '_blank', 'noopener,noreferrer')
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000)
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to open resume')
+    }
+  }
+
+  const handleAttachSavedResume = async (lead) => {
+    if (!lead.application_id || !lead.assigned_user_id) {
+      alert('Assign this lead first so an application exists.')
+      return
+    }
+    try {
+      let res
+      try {
+        res = await api.get(`/cv/saved/user/${lead.assigned_user_id}`)
+      } catch (err) {
+        if (err?.response?.status === 404) {
+          res = await api.get(`/cv/saved-resumes/user/${lead.assigned_user_id}`)
+        } else {
+          throw err
+        }
+      }
+      const items = Array.isArray(res.data) ? res.data : []
+      if (items.length === 0) {
+        alert('This user has no saved resumes yet.')
+        return
+      }
+      const choiceText = items
+        .map((item, index) => `${index + 1}. ${item.title} (${new Date(item.created_at).toLocaleDateString()})`)
+        .join('\n')
+      const selected = window.prompt(`Select saved resume number:\n${choiceText}`, '1')
+      const selectedIndex = Number(selected) - 1
+      if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= items.length) return
+      const picked = items[selectedIndex]
+      try {
+        await api.post(`/applications/${lead.application_id}/attach-saved-resume`, {
+          saved_resume_id: picked.id,
+        })
+      } catch (err) {
+        if (err?.response?.status === 404) {
+          await api.post(`/applications/${lead.application_id}/use-saved-resume`, {
+            saved_resume_id: picked.id,
+          })
+        } else {
+          throw err
+        }
+      }
+      setLeads((prev) =>
+        prev.map((l) =>
+          l.id === lead.id
+            ? { ...l, has_resume: true, resume_source: picked.source, resume_uploaded_at: new Date().toISOString() }
+            : l,
+        ),
+      )
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to attach saved resume'
+      if (msg === 'Route not found') {
+        alert('Saved resume route not found on backend. Restart backend server and try again.')
+        return
+      }
+      alert(msg)
+    }
+  }
+
+  const handleAttachProfileResume = async (lead) => {
+    if (!lead.application_id || !lead.assigned_user_id) {
+      alert('Assign this lead first so an application exists.')
+      return
+    }
+    const overwriteWarning = lead.has_resume
+      ? 'A resume is already attached for this application. Using profile will replace it. Continue?'
+      : 'Use this user\'s current profile to generate and attach a resume for this application?'
+    if (!window.confirm(overwriteWarning)) return
+    try {
+      await api.post(`/applications/${lead.application_id}/attach-profile-resume`)
+      setLeads((prev) =>
+        prev.map((l) =>
+          l.id === lead.id
+            ? { ...l, has_resume: true, resume_source: 'bd_provided', resume_uploaded_at: new Date().toISOString() }
+            : l,
+        ),
+      )
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to use user profile resume')
     }
   }
 
@@ -257,6 +424,7 @@ export default function BdDashboard() {
               </div>
             ) : (
               <div style={styles.tableWrapper}>
+                <div className="bd-table-wrap">
                 <table className="bd-table" style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
@@ -275,6 +443,7 @@ export default function BdDashboard() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </section>
@@ -354,6 +523,13 @@ export default function BdDashboard() {
               <button type="submit" disabled={creating} className="bd-primary-btn" style={styles.primaryBtn}>
                 {creating ? 'Creating...' : 'Add lead'}
               </button>
+              <textarea
+                name="job_description"
+                placeholder="Job description (optional)"
+                value={newLead.job_description}
+                onChange={handleNewLeadChange}
+                style={{ ...styles.input, gridColumn: '1 / -1', minHeight: 90, resize: 'vertical' }}
+              />
             </form>
           </section>
 
@@ -386,6 +562,7 @@ export default function BdDashboard() {
               </div>
             ) : (
               <div style={styles.tableWrapper}>
+                <div className="bd-table-wrap">
                 <table className="bd-table" style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
@@ -393,7 +570,9 @@ export default function BdDashboard() {
                       <th style={styles.tableHeaderCell}>Company</th>
                       <th style={styles.tableHeaderCell}>Assigned user</th>
                       <th style={styles.tableHeaderCell}>Created</th>
-                      <th style={styles.tableHeaderCell}>Status</th>
+                      <th style={styles.tableHeaderCell}>Lead status</th>
+                      <th style={styles.tableHeaderCell}>Application status</th>
+                      <th style={styles.tableHeaderCell}>Resume</th>
                       <th style={styles.tableHeaderCell}>Job link</th>
                     </tr>
                   </thead>
@@ -409,18 +588,63 @@ export default function BdDashboard() {
                           <td>{assignedUser ? (assignedUser.full_name || assignedUser.email) : '—'}</td>
                           <td>{lead.created_at ? new Date(lead.created_at).toLocaleDateString() : '—'}</td>
                           <td>
+                            <span style={{ fontSize: 13, color: theme.text }}>
+                              {lead.status || 'pending'}
+                            </span>
+                          </td>
+                          <td>
                             <select
-                              value={lead.status || 'pending'}
-                              onChange={(e) => handleStatusChange(lead.id, e.target.value)}
-                              disabled={updatingId === lead.id}
+                              value={lead.application_status || 'applied'}
+                              onChange={(e) => handleApplicationStatusChange(lead, e.target.value)}
+                              disabled={updatingAppId === lead.application_id || !lead.assigned_user_id}
                               style={styles.statusSelect}
                             >
-                              {STATUS_OPTIONS.map((s) => (
+                              {APPLICATION_STATUS_OPTIONS.map((s) => (
                                 <option key={s} value={s}>
                                   {s}
                                 </option>
                               ))}
                             </select>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                              <button
+                                type="button"
+                                className="bd-link-btn"
+                                style={styles.linkBtn}
+                                onClick={() => handleUploadResume(lead)}
+                              >
+                                Upload
+                              </button>
+                              <button
+                                type="button"
+                                className="bd-link-btn"
+                                style={styles.linkBtn}
+                                onClick={() => handleAttachSavedResume(lead)}
+                              >
+                                Use saved
+                              </button>
+                              <button
+                                type="button"
+                                className="bd-link-btn"
+                                style={styles.linkBtn}
+                                onClick={() => handleAttachProfileResume(lead)}
+                              >
+                                Use profile
+                              </button>
+                              {lead.has_resume ? (
+                                <button
+                                  type="button"
+                                  className="bd-link-btn"
+                                  style={styles.linkBtn}
+                                  onClick={() => handleOpenResume(lead.application_id)}
+                                >
+                                  View
+                                </button>
+                              ) : (
+                                <span style={{ color: theme.textMuted, fontSize: 12 }}>No file</span>
+                              )}
+                            </div>
                           </td>
                           <td>
                             {lead.job_link ? (
@@ -443,6 +667,7 @@ export default function BdDashboard() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </section>

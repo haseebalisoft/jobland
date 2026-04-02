@@ -211,13 +211,15 @@ RULES:
 JSON FORMAT:
 {
   "alignmentScore": 70,
-  "matchedKeywords": [],
-  "missingKeywords": [],
+  "matchedKeywords": ["term present in both JD and resume"],
+  "missingKeywords": ["JD term weak or absent on resume"],
   "summaryGaps": [],
   "experienceGaps": [],
   "skillsGaps": [],
   "analysis": "Short 2-sentence summary of the gap."
-}`;
+}
+
+Populate matchedKeywords and missingKeywords with concrete short phrases (skills, tools, responsibilities) from the JD where possible — these lists power the UI "what matched" / "what didn't" views.`;
 
   const content = await aiChat(
     [
@@ -277,4 +279,85 @@ export async function jdAlignedResume(profile, jd) {
   const gapAnalysis = await analyzeJdResumeGap(profile, jd);
   const optimizedProfile = await optimizeFullResume(profile, jd, gapAnalysis);
   return { gapAnalysis, optimizedProfile };
+}
+
+function parseAiJsonObject(content) {
+  let t = String(content).trim();
+  if (t.startsWith('```')) {
+    t = t.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/s, '');
+  }
+  return JSON.parse(t);
+}
+
+/**
+ * Deep ATS-oriented resume analysis (Groq/Gemini via aiChat).
+ * Criteria align with backend/docs/ATS_SCORING_CRITERIA.md
+ */
+export async function analyzeAtsDeepResume(profile) {
+  const systemPrompt = `You are an expert ATS (Applicant Tracking System) analyst and technical recruiter.
+
+SCORING FRAMEWORK — use these dimension ids and weights. Each dimension "score" is 0-100.
+- keywords_semantic (25%): Role-relevant skills, tools, domain terms; natural placement; synonym-style coverage; detect keyword stuffing (repetition without substance).
+- impact_metrics (25%): Quantified results (%, $, counts, time); strong action verbs; outcomes vs duty-only bullets.
+- structure_parsing (20%): Clear sections and headings; logical flow in plain text; call out parsing risks if the content suggests tables, multi-column layout, or graphics (infer only from text structure).
+- summary_headline (15%): Professional title/headline and summary quality; alignment with stated experience.
+- completeness (15%): Contact, skills depth, work history, education, links; consistency across sections.
+
+RULES:
+- Judge ONLY from the resume JSON provided. Do not invent employers, degrees, metrics, or dates.
+- If the resume is sparse, keep scores honestly low and say so in executiveSummary.
+- overallAtsScore is 0-100 and should reflect the weighted dimensions (compute a weighted average or equivalent).
+- keywordAnalysis.stuffingRisk must be exactly one of: "low", "medium", "high".
+- recommendations: 3-8 items, each with priority "high" | "medium" | "low".
+
+Return ONLY valid JSON with this exact shape:
+{
+  "overallAtsScore": 0,
+  "executiveSummary": "2-3 sentences.",
+  "dimensions": [
+    {
+      "id": "keywords_semantic",
+      "label": "Keywords & semantic fit",
+      "weightPercent": 25,
+      "score": 0,
+      "highlights": ["string"],
+      "gaps": ["string"]
+    }
+  ],
+  "keywordAnalysis": {
+    "strongTerms": ["string"],
+    "missingOrWeak": ["string"],
+    "stuffingRisk": "low",
+    "notes": "string"
+  },
+  "impactAnalysis": {
+    "score": 0,
+    "hasQuantifiedBullets": true,
+    "examples": ["string"],
+    "gaps": ["string"]
+  },
+  "structureNotes": {
+    "score": 0,
+    "findings": ["string"],
+    "parsingRisks": ["string"]
+  },
+  "recommendations": [
+    { "priority": "high", "text": "string" }
+  ]
+}
+
+Include exactly five dimensions in "dimensions", one per id above, with matching weightPercent (25,25,20,15,15) and human-readable labels.`;
+
+  const content = await aiChat(
+    [
+      { role: 'system', content: systemPrompt },
+      {
+        role: 'user',
+        content: `RESUME (JSON):\n${JSON.stringify(profile, null, 2)}`,
+      },
+    ],
+    { response_format: { type: 'json_object' }, temperature: 0.15, max_tokens: 4096 }
+  );
+
+  return parseAiJsonObject(content);
 }

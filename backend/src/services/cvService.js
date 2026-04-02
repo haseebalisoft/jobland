@@ -1,11 +1,15 @@
 import pool from '../config/db.js';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { buildResumePdf } from './pdfService.js';
 
 /**
  * Build the resume-maker format from DB (profiles + profile_education + profile_work_experience + user).
  */
 function toBuilderProfile(user, profile, education, workExperience) {
   const personal = {
-    fullName: user?.full_name || '',
+    fullName: profile?.resume_full_name || user?.full_name || '',
     email: user?.email || '',
     phone: profile?.phone || '',
     location: profile?.location || '',
@@ -34,7 +38,18 @@ function toBuilderProfile(user, profile, education, workExperience) {
     github: profile?.github_url || '',
     portfolio: profile?.portfolio_url || '',
   };
-  return { personal, professional, education: educationList, links };
+  let resumeUploadedAt = null;
+  if (profile?.resume_uploaded_at) {
+    const d = new Date(profile.resume_uploaded_at);
+    resumeUploadedAt = Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  return {
+    personal,
+    professional,
+    education: educationList,
+    links,
+    resumeUploadedAt,
+  };
 }
 
 function formatPeriod(startDate, endDate, isCurrent) {
@@ -95,7 +110,7 @@ export async function getResumeProfile(userId) {
   const profileRes = await pool.query(
     `
     SELECT id, title, summary, phone, location, job_functions, resume_skills,
-           linkedin_url, portfolio_url, github_url
+           linkedin_url, portfolio_url, github_url, resume_full_name, resume_uploaded_at
     FROM profiles
     WHERE user_id = $1
     ORDER BY created_at DESC
@@ -131,33 +146,12 @@ export async function getResumeProfile(userId) {
 /**
  * Save builder-format profile to DB (profiles + profile_education + profile_work_experience; optionally user).
  */
-export async function saveResumeProfile(userId, builderProfile) {
+export async function saveResumeProfile(userId, builderProfile, options = {}) {
+  const { markResumeParsed = false } = options;
   const { personal = {}, professional = {}, education = [], links = {} } = builderProfile;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-
-    // Update user name/email if provided
-    if (personal.fullName != null || personal.email != null) {
-      const updates = [];
-      const values = [];
-      let i = 1;
-      if (personal.fullName != null) {
-        updates.push(`full_name = $${i++}`);
-        values.push(personal.fullName);
-      }
-      if (personal.email != null) {
-        updates.push(`email = $${i++}`);
-        values.push(personal.email);
-      }
-      if (updates.length) {
-        values.push(userId);
-        await client.query(
-          `UPDATE users SET ${updates.join(', ')} WHERE id = $${i}`,
-          values
-        );
-      }
-    }
 
     let profileRow = await client.query(
       'SELECT id FROM profiles WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
@@ -165,6 +159,7 @@ export async function saveResumeProfile(userId, builderProfile) {
     );
     let profileId = profileRow.rows[0]?.id;
 
+    const resume_full_name = personal.fullName ?? null;
     const title = professional.currentTitle ?? '';
     const summary = professional.summary ?? null;
     const phone = personal.phone ?? null;
@@ -175,26 +170,50 @@ export async function saveResumeProfile(userId, builderProfile) {
     const github_url = links.github ?? null;
 
     if (profileId) {
-      await client.query(
-        `
-        UPDATE profiles
-        SET title = $2, summary = $3, phone = $4, location = $5,
-            resume_skills = $6, linkedin_url = $7, portfolio_url = $8, github_url = $9,
-            updated_at = NOW()
-        WHERE id = $1
-        `,
-        [profileId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url]
-      );
+      if (markResumeParsed) {
+        await client.query(
+          `
+          UPDATE profiles
+          SET title = $2, summary = $3, phone = $4, location = $5,
+              resume_skills = $6, linkedin_url = $7, portfolio_url = $8, github_url = $9,
+              resume_full_name = $10, resume_uploaded_at = NOW(), updated_at = NOW()
+          WHERE id = $1
+          `,
+          [profileId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url, resume_full_name]
+        );
+      } else {
+        await client.query(
+          `
+          UPDATE profiles
+          SET title = $2, summary = $3, phone = $4, location = $5,
+              resume_skills = $6, linkedin_url = $7, portfolio_url = $8, github_url = $9,
+              resume_full_name = $10, updated_at = NOW()
+          WHERE id = $1
+          `,
+          [profileId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url, resume_full_name]
+        );
+      }
     } else {
-      const insertRes = await client.query(
-        `
-        INSERT INTO profiles (user_id, title, summary, phone, location, resume_skills,
-                              linkedin_url, portfolio_url, github_url, is_active, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, NOW(), NOW())
-        RETURNING id
-        `,
-        [userId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url]
-      );
+      const insertRes = markResumeParsed
+        ? await client.query(
+            `
+            INSERT INTO profiles (user_id, title, summary, phone, location, resume_skills,
+                                  linkedin_url, portfolio_url, github_url, resume_full_name, is_active,
+                                  resume_uploaded_at, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, NOW(), NOW(), NOW())
+            RETURNING id
+            `,
+            [userId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url, resume_full_name]
+          )
+        : await client.query(
+            `
+            INSERT INTO profiles (user_id, title, summary, phone, location, resume_skills,
+                                  linkedin_url, portfolio_url, github_url, resume_full_name, is_active, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, NOW(), NOW())
+            RETURNING id
+            `,
+            [userId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url, resume_full_name]
+          );
       profileId = insertRes.rows[0].id;
     }
 
@@ -259,6 +278,329 @@ export async function saveResumeProfile(userId, builderProfile) {
   } finally {
     client.release();
   }
+}
+
+const SAVED_RESUMES_UPLOAD_ROOT = path.join(process.cwd(), 'uploads', 'saved-resumes');
+
+async function keepOnlyAvailableSavedResumes(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return [];
+  const checks = await Promise.all(
+    rows.map(async (row) => {
+      const absolutePath = path.join(process.cwd(), 'uploads', row.storage_key || '');
+      try {
+        await fs.access(absolutePath);
+        return row;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return checks.filter(Boolean);
+}
+
+export async function saveFinalizedResume(userId, title, profile, actor) {
+  if (!title || !String(title).trim()) {
+    const err = new Error('title is required');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!profile || typeof profile !== 'object') {
+    const err = new Error('profile is required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const pdfBuffer = await buildResumePdf(profile, {});
+  await fs.mkdir(SAVED_RESUMES_UPLOAD_ROOT, { recursive: true });
+  const fileName = `${randomUUID()}.pdf`;
+  const relativeStorageKey = path.posix.join('saved-resumes', fileName);
+  const absolutePath = path.join(process.cwd(), 'uploads', relativeStorageKey);
+  await fs.writeFile(absolutePath, pdfBuffer);
+
+  try {
+    const result = await pool.query(
+      `
+        INSERT INTO saved_resumes (
+          id,
+          user_id,
+          title,
+          profile_snapshot_json,
+          storage_key,
+          original_filename,
+          source,
+          created_by,
+          is_active,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          gen_random_uuid(),
+          $1,
+          $2,
+          $3::jsonb,
+          $4,
+          $5,
+          $6::resume_source_type,
+          $7,
+          TRUE,
+          NOW(),
+          NOW()
+        )
+        RETURNING id, user_id, title, source, created_at
+      `,
+      [
+        userId,
+        String(title).trim(),
+        JSON.stringify(profile),
+        relativeStorageKey,
+        `${String(title).trim().replace(/\s+/g, '_') || 'resume'}.pdf`,
+        actor?.role === 'bd' ? 'bd_provided' : 'user_provided',
+        actor?.id || userId,
+      ],
+    );
+    return result.rows[0];
+  } catch (err) {
+    await fs.unlink(absolutePath).catch(() => {});
+    throw err;
+  }
+}
+
+export async function listSavedResumesForUser(userId) {
+  const result = await pool.query(
+    `
+      SELECT
+        id,
+        user_id,
+        title,
+        profile_snapshot_json,
+        storage_key,
+        original_filename,
+        source,
+        created_at,
+        updated_at
+      FROM saved_resumes
+      WHERE user_id = $1
+        AND is_active = TRUE
+      ORDER BY created_at DESC
+    `,
+    [userId],
+  );
+  return keepOnlyAvailableSavedResumes(result.rows || []);
+}
+
+export async function listSavedResumesForBdUser(bdId, userId) {
+  const access = await pool.query(
+    `
+      SELECT 1
+      FROM user_bd_assignments
+      WHERE bd_id = $1
+        AND user_id = $2
+      LIMIT 1
+    `,
+    [bdId, userId],
+  );
+  if (access.rowCount === 0) {
+    const err = new Error('You can only access resumes of users assigned to you');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  return listSavedResumesForUser(userId);
+}
+
+export async function getSavedResumeById(savedResumeId) {
+  const result = await pool.query(
+    `
+      SELECT
+        id,
+        user_id,
+        title,
+        storage_key,
+        original_filename,
+        source
+      FROM saved_resumes
+      WHERE id = $1
+        AND is_active = TRUE
+      LIMIT 1
+    `,
+    [savedResumeId],
+  );
+  return result.rows[0] || null;
+}
+
+export async function getSavedResumeFileForActor(savedResumeId, actor) {
+  const result = await pool.query(
+    `
+      SELECT
+        id,
+        user_id,
+        storage_key,
+        original_filename
+      FROM saved_resumes
+      WHERE id = $1
+        AND is_active = TRUE
+      LIMIT 1
+    `,
+    [savedResumeId],
+  );
+  if (result.rowCount === 0) {
+    const err = new Error('Saved resume not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  const row = result.rows[0];
+  if (!actor) {
+    const err = new Error('Unauthorized');
+    err.statusCode = 401;
+    throw err;
+  }
+  const isOwnerUser = actor.role === 'user' && actor.id === row.user_id;
+  const isAdmin = actor.role === 'admin';
+  let isAssignedBd = false;
+  if (actor.role === 'bd') {
+    const access = await pool.query(
+      `
+        SELECT 1
+        FROM user_bd_assignments
+        WHERE bd_id = $1
+          AND user_id = $2
+        LIMIT 1
+      `,
+      [actor.id, row.user_id],
+    );
+    isAssignedBd = access.rowCount > 0;
+  }
+  if (!isOwnerUser && !isAdmin && !isAssignedBd) {
+    const err = new Error('Not authorized to access this saved resume');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const absolutePath = path.join(process.cwd(), 'uploads', row.storage_key);
+  try {
+    await fs.access(absolutePath);
+  } catch {
+    const err = new Error('Saved resume file is missing from storage');
+    err.statusCode = 404;
+    throw err;
+  }
+  return {
+    absolutePath,
+    fileName: row.original_filename || 'resume.pdf',
+    mimeType: 'application/pdf',
+  };
+}
+
+/**
+ * Save a user-uploaded PDF as a saved resume version (no builder profile snapshot).
+ */
+export async function saveUploadedSavedResume(userId, title, file, actor) {
+  if (!title || !String(title).trim()) {
+    const err = new Error('title is required');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!file || file.mimetype !== 'application/pdf') {
+    const err = new Error('Only PDF files are allowed');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const pdfBuffer = file.buffer;
+  await fs.mkdir(SAVED_RESUMES_UPLOAD_ROOT, { recursive: true });
+  const fileName = `${randomUUID()}.pdf`;
+  const relativeStorageKey = path.posix.join('saved-resumes', fileName);
+  const absolutePath = path.join(process.cwd(), 'uploads', relativeStorageKey);
+  await fs.writeFile(absolutePath, pdfBuffer);
+
+  const snapshot = {
+    kind: 'uploaded_pdf',
+    originalFilename: file.originalname || 'resume.pdf',
+  };
+
+  try {
+    const result = await pool.query(
+      `
+        INSERT INTO saved_resumes (
+          id,
+          user_id,
+          title,
+          profile_snapshot_json,
+          storage_key,
+          original_filename,
+          source,
+          created_by,
+          is_active,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          gen_random_uuid(),
+          $1,
+          $2,
+          $3::jsonb,
+          $4,
+          $5,
+          $6::resume_source_type,
+          $7,
+          TRUE,
+          NOW(),
+          NOW()
+        )
+        RETURNING id, user_id, title, source, created_at
+      `,
+      [
+        userId,
+        String(title).trim(),
+        JSON.stringify(snapshot),
+        relativeStorageKey,
+        file.originalname || 'resume.pdf',
+        actor?.role === 'bd' ? 'bd_provided' : 'user_provided',
+        actor?.id || userId,
+      ],
+    );
+    return result.rows[0];
+  } catch (err) {
+    await fs.unlink(absolutePath).catch(() => {});
+    throw err;
+  }
+}
+
+/**
+ * Permanently remove a saved resume owned by the user. Deletes the DB row (application_resumes.saved_resume_id is set NULL by FK) and removes the file from disk.
+ */
+export async function deleteSavedResumeForUser(savedResumeId, actor) {
+  if (!actor || actor.role !== 'user') {
+    const err = new Error('Only account owners can delete saved resumes');
+    err.statusCode = 403;
+    throw err;
+  }
+  if (!savedResumeId) {
+    const err = new Error('saved resume id is required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const del = await pool.query(
+    `
+      DELETE FROM saved_resumes
+      WHERE id = $1
+        AND user_id = $2
+      RETURNING storage_key
+    `,
+    [savedResumeId, actor.id],
+  );
+  if (del.rowCount === 0) {
+    const err = new Error('Saved resume not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  const storageKey = del.rows[0]?.storage_key;
+  if (storageKey) {
+    const absolutePath = path.join(process.cwd(), 'uploads', storageKey);
+    await fs.unlink(absolutePath).catch(() => {});
+  }
+  return { success: true };
 }
 
 export { toBuilderProfile, parsePeriod };

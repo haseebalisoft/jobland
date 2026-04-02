@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import {
     Download, Layout, User, Briefcase, GraduationCap,
     BrainCircuit, ChevronDown, ChevronRight, ChevronLeft, Loader2, Check,
@@ -7,36 +7,114 @@ import {
     RotateCcw, RotateCw, Type, Palette, MoveVertical,
     Grid, Sparkles, Trash2, Globe, Github, Linkedin,
     Award, Settings, Share2, Layers, Zap, Eye, Sliders, ExternalLink,
-    RefreshCw, FileText, Minus, Plus, LayoutDashboard, LogOut
+    RefreshCw, FileText, Minus, Plus, LayoutDashboard, LogOut, Upload, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import debounce from 'lodash.debounce';
+import { emptyProfile, normalizeProfile } from '../utils/cvProfile.js';
 
-const emptyProfile = () => ({
-    personal: { fullName: '', email: '', phone: '', location: '' },
-    professional: { currentTitle: '', summary: '', skills: [], workExperience: [] },
-    education: [],
-    links: { linkedin: '', github: '', portfolio: '' }
-});
+function tokenizeForDiff(text) {
+    // Split into word-ish tokens; we will re-join with spaces when rendering.
+    return String(text || '').trim().split(/\s+/).filter(Boolean);
+}
 
-function normalizeProfile(data) {
-    if (!data) return emptyProfile();
-    return {
-        personal: { ...emptyProfile().personal, ...(data.personal || {}) },
-        professional: {
-            ...emptyProfile().professional,
-            ...(data.professional || {}),
-            skills: Array.isArray(data.professional?.skills) ? data.professional.skills : [],
-            workExperience: Array.isArray(data.professional?.workExperience) ? data.professional.workExperience : []
-        },
-        education: Array.isArray(data.education) ? data.education : [],
-        links: { ...emptyProfile().links, ...(data.links || {}) }
+function computeInlineWordDiff(beforeText, afterText) {
+    const beforeTokens = tokenizeForDiff(beforeText);
+    const afterTokens = tokenizeForDiff(afterText);
+
+    const n = beforeTokens.length;
+    const m = afterTokens.length;
+
+    // Trivial cases
+    if (n === 0 && m === 0) return [];
+    if (n === 0) return afterTokens.map((t) => ({ type: 'added', token: t }));
+    if (m === 0) return beforeTokens.map((t) => ({ type: 'removed', token: t }));
+
+    // Safety fallback: avoid quadratic DP on very large texts.
+    const cellCount = (n + 1) * (m + 1);
+    if (cellCount > 120000) {
+        // Best-effort fallback: mark full removed + full added.
+        return [
+            ...beforeTokens.map((t) => ({ type: 'removed', token: t })),
+            ...afterTokens.map((t) => ({ type: 'added', token: t })),
+        ];
+    }
+
+    // LCS DP for word diff
+    const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+    for (let i = 1; i <= n; i += 1) {
+        for (let j = 1; j <= m; j += 1) {
+            dp[i][j] =
+                beforeTokens[i - 1] === afterTokens[j - 1]
+                    ? dp[i - 1][j - 1] + 1
+                    : Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
+    }
+
+    // Backtrack
+    const itemsReversed = [];
+    let i = n;
+    let j = m;
+    while (i > 0 && j > 0) {
+        if (beforeTokens[i - 1] === afterTokens[j - 1]) {
+            itemsReversed.push({ type: 'equal', token: beforeTokens[i - 1] });
+            i -= 1;
+            j -= 1;
+        } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+            itemsReversed.push({ type: 'removed', token: beforeTokens[i - 1] });
+            i -= 1;
+        } else {
+            itemsReversed.push({ type: 'added', token: afterTokens[j - 1] });
+            j -= 1;
+        }
+    }
+    while (i > 0) {
+        itemsReversed.push({ type: 'removed', token: beforeTokens[i - 1] });
+        i -= 1;
+    }
+    while (j > 0) {
+        itemsReversed.push({ type: 'added', token: afterTokens[j - 1] });
+        j -= 1;
+    }
+
+    return itemsReversed.reverse();
+}
+
+function InlineDiffText({ before, after, style = {} }) {
+    const items = computeInlineWordDiff(before, after);
+
+    const baseStyle = {
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        lineHeight: 1.6,
+        ...style,
     };
+
+    const tokenStyle = (type) => {
+        if (type === 'equal') return { background: 'transparent', color: '#0f172a' };
+        if (type === 'removed')
+            return { background: '#fee2e2', color: '#b91c1c', textDecoration: 'line-through' };
+        if (type === 'added')
+            return { background: '#dcfce7', color: '#14532d', textDecoration: 'none' };
+        return {};
+    };
+
+    return (
+        <span style={baseStyle}>
+            {items.map((it, idx) => (
+                <span key={`${idx}-${it.type}`} style={tokenStyle(it.type)}>
+                    {it.token}
+                    {idx < items.length - 1 ? ' ' : ''}
+                </span>
+            ))}
+        </span>
+    );
 }
 
 import './ResumeMaker.css';
 import UserSidebar from '../components/UserSidebar.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const theme = {
     primary: '#0d9488',
@@ -53,6 +131,9 @@ const theme = {
 
 const ResumeMaker = () => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const prevPathnameRef = useRef(null);
+    const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [downloading, setDownloading] = useState(false);
     const [profile, setProfile] = useState(null);
@@ -64,9 +145,15 @@ const ResumeMaker = () => {
     const [educationIndex, setEducationIndex] = useState(0);
     const [expandedSection, setExpandedSection] = useState('Profile');
     const [activeView, setActiveView] = useState('PDF');
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [previewLoading, setPreviewLoading] = useState(false);
     const [saveStatus, setSaveStatus] = useState('Saved ✓');
+    const [savingFinalized, setSavingFinalized] = useState(false);
+    const [savedResumes, setSavedResumes] = useState([]);
+    const [savedResumesLoading, setSavedResumesLoading] = useState(false);
+    const [uploadingSavedCv, setUploadingSavedCv] = useState(false);
+    const [deletingSavedId, setDeletingSavedId] = useState(null);
 
     // AI Tools State
     const [jd, setJd] = useState('');
@@ -78,8 +165,8 @@ const ResumeMaker = () => {
     const [customization, setCustomization] = useState({
         fontFamily: "'Inter', sans-serif",
         headingFont: "'Outfit', sans-serif",
-        primaryColor: "#4F46E5",
-        lineHeight: 1.5,
+        primaryColor: "#111827",
+        lineHeight: 1.4,
         sectionGap: 24,
         showIcons: true,
         showProfilePic: false,
@@ -89,6 +176,24 @@ const ResumeMaker = () => {
         sideMargin: 25,
         borderRadius: 4
     });
+
+    // AI diff highlights (before/after); status 'pending' until Keep / Discard
+    const [aiChanges, setAiChanges] = useState([]);
+    /** Full optimized profile from JD analysis — used for "Apply all" after review */
+    const [pendingOptimizedProfile, setPendingOptimizedProfile] = useState(null);
+    const [previewMode, setPreviewMode] = useState('pdf'); // 'pdf' | 'diff'
+
+    const isPendingChange = (c) => (c.status || 'pending') === 'pending';
+
+    const handleUpgradeRequired = (err) => {
+        if (err?.response?.status === 403 && err?.response?.data?.code === 'UPGRADE_REQUIRED') {
+            navigate('/free-tools?upgrade=1');
+            return true;
+        }
+        return false;
+    };
+
+    const isFreePlanUser = String(user?.subscription_plan || '').toLowerCase() === 'free';
 
     const saveProfile = async (updatedProfile) => {
         setSaveStatus('Saving...');
@@ -110,11 +215,16 @@ const ResumeMaker = () => {
         if (!currentProfile) return;
         setPreviewLoading(true);
         try {
-            const response = await api.post('/cv/download', { profile: currentProfile }, { responseType: 'blob' });
+            const response = await api.post(
+                '/cv/preview',
+                { profile: currentProfile, customization },
+                { responseType: 'blob' }
+            );
             if (previewUrl) window.URL.revokeObjectURL(previewUrl);
             const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
             setPreviewUrl(url);
         } catch (err) {
+            if (handleUpgradeRequired(err)) return;
             console.error('Preview sync failed:', err);
         } finally {
             setPreviewLoading(false);
@@ -148,6 +258,52 @@ const ResumeMaker = () => {
         }
     };
 
+    const acceptAiChange = (changeId) => {
+        const change = (aiChanges || []).find((c) => c.id === changeId && c.status === 'pending');
+        if (!change) return;
+        if (change.section === 'Summary' || change.key === 'summary') {
+            updateProfile('professional', 'summary', change.after);
+        } else if (change.section === 'Experience' && change.expIndex != null) {
+            updateProfile('experience', 'description', change.after, change.expIndex);
+        }
+        setAiChanges((prev) => {
+            const next = prev.filter((c) => c.id !== changeId);
+            if (!next.some((c) => c.source === 'full-jd' && c.status === 'pending')) {
+                setPendingOptimizedProfile(null);
+                setAnalyzedData(null);
+            }
+            return next;
+        });
+    };
+
+    const rejectAiChange = (changeId) => {
+        setAiChanges((prev) => {
+            const next = prev.filter((c) => c.id !== changeId);
+            if (!next.some((c) => c.source === 'full-jd' && c.status === 'pending')) {
+                setPendingOptimizedProfile(null);
+                setAnalyzedData(null);
+            }
+            return next;
+        });
+    };
+
+    const acceptAllPendingAiChanges = () => {
+        if (!pendingOptimizedProfile) return;
+        setProfile(pendingOptimizedProfile);
+        saveProfile(pendingOptimizedProfile);
+        refreshPreview(pendingOptimizedProfile);
+        setAiChanges((prev) => prev.filter((c) => !(c.source === 'full-jd' && c.status === 'pending')));
+        setPendingOptimizedProfile(null);
+        setAnalyzedData(null);
+        setSaveStatus('Saved ✓');
+    };
+
+    const discardAllPendingAiChanges = () => {
+        setAiChanges((prev) => prev.filter((c) => !(c.status === 'pending' && c.source === 'full-jd')));
+        setPendingOptimizedProfile(null);
+        setAnalyzedData(null);
+    };
+
     const handleAIImproveSummary = async () => {
         setSaveStatus('AI Enhancing...');
         try {
@@ -156,10 +312,34 @@ const ResumeMaker = () => {
                 role: profile.professional.currentTitle
             });
             if (res.data.improved) {
-                updateProfile('professional', 'summary', res.data.improved);
+                const incoming = {
+                    id: `summary-${Date.now()}`,
+                    section: 'Summary',
+                    key: 'summary',
+                    label: 'Professional summary',
+                    before: profile.professional.summary || '',
+                    after: res.data.improved || '',
+                    status: 'pending',
+                    source: 'inline',
+                };
+                setAiChanges((prev) => [
+                    incoming,
+                    ...prev.filter(
+                        (c) =>
+                            !(
+                                c.status === 'pending' &&
+                                c.source === 'inline' &&
+                                (c.section === 'Summary' || c.key === 'summary')
+                            ),
+                    ),
+                ]);
+                setPreviewMode('diff');
+                setActiveView('PDF');
+                setSaveStatus('Review: Keep or Discard in AI diff');
             }
         } catch (err) {
             console.error('AI Summary Error:', err);
+            setSaveStatus('Saved ✓');
         }
     };
 
@@ -171,10 +351,36 @@ const ResumeMaker = () => {
                 role: profile.professional.workExperience[index].role
             });
             if (res.data.optimized) {
-                updateProfile('experience', 'description', res.data.optimized, index);
+                const current = profile.professional.workExperience[index];
+                const incoming = {
+                    id: `exp-${index}-${Date.now()}`,
+                    section: 'Experience',
+                    expIndex: index,
+                    label: current.role || `Experience ${index + 1}`,
+                    before: current.description || '',
+                    after: res.data.optimized || '',
+                    status: 'pending',
+                    source: 'inline',
+                };
+                setAiChanges((prev) => [
+                    incoming,
+                    ...prev.filter(
+                        (c) =>
+                            !(
+                                c.status === 'pending' &&
+                                c.source === 'inline' &&
+                                c.section === 'Experience' &&
+                                c.expIndex === index
+                            ),
+                    ),
+                ]);
+                setPreviewMode('diff');
+                setActiveView('PDF');
+                setSaveStatus('Review: Keep or Discard in AI diff');
             }
         } catch (err) {
             console.error('AI Experience Error:', err);
+            setSaveStatus('Saved ✓');
         }
     };
 
@@ -194,21 +400,84 @@ const ResumeMaker = () => {
         }
     };
 
-    const handleApplyAnalysis = () => {
+    const handlePrepareFullOptimizationReview = () => {
         if (!analyzedData || !analyzedData.optimizedProfile) return;
 
         const newProfile = analyzedData.optimizedProfile;
-        setProfile(newProfile);
-        setAnalyzedData(null);
-        refreshPreview(newProfile);
-        saveProfile(newProfile);
-        alert("Success! Your resume has been completely transformed and optimized.");
+        const batchId = Date.now();
+
+        try {
+            const changes = [];
+            if ((profile.professional?.summary || '') !== (newProfile.professional?.summary || '')) {
+                changes.push({
+                    id: `full-summary-${batchId}`,
+                    section: 'Summary',
+                    key: 'summary',
+                    label: 'Professional summary',
+                    before: profile.professional?.summary || '',
+                    after: newProfile.professional?.summary || '',
+                    status: 'pending',
+                    source: 'full-jd',
+                });
+            }
+            const oldExp = profile.professional?.workExperience || [];
+            const newExp = newProfile.professional?.workExperience || [];
+            const maxLen = Math.max(oldExp.length, newExp.length);
+            for (let i = 0; i < maxLen; i += 1) {
+                const before = oldExp[i]?.description || '';
+                const after = newExp[i]?.description || '';
+                if (before !== after && (before || after)) {
+                    changes.push({
+                        id: `full-exp-${i}-${batchId}`,
+                        section: 'Experience',
+                        expIndex: i,
+                        label: newExp[i]?.role || oldExp[i]?.role || `Experience ${i + 1}`,
+                        before,
+                        after,
+                        status: 'pending',
+                        source: 'full-jd',
+                    });
+                }
+            }
+            if (changes.length) {
+                setPendingOptimizedProfile(newProfile);
+                setAiChanges((prev) => {
+                    const withoutOverlap = prev.filter((c) => {
+                        if (c.status !== 'pending' || c.source !== 'inline') return true;
+                        if (c.section === 'Summary' && changes.some((ch) => ch.section === 'Summary')) return false;
+                        if (c.section === 'Experience') {
+                            return !changes.some((ch) => ch.section === 'Experience' && ch.expIndex === c.expIndex);
+                        }
+                        return true;
+                    });
+                    const withoutOldFullJd = withoutOverlap.filter((c) => !(c.source === 'full-jd' && c.status === 'pending'));
+                    return [...changes, ...withoutOldFullJd];
+                });
+            } else {
+                setSaveStatus('No text changes to review — profile already matches.');
+                return;
+            }
+        } catch (e) {
+            console.error('Failed to compute AI diff highlights', e);
+            return;
+        }
+        setPreviewMode('diff');
+        setActiveView('PDF');
+        setSaveStatus('Review changes (AI diff) — Keep or Discard each section');
     };
 
     const handleDownload = async () => {
+        if (isFreePlanUser) {
+            navigate('/free-tools?upgrade=1');
+            return;
+        }
         setDownloading(true);
         try {
-            const response = await api.post('/cv/download', { profile }, { responseType: 'blob' });
+            const response = await api.post(
+                '/cv/download',
+                { profile, customization },
+                { responseType: 'blob' }
+            );
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
@@ -217,11 +486,171 @@ const ResumeMaker = () => {
             link.click();
             link.remove();
         } catch (err) {
+            if (handleUpgradeRequired(err)) return;
             console.error('Download error:', err);
             alert('Failed to generate PDF.');
         } finally {
             setDownloading(false);
         }
+    };
+
+    const fetchSavedResumes = async () => {
+        setSavedResumesLoading(true);
+        try {
+            let res;
+            try {
+                res = await api.get('/cv/saved');
+            } catch (err) {
+                if (err?.response?.status === 404) {
+                    res = await api.get('/cv/saved-resumes');
+                } else {
+                    throw err;
+                }
+            }
+            setSavedResumes(Array.isArray(res.data) ? res.data : []);
+        } catch (err) {
+            console.error(err);
+            setSavedResumes([]);
+        } finally {
+            setSavedResumesLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (location.pathname === '/resumes') {
+            setActiveTab('Resumes');
+            setActiveView('Editor');
+        } else if (location.pathname === '/resume-maker' && prevPathnameRef.current === '/resumes') {
+            setActiveTab('Content');
+        }
+        prevPathnameRef.current = location.pathname;
+    }, [location.pathname]);
+
+    const isResumesOnlyPage = location.pathname === '/resumes';
+
+    useEffect(() => {
+        if (((activeTab === 'Saved resumes' || activeTab === 'Resumes') || isResumesOnlyPage) && profile) {
+            fetchSavedResumes();
+        }
+    }, [activeTab, profile, isResumesOnlyPage]);
+
+    const handleSaveFinalizedResume = async () => {
+        if (!profile) return;
+        const defaultTitle = `${profile.personal?.fullName || 'Resume'} ${new Date().toLocaleDateString()}`;
+        const title = window.prompt('Name this saved resume version:', defaultTitle);
+        if (!title) return;
+        setSavingFinalized(true);
+        try {
+            await api.post('/cv/saved', { title, profile });
+            window.alert('Resume version saved. Your BD can now use it.');
+            await fetchSavedResumes();
+        } catch (err) {
+            console.error(err);
+            window.alert(err.response?.data?.message || 'Failed to save resume version');
+        } finally {
+            setSavingFinalized(false);
+        }
+    };
+
+    const handleUploadSavedCv = () => {
+        const picker = document.createElement('input');
+        picker.type = 'file';
+        picker.accept = 'application/pdf';
+        picker.onchange = async () => {
+            const file = picker.files?.[0];
+            if (!file) return;
+            setUploadingSavedCv(true);
+            try {
+                const formData = new FormData();
+                formData.append('resume', file);
+                const normalizedName = (file.name || 'resume.pdf').replace(/\.pdf$/i, '').trim();
+                if (normalizedName) formData.append('title', normalizedName);
+                try {
+                    await api.post('/cv/saved/upload', formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' },
+                    });
+                } catch (err) {
+                    if (err?.response?.status === 404) {
+                        await api.post('/cv/saved-resumes/upload', formData, {
+                            headers: { 'Content-Type': 'multipart/form-data' },
+                        });
+                    } else {
+                        throw err;
+                    }
+                }
+                window.alert('CV uploaded to your saved resumes.');
+                await fetchSavedResumes();
+            } catch (err) {
+                console.error(err);
+                const msg = err.response?.data?.message || err.response?.data?.error || '';
+                if (err?.response?.status === 404 || msg === 'Route not found') {
+                    window.alert('Upload route is unavailable on the backend. Please restart backend server and try again.');
+                } else {
+                    window.alert(msg || 'Failed to upload CV');
+                }
+            } finally {
+                setUploadingSavedCv(false);
+            }
+        };
+        picker.click();
+    };
+
+    const handleOpenSavedResume = async (savedResumeId) => {
+        if (!savedResumeId) return;
+        try {
+            let res;
+            try {
+                res = await api.get(`/cv/saved/${savedResumeId}/file`, { responseType: 'blob' });
+            } catch (err) {
+                if (err?.response?.status === 404) {
+                    res = await api.get(`/cv/saved-resumes/${savedResumeId}/file`, { responseType: 'blob' });
+                } else {
+                    throw err;
+                }
+            }
+            const url = window.URL.createObjectURL(res.data);
+            window.open(url, '_blank', 'noopener,noreferrer');
+            window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+        } catch (err) {
+            const msg = err.response?.data?.message || err.response?.data?.error || 'Unable to open saved resume';
+            window.alert(msg);
+        }
+    };
+
+    const handleDeleteSavedResume = async (savedResumeId) => {
+        if (!savedResumeId) return;
+        if (!window.confirm('Remove this saved resume? It will no longer be available for job applications.')) return;
+        setDeletingSavedId(savedResumeId);
+        try {
+            try {
+                await api.delete(`/cv/saved/${savedResumeId}`);
+            } catch (err) {
+                if (err?.response?.status === 404) {
+                    await api.delete(`/cv/saved-resumes/${savedResumeId}`);
+                } else {
+                    throw err;
+                }
+            }
+            await fetchSavedResumes();
+        } catch (err) {
+            console.error(err);
+            window.alert(err.response?.data?.message || 'Failed to remove resume');
+        } finally {
+            setDeletingSavedId(null);
+        }
+    };
+
+    const handleOpenEditorView = () => {
+        setIsSidebarCollapsed(false);
+        setActiveView('Editor');
+    };
+
+    const handleCloseEditorPanel = () => {
+        if (window.innerWidth <= 1200) {
+            setActiveView('PDF');
+            return;
+        }
+        setIsSidebarCollapsed(true);
     };
 
     const updateProfile = (section, field, value, index = null) => {
@@ -280,10 +709,124 @@ const ResumeMaker = () => {
         (profile.education?.length === 0 && (profile.professional?.workExperience?.length ?? 0) === 0)
     );
 
+    if (isResumesOnlyPage) {
+        return (
+            <div className="rb-scope" style={{ background: theme.bg }}>
+                <UserSidebar />
+                <div className="rb-main-content" style={{ overflowY: 'auto' }}>
+                    <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 24px 40px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+                            <div>
+                                <h1 style={{ margin: 0, color: theme.slate, fontSize: 28, fontWeight: 900 }}>Saved resumes</h1>
+                                <p style={{ margin: '8px 0 0', color: theme.textMuted, fontSize: 14 }}>
+                                    Upload and manage CV versions your BD can attach directly to applications.
+                                </p>
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <button type="button" className="rb-btn-primary" onClick={handleUploadSavedCv} disabled={uploadingSavedCv}>
+                                    {uploadingSavedCv ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
+                                    {uploadingSavedCv ? 'Uploading...' : 'Upload Resume'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/resume-maker')}
+                                    style={{ padding: '10px 14px', borderRadius: 12, border: `1px solid ${theme.border}`, background: 'white', color: theme.slate, fontWeight: 700, cursor: 'pointer' }}
+                                >
+                                    Open Resume Maker
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style={{ background: 'white', border: `1px solid ${theme.border}`, borderRadius: 16, overflow: 'hidden' }}>
+                            <div style={{ padding: '14px 16px', borderBottom: `1px solid ${theme.border}`, fontSize: 13, color: theme.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                Your saved CV list
+                            </div>
+                            {savedResumesLoading ? (
+                                <div style={{ padding: 20, color: theme.textMuted, fontSize: 14 }}>Loading saved resumes...</div>
+                            ) : savedResumes.length === 0 ? (
+                                <div style={{ padding: 20, color: theme.textMuted, fontSize: 14 }}>
+                                    No saved resumes yet. Upload a PDF or save a version from Resume Maker.
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    {savedResumes.map((row) => (
+                                        <div key={row.id} style={{ padding: '14px 16px', borderTop: `1px solid ${theme.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                                            <div style={{ minWidth: 220 }}>
+                                                <div style={{ fontWeight: 800, color: theme.slate, fontSize: 15 }}>{row.title || 'Untitled resume'}</div>
+                                                <div style={{ marginTop: 4, fontSize: 12, color: theme.textMuted }}>
+                                                    {row.created_at ? new Date(row.created_at).toLocaleString() : 'Recently saved'}
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                                <span style={{ fontSize: 11, fontWeight: 700, color: '#0f766e', background: '#ecfeff', border: '1px solid #99f6e4', borderRadius: 999, padding: '4px 10px' }}>
+                                                    {row.profile_snapshot_json?.kind === 'uploaded_pdf' ? 'Uploaded PDF' : 'Builder version'}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleOpenSavedResume(row.id)}
+                                                    style={{ padding: '6px 10px', borderRadius: 9, border: `1px solid ${theme.border}`, background: '#fff', color: theme.slate, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                                                >
+                                                    Open
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteSavedResume(row.id)}
+                                                    disabled={deletingSavedId === row.id}
+                                                    style={{ padding: '6px 10px', borderRadius: 9, border: '1px solid #fecaca', background: '#fff1f2', color: '#be123c', fontSize: 12, fontWeight: 700, cursor: deletingSavedId === row.id ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                                >
+                                                    {deletingSavedId === row.id ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />}
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="rb-scope" style={{ background: theme.bg }}>
             <UserSidebar />
             <div className="rb-main-content">
+                    {isFreePlanUser && (
+                        <div
+                            style={{
+                                padding: '12px 24px',
+                                background: 'linear-gradient(90deg, rgba(245,158,11,0.18) 0%, rgba(249,115,22,0.16) 100%)',
+                                borderBottom: '1px solid rgba(245,158,11,0.35)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                flexWrap: 'wrap',
+                                gap: 12,
+                            }}
+                        >
+                            <span style={{ fontSize: 14, color: '#7c2d12', fontWeight: 600 }}>
+                                Free plan: ATS tools and live preview are available. PDF download requires a paid plan.
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => navigate('/free-tools?upgrade=1')}
+                                style={{
+                                    padding: '8px 16px',
+                                    borderRadius: 8,
+                                    background: '#ea580c',
+                                    color: 'white',
+                                    fontWeight: 700,
+                                    fontSize: 13,
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                Upgrade to download
+                            </button>
+                        </div>
+                    )}
                     {(profile?.education?.length === 0 || (profile?.professional?.workExperience?.length ?? 0) === 0) && (
                         <div style={{ padding: '12px 24px', background: 'linear-gradient(90deg, rgba(13,148,136,0.12) 0%, rgba(6,182,212,0.08) 100%)', borderBottom: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
                             <span style={{ fontSize: 14, color: theme.text, fontWeight: 500 }}>
@@ -297,10 +840,10 @@ const ResumeMaker = () => {
 
             <main className="rb-main mobile-main-fix" style={{ flex: 1 }}>
                 {/* --- LEFT PANEL: EDITOR SIDEBAR --- */}
-                <aside className={`rb-sidebar ${activeView === 'Editor' ? 'active' : 'mobile-hide'}`}>
+                <aside className={`rb-sidebar ${isSidebarCollapsed ? 'rb-sidebar-collapsed' : ''} ${activeView === 'Editor' ? 'active' : 'mobile-hide'}`}>
                     <div className="rb-sidebar-header">
                         <span style={{ fontWeight: 800, fontSize: '14px', color: theme.slate }}>{activeTab}</span>
-                        <button type="button" onClick={() => setActiveView('PDF')} className="rb-sidebar-close" aria-label="Close panel">
+                        <button type="button" onClick={handleCloseEditorPanel} className="rb-sidebar-close" aria-label="Close panel">
                             <ChevronLeft size={20} />
                         </button>
                     </div>
@@ -556,16 +1099,89 @@ const ResumeMaker = () => {
                             </motion.div>
                         )}
 
+                        {(activeTab === 'Saved resumes' || activeTab === 'Resumes') && (
+                            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                <div style={{ padding: '1.25rem', background: 'white', borderRadius: '16px', border: `1px solid ${theme.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                                    <h3 style={{ margin: '0 0 8px 0', fontSize: '15px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: theme.slate }}>Saved resumes</h3>
+                                    <p style={{ margin: '0 0 14px 0', fontSize: 13, color: theme.textMuted, lineHeight: 1.5 }}>
+                                        Versions you save from the builder, or PDFs you upload here, are available to your BD for job applications.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={handleUploadSavedCv}
+                                        disabled={uploadingSavedCv}
+                                        className="rb-btn-primary"
+                                        style={{ width: '100%', justifyContent: 'center', marginBottom: 12 }}
+                                    >
+                                        {uploadingSavedCv ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
+                                        {uploadingSavedCv ? 'Uploading...' : 'Upload Resume'}
+                                    </button>
+                                    {savedResumesLoading ? (
+                                        <div style={{ padding: 16, textAlign: 'center', color: theme.textMuted, fontSize: 13 }}>Loading saved resumes…</div>
+                                    ) : savedResumes.length === 0 ? (
+                                        <div style={{ padding: 12, background: '#f8fafc', borderRadius: 12, fontSize: 13, color: theme.textMuted }}>
+                                            No saved versions yet. Use <strong>Save</strong> above after editing, or upload a PDF.
+                                        </div>
+                                    ) : (
+                                        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            {savedResumes.map((row) => (
+                                                <li
+                                                    key={row.id}
+                                                    style={{
+                                                        padding: '10px 12px',
+                                                        borderRadius: 12,
+                                                        border: `1px solid ${theme.border}`,
+                                                        background: '#f8fafc',
+                                                        fontSize: 13,
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center',
+                                                        gap: 8,
+                                                        flexWrap: 'wrap',
+                                                    }}
+                                                >
+                                                    <div style={{ minWidth: 0, flex: '1 1 140px' }}>
+                                                        <div style={{ fontWeight: 700, color: theme.text }}>{row.title || 'Untitled'}</div>
+                                                        <div style={{ fontSize: 11, color: theme.textMuted, marginTop: 2 }}>
+                                                            {row.created_at ? new Date(row.created_at).toLocaleString() : ''}
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleOpenSavedResume(row.id)}
+                                                            style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${theme.border}`, background: '#fff', color: theme.slate, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                                                        >
+                                                            Open
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDeleteSavedResume(row.id)}
+                                                            disabled={deletingSavedId === row.id}
+                                                            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #fecaca', background: '#fff1f2', color: '#be123c', fontSize: 12, fontWeight: 700, cursor: deletingSavedId === row.id ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                                        >
+                                                            {deletingSavedId === row.id ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />}
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+
                         {activeTab === 'AI Tools' && (
                             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                                <div style={{ padding: '1.5rem', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0d9488 100%)', borderRadius: '20px', color: 'white', border: '1px solid rgba(13, 148, 136, 0.3)' }}>
+                                <div style={{ padding: '1.5rem', background: 'linear-gradient(135deg, #dffaf5 0%, #ccfbf1 48%, #e2e8f0 100%)', borderRadius: '20px', color: theme.text, border: '1px solid #99f6e4' }}>
                                     <h4 style={{ margin: '0 0 1rem 0', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <Sparkles size={20} style={{ color: '#5eead4' }} /> AI Job Analyzer
+                                        <Sparkles size={20} style={{ color: theme.primary }} /> AI Job Analyzer
                                     </h4>
-                                    <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.8)', lineHeight: '1.6', marginBottom: '1rem' }}>Paste the Job Description below to identify skill gaps and generate interview questions.</p>
+                                    <p style={{ fontSize: '0.8rem', color: theme.textMuted, lineHeight: '1.6', marginBottom: '1rem' }}>Paste the Job Description below to identify skill gaps and generate interview questions.</p>
                                     <textarea
                                         className="rb-textarea"
-                                        style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(13, 148, 136, 0.4)', color: 'white' }}
+                                        style={{ background: 'white', border: `1px solid ${theme.border}`, color: theme.text }}
                                         placeholder="Paste JD here..."
                                         value={jd}
                                         onChange={e => setJd(e.target.value)}
@@ -581,11 +1197,50 @@ const ResumeMaker = () => {
                                     </button>
                                 </div>
 
+                                {(aiChanges || []).filter(isPendingChange).length > 0 && (
+                                    <div className="orion-card" style={{ padding: '1rem 1.25rem', border: '1px solid var(--rb-indigo-light)', background: 'white' }}>
+                                        <div style={{ fontSize: '10px', fontWeight: 900, color: '#4b5563', textTransform: 'uppercase', marginBottom: '10px' }}>
+                                            Pending AI edits — use Resume / AI diff preview
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: 240, overflowY: 'auto' }}>
+                                            {(aiChanges || []).filter(isPendingChange).slice(0, 8).map((c) => (
+                                                <div
+                                                    key={c.id}
+                                                    className="rb-ai-hunk"
+                                                    style={{ borderRadius: '0.75rem', border: '1px solid #e5e7eb', padding: '8px 10px', fontSize: '12px' }}
+                                                >
+                                                    <div style={{ fontWeight: 700, fontSize: '11px', marginBottom: 6, color: '#111827', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                                        {c.section}: {c.label}
+                                                    </div>
+                                                    <div className="rb-ai-hunk-actions" style={{ marginBottom: 0, borderBottom: 'none', padding: 0, background: 'transparent' }}>
+                                                        <button
+                                                            type="button"
+                                                            className="rb-ai-btn rb-ai-btn--keep"
+                                                            style={{ padding: '4px 8px', fontSize: 11 }}
+                                                            onClick={() => acceptAiChange(c.id)}
+                                                        >
+                                                            <Check size={12} /> Keep
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="rb-ai-btn rb-ai-btn--discard"
+                                                            style={{ padding: '4px 8px', fontSize: 11 }}
+                                                            onClick={() => rejectAiChange(c.id)}
+                                                        >
+                                                            <X size={12} /> Discard
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {analyzedData && analyzedData.gapAnalysis && (
                                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="orion-card" style={{ padding: '1.5rem', border: '1px solid var(--rb-indigo-light)', background: 'white' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                                             <h5 style={{ fontWeight: 900, fontSize: '0.9rem', textTransform: 'uppercase', margin: 0 }}>Optimization Review</h5>
-                                            <div style={{ padding: '4px 12px', background: '#F0FDF4', color: '#166534', borderRadius: '100px', fontSize: '12px', fontWeight: 700 }}>
+                                            <div style={{ padding: '4px 12px', background: '#ecfeff', color: '#0f766e', borderRadius: '100px', fontSize: '12px', fontWeight: 700, border: '1px solid #99f6e4' }}>
                                                 {analyzedData.gapAnalysis.alignmentScore}% Match
                                             </div>
                                         </div>
@@ -595,9 +1250,9 @@ const ResumeMaker = () => {
                                                 <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--rb-primary)' }}>{analyzedData.gapAnalysis.matchedKeywords?.length || 0}</div>
                                                 <div style={{ fontSize: '10px', color: 'var(--rb-slate-500)', fontWeight: 700, textTransform: 'uppercase' }}>Matched Keywords</div>
                                             </div>
-                                            <div style={{ padding: '16px', background: '#fff1f2', borderRadius: '12px', textAlign: 'center' }}>
-                                                <div style={{ fontSize: '20px', fontWeight: 800, color: '#e11d48' }}>{analyzedData.gapAnalysis.missingKeywords?.length || 0}</div>
-                                                <div style={{ fontSize: '10px', color: '#e11d48', fontWeight: 700, textTransform: 'uppercase' }}>Missing Skills</div>
+                                            <div style={{ padding: '16px', background: '#fffbeb', borderRadius: '12px', textAlign: 'center' }}>
+                                                <div style={{ fontSize: '20px', fontWeight: 800, color: '#b45309' }}>{analyzedData.gapAnalysis.missingKeywords?.length || 0}</div>
+                                                <div style={{ fontSize: '10px', color: '#b45309', fontWeight: 700, textTransform: 'uppercase' }}>Missing Skills</div>
                                             </div>
                                         </div>
 
@@ -614,18 +1269,18 @@ const ResumeMaker = () => {
 
                                         {analyzedData.gapAnalysis.missingKeywords?.length > 0 && (
                                             <div style={{ marginBottom: '20px' }}>
-                                                <div style={{ fontSize: '10px', fontWeight: 900, color: '#e11d48', textTransform: 'uppercase', marginBottom: '8px' }}>Keywords to Integrate</div>
+                                                <div style={{ fontSize: '10px', fontWeight: 900, color: '#b45309', textTransform: 'uppercase', marginBottom: '8px' }}>Keywords to Integrate</div>
                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
                                                     {analyzedData.gapAnalysis.missingKeywords.map((s, i) => (
-                                                        <span key={i} style={{ padding: '4px 8px', background: '#fff1f2', color: '#e11d48', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>+ {s}</span>
+                                                        <span key={i} style={{ padding: '4px 8px', background: '#fffbeb', color: '#92400e', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>+ {s}</span>
                                                     ))}
                                                 </div>
                                             </div>
                                         )}
 
                                         {analyzedData.gapAnalysis.analysis && (
-                                            <div style={{ marginBottom: '20px', padding: '12px', background: '#6366f110', borderLeft: '3px solid #6366f1', borderRadius: '0 8px 8px 0' }}>
-                                                <div style={{ fontSize: '10px', fontWeight: 900, color: '#4f46e5', textTransform: 'uppercase', marginBottom: '4px' }}>Expert Analysis</div>
+                                            <div style={{ marginBottom: '20px', padding: '12px', background: '#f0fdfa', borderLeft: '3px solid #0d9488', borderRadius: '0 8px 8px 0' }}>
+                                                <div style={{ fontSize: '10px', fontWeight: 900, color: '#0f766e', textTransform: 'uppercase', marginBottom: '4px' }}>Expert Analysis</div>
                                                 <div style={{ fontSize: '12px', color: '#1e293b', lineHeight: '1.5' }}>{analyzedData.gapAnalysis.analysis}</div>
                                             </div>
                                         )}
@@ -634,9 +1289,17 @@ const ResumeMaker = () => {
                                             The AI has prepared an optimized version of your CV with these keywords naturally integrated into your summary and experience.
                                         </p>
 
-                                        <button onClick={handleApplyAnalysis} className="rb-btn-primary" style={{ width: '100%', padding: '0.75rem', fontSize: '0.8rem', justifyContent: 'center' }}>
-                                            Apply Full Optimization
+                                        <button
+                                            onClick={handlePrepareFullOptimizationReview}
+                                            disabled={!!pendingOptimizedProfile}
+                                            className="rb-btn-primary"
+                                            style={{ width: '100%', padding: '0.75rem', fontSize: '0.8rem', justifyContent: 'center', opacity: pendingOptimizedProfile ? 0.55 : 1 }}
+                                        >
+                                            {pendingOptimizedProfile ? 'Review already queued — AI diff tab' : 'Review full optimization'}
                                         </button>
+                                        <p style={{ fontSize: 11, color: theme.textMuted, marginTop: 8, lineHeight: 1.45 }}>
+                                            Opens the AI diff view. Keep or Discard each change, or use Apply all in the preview.
+                                        </p>
                                     </motion.div>
                                 )}
                             </motion.div>
@@ -648,66 +1311,321 @@ const ResumeMaker = () => {
                 {/* --- RESUME VIEWPORT: full height + floating controls --- */}
                 <section className={`rb-preview-section ${activeView === 'PDF' ? 'active' : 'mobile-hide'}`}>
                     <div className="rb-preview-workspace">
+                        {isSidebarCollapsed && (
+                            <button
+                                type="button"
+                                onClick={handleOpenEditorView}
+                                className="rb-reopen-editor"
+                                aria-label="Open editor panel"
+                            >
+                                <ChevronRight size={16} />
+                                Edit
+                            </button>
+                        )}
                         <div className="rb-pdf-document">
-                            {previewLoading && (
-                                <div style={{ position: 'absolute', top: '24px', right: '80px', background: 'white', padding: '10px 20px', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '10px', zIndex: 5, border: '1px solid #eef2ff' }}>
-                                    <Loader2 className="animate-spin text-accent" size={16} />
-                                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--rb-primary)' }}>Live Sync Active</span>
-                                </div>
-                            )}
+                            {/* Preview mode toggle */}
+                            <div style={{ position: 'absolute', top: '18px', left: '24px', zIndex: 6, display: 'inline-flex', padding: 2, borderRadius: 999, background: 'rgba(15,23,42,0.04)', border: '1px solid #e5e7eb' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setPreviewMode('pdf')}
+                                    style={{
+                                        padding: '4px 10px',
+                                        borderRadius: 999,
+                                        border: 'none',
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        background: previewMode === 'pdf' ? '#0f172a' : 'transparent',
+                                        color: previewMode === 'pdf' ? '#ffffff' : '#4b5563',
+                                    }}
+                                >
+                                    Resume
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setPreviewMode('diff')}
+                                    style={{
+                                        padding: '4px 10px',
+                                        borderRadius: 999,
+                                        border: 'none',
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        background: previewMode === 'diff' ? '#0f172a' : 'transparent',
+                                        color: previewMode === 'diff' ? '#ffffff' : '#4b5563',
+                                    }}
+                                >
+                                    AI diff
+                                </button>
+                            </div>
 
-                            {previewUrl ? (
-                                <iframe
-                                    key={previewUrl}
-                                    src={`${previewUrl}#toolbar=0&navpanes=0&view=FitH`}
-                                    width="100%"
-                                    height="100%"
-                                    style={{ border: 'none' }}
-                                    title="Resume Review"
-                                />
+                            {previewMode === 'pdf' ? (
+                                <>
+                                    {previewLoading && (
+                                        <div style={{ position: 'absolute', top: '24px', right: '80px', background: 'white', padding: '10px 20px', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '10px', zIndex: 5, border: '1px solid #eef2ff' }}>
+                                            <Loader2 className="animate-spin text-accent" size={16} />
+                                            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--rb-primary)' }}>Live Sync Active</span>
+                                        </div>
+                                    )}
+
+                                    {previewUrl ? (
+                                        <iframe
+                                            key={previewUrl}
+                                            src={`${previewUrl}#toolbar=0&navpanes=0&view=FitH`}
+                                            width="100%"
+                                            height="100%"
+                                            style={{ border: 'none' }}
+                                            title="Resume Review"
+                                        />
+                                    ) : (
+                                        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', background: 'white' }}>
+                                            <Loader2 className="animate-spin" size={40} style={{ color: '#4f46e5' }} />
+                                            <p style={{ fontWeight: 800, color: '#1e293b' }}>Generating Real Template...</p>
+                                        </div>
+                                    )}
+                                </>
                             ) : (
-                                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', background: 'white' }}>
-                                    <Loader2 className="animate-spin" size={40} style={{ color: '#4f46e5' }} />
-                                    <p style={{ fontWeight: 800, color: '#1e293b' }}>Generating Real Template...</p>
+                                <div style={{ height: '100%', padding: '32px 36px', overflowY: 'auto', background: 'white' }}>
+                                    {pendingOptimizedProfile &&
+                                        (aiChanges || []).filter((c) => isPendingChange(c) && c.source === 'full-jd').length > 0 && (
+                                        <div className="rb-ai-hunk rb-ai-hunk--batch">
+                                            <div className="rb-ai-hunk-actions rb-ai-hunk-actions--batch">
+                                                <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>Job description optimization</span>
+                                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                                    <button
+                                                        type="button"
+                                                        className="rb-ai-btn rb-ai-btn--keep"
+                                                        onClick={acceptAllPendingAiChanges}
+                                                    >
+                                                        <Check size={14} /> Apply all changes
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="rb-ai-btn rb-ai-btn--discard"
+                                                        onClick={discardAllPendingAiChanges}
+                                                    >
+                                                        <X size={14} /> Discard all
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {/* Simple HTML resume header */}
+                                    <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                                        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#0f172a' }}>{profile.personal?.fullName || 'Your Name'}</h2>
+                                        <div style={{ fontSize: 12, color: '#4b5563', marginTop: 4 }}>
+                                            {profile.professional?.currentTitle || ''}
+                                        </div>
+                                        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
+                                            {[profile.personal?.email, profile.personal?.phone, profile.personal?.location].filter(Boolean).join(' · ')}
+                                        </div>
+                                    </div>
+
+                                    {(() => {
+                                        const summaryChange = aiChanges.find(
+                                            (c) => isPendingChange(c) && (c.section === 'Summary' || c.key === 'summary'),
+                                        );
+                                        const expPending = aiChanges.filter(
+                                            (c) => isPendingChange(c) && c.section === 'Experience' && c.expIndex != null,
+                                        );
+                                        const expDiffByIndex = new Map();
+                                        [...expPending].reverse().forEach((c) => {
+                                            expDiffByIndex.set(c.expIndex, c);
+                                        });
+
+                                        const work = profile.professional?.workExperience || [];
+                                        const education = profile.education || [];
+                                        const skills = profile.professional?.skills || [];
+
+                                        return (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                                                {/* Professional Summary */}
+                                                <div>
+                                                    <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#111827', marginBottom: 8 }}>
+                                                        Professional Summary
+                                                    </div>
+                                                    {summaryChange ? (
+                                                        <div className="rb-ai-hunk">
+                                                            <div className="rb-ai-hunk-actions">
+                                                                <button
+                                                                    type="button"
+                                                                    className="rb-ai-btn rb-ai-btn--keep"
+                                                                    onClick={() => acceptAiChange(summaryChange.id)}
+                                                                >
+                                                                    <Check size={14} /> Keep
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="rb-ai-btn rb-ai-btn--discard"
+                                                                    onClick={() => rejectAiChange(summaryChange.id)}
+                                                                >
+                                                                    <X size={14} /> Discard
+                                                                </button>
+                                                            </div>
+                                                            <div className="rb-ai-hunk-body">
+                                                                <InlineDiffText before={summaryChange.before} after={summaryChange.after} />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{ fontSize: 12, color: '#0f172a', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                            {profile.professional?.summary || '—'}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Experience */}
+                                                <div>
+                                                    <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#111827', marginBottom: 8 }}>
+                                                        Experience
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                                        {work.length === 0 ? (
+                                                            <div style={{ fontSize: 12, color: '#6b7280' }}>Add work experience to view AI highlights.</div>
+                                                        ) : (
+                                                            work.map((w, idx) => {
+                                                                const diff = expDiffByIndex.get(idx);
+                                                                return (
+                                                                    <div key={idx}>
+                                                                        <div style={{ fontSize: 12, fontWeight: 900, color: '#0f172a' }}>
+                                                                            {w.role || w.company || `Experience ${idx + 1}`}
+                                                                        </div>
+                                                                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                                                                            {[w.company, w.period].filter(Boolean).join(' • ')}
+                                                                        </div>
+                                                                        <div style={{ marginTop: 6, fontSize: 12, color: '#0f172a', lineHeight: 1.6 }}>
+                                                                            {diff ? (
+                                                                                <div className="rb-ai-hunk">
+                                                                                    <div className="rb-ai-hunk-actions">
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            className="rb-ai-btn rb-ai-btn--keep"
+                                                                                            onClick={() => acceptAiChange(diff.id)}
+                                                                                        >
+                                                                                            <Check size={14} /> Keep
+                                                                                        </button>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            className="rb-ai-btn rb-ai-btn--discard"
+                                                                                            onClick={() => rejectAiChange(diff.id)}
+                                                                                        >
+                                                                                            <X size={14} /> Discard
+                                                                                        </button>
+                                                                                    </div>
+                                                                                    <div className="rb-ai-hunk-body">
+                                                                                        <InlineDiffText before={diff.before} after={diff.after} />
+                                                                                    </div>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <span>{w.description || ''}</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Education */}
+                                                <div>
+                                                    <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#111827', marginBottom: 8 }}>
+                                                        Education
+                                                    </div>
+                                                    {education.length === 0 ? (
+                                                        <div style={{ fontSize: 12, color: '#6b7280' }}>—</div>
+                                                    ) : (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                                            {education.map((e, i) => (
+                                                                <div key={i}>
+                                                                    <div style={{ fontSize: 12, fontWeight: 800, color: '#0f172a' }}>
+                                                                        {e.degree || e.institution || `Education ${i + 1}`}
+                                                                    </div>
+                                                                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                                                                        {[e.institution, e.period || e.year].filter(Boolean).join(' • ')}
+                                                                    </div>
+                                                                    {e.description ? (
+                                                                        <div style={{ fontSize: 12, color: '#0f172a', marginTop: 6, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                                                                            {e.description}
+                                                                        </div>
+                                                                    ) : null}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Skills */}
+                                                <div>
+                                                    <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#111827', marginBottom: 8 }}>
+                                                        Skills
+                                                    </div>
+                                                    {skills.length === 0 ? (
+                                                        <div style={{ fontSize: 12, color: '#6b7280' }}>—</div>
+                                                    ) : (
+                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                                            {skills.map((s, i) => (
+                                                                <span key={i} style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: 999 }}>
+                                                                    {s}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Floating tab buttons on the left */}
-                    <div className="rb-floating-tabs-left">
-                        {[
-                            { id: 'Content', icon: <FileText size={18} />, label: 'Content' },
-                            { id: 'Templates', icon: <Grid size={18} />, label: 'Templates' },
-                            { id: 'Customize', icon: <Sliders size={18} />, label: 'Customize' },
-                            { id: 'AI Tools', icon: <Sparkles size={18} />, label: 'AI Sync' }
-                        ].map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => { setActiveTab(tab.id); setActiveView('Editor'); }}
-                                className={`rb-floating-tab ${activeTab === tab.id ? 'active' : ''}`}
-                            >
-                                {tab.icon}
-                                <span>{tab.label}</span>
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Floating actions on the top right */}
-                    <div className="rb-floating-actions-right">
-                        <select
-                            value={selectedTemplate}
-                            onChange={(e) => setSelectedTemplate(e.target.value)}
-                            className="rb-floating-select"
-                        >
-                            {templates.map(t => (
-                                <option key={t.id} value={t.id}>{t.name}</option>
+                    <div className="rb-floating-top-bar">
+                        {/* Floating tab buttons on the left */}
+                        <div className="rb-floating-tabs-left">
+                            {[
+                                { id: 'Content', icon: <FileText size={18} />, label: 'Content' },
+                                { id: 'Templates', icon: <Grid size={18} />, label: 'Templates' },
+                                { id: 'Customize', icon: <Sliders size={18} />, label: 'Customize' },
+                                { id: 'Resumes', icon: <Layers size={18} />, label: 'Resumes' },
+                                { id: 'AI Tools', icon: <Sparkles size={18} />, label: 'AI Sync' }
+                            ].map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => { setActiveTab(tab.id); handleOpenEditorView(); }}
+                                    className={`rb-floating-tab ${activeTab === tab.id ? 'active' : ''}`}
+                                >
+                                    {tab.icon}
+                                    <span>{tab.label}</span>
+                                </button>
                             ))}
-                        </select>
-                        <button onClick={handleDownload} disabled={downloading} className="rb-floating-download">
-                            {downloading ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
-                            Download
-                        </button>
+                        </div>
+
+                        {/* Floating actions on the top right */}
+                        <div className="rb-floating-actions-right">
+                            <button
+                                onClick={handleSaveFinalizedResume}
+                                disabled={savingFinalized}
+                                className="rb-floating-download"
+                                style={{ background: '#0f766e' }}
+                                title="Save finalized resume version"
+                            >
+                                {savingFinalized ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />}
+                                {savingFinalized ? 'Saving...' : 'Save'}
+                            </button>
+                            <select
+                                value={selectedTemplate}
+                                onChange={(e) => setSelectedTemplate(e.target.value)}
+                                className="rb-floating-select"
+                            >
+                                {templates.map(t => (
+                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                            </select>
+                            <button onClick={handleDownload} disabled={downloading || isFreePlanUser} className="rb-floating-download">
+                                {downloading ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
+                                {isFreePlanUser ? 'Upgrade to Download' : 'Download'}
+                            </button>
+                        </div>
                     </div>
 
                     {/* Zoom control: center bottom of resume */}
@@ -722,7 +1640,7 @@ const ResumeMaker = () => {
             {/* Mobile Navigation Bar */}
             <div className="mobile-only-dock">
                 <button
-                    onClick={() => setActiveView('Editor')}
+                    onClick={handleOpenEditorView}
                     className={activeView === 'Editor' ? 'active' : ''}
                 >
                     <Sliders size={20} />
@@ -735,9 +1653,13 @@ const ResumeMaker = () => {
                     <Eye size={20} />
                     <span>Preview</span>
                 </button>
-                <button onClick={handleDownload} disabled={downloading}>
+                <button onClick={handleDownload} disabled={downloading || isFreePlanUser}>
                     {downloading ? <Loader2 className="animate-spin" size={20} /> : <Download size={20} />}
-                    <span>Download</span>
+                    <span>{isFreePlanUser ? 'Upgrade' : 'Download'}</span>
+                </button>
+                <button onClick={handleSaveFinalizedResume} disabled={savingFinalized}>
+                    {savingFinalized ? <Loader2 className="animate-spin" size={20} /> : <Check size={20} />}
+                    <span>{savingFinalized ? 'Saving' : 'Save'}</span>
                 </button>
             </div>
             </div>

@@ -10,6 +10,7 @@ const BASE_SELECT = `
     j.company_name,
     j.title AS job_title,
     j.job_url AS job_link,
+    j.description AS job_description,
     ja.status,
     ja.user_id AS assigned_user_id,
     ja.bd_id,
@@ -23,6 +24,7 @@ export async function insertLead({
   job_title,
   company_name,
   job_link,
+  job_description = null,
   status = 'pending',
   assigned_user_id = null,
   bd_id,
@@ -33,19 +35,29 @@ export async function insertLead({
   if (!resolvedJobId) {
     // Try to reuse an existing job by job_url (unique)
     const existingJob = await query(
-      `SELECT id, company_name, title, job_url FROM jobs WHERE job_url = $1`,
-      [job_link],
+      `SELECT id, company_name, title, job_url, bd_id, description FROM jobs WHERE job_url = $1 AND bd_id = $2`,
+      [job_link, bd_id],
     );
     if (existingJob.rowCount > 0) {
       resolvedJobId = existingJob.rows[0].id;
+      if (job_description && job_description.trim()) {
+        await query(
+          `
+            UPDATE jobs
+            SET description = $2
+            WHERE id = $1
+          `,
+          [resolvedJobId, job_description.trim()],
+        );
+      }
     } else {
       const insertJob = await query(
         `
-          INSERT INTO jobs (company_name, company_website, title, job_url, platform, location, description, created_at)
-          VALUES ($1, NULL, $2, $3, NULL, NULL, NULL, NOW())
+          INSERT INTO jobs (company_name, company_website, title, job_url, platform, location, description, bd_id, created_at)
+          VALUES ($1, NULL, $2, $3, NULL, NULL, $4, $5, NOW())
           RETURNING id
         `,
-        [company_name, job_title, job_link],
+        [company_name, job_title, job_link, job_description || null, bd_id],
       );
       resolvedJobId = insertJob.rows[0].id;
     }
@@ -90,7 +102,11 @@ export async function updateLeadAssignment(id, assigned_user_id) {
   await query(
     `
       UPDATE job_assignments
-      SET user_id = $2,
+      SET user_id = $2::uuid,
+          status = CASE
+                     WHEN $2::uuid IS NOT NULL THEN 'assigned'::job_assignment_status
+                     ELSE status
+                   END,
           updated_at = NOW()
       WHERE id = $1
     `,

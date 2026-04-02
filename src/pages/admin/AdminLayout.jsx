@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, CreditCard, Users, Briefcase, Shield, FileText, LogOut, Lock } from 'lucide-react';
+import { LayoutDashboard, CreditCard, Users, Briefcase, Shield, FileText, LogOut, Lock, Menu, X } from 'lucide-react';
 import api from '../../services/api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import '../AdminDashboard.css';
@@ -16,17 +16,77 @@ const navItems = [
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 769px)');
+    const onChange = () => {
+      if (mq.matches) setSidebarOpen(false);
+    };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [sidebarOpen]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') setSidebarOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   return (
     <div className="admin-page">
-      <aside className="admin-sidebar">
-        <Link to="/" className="admin-sidebar__logo">
-          <img src="/logo.png" alt="HiredLogics" />
-          <span className="admin-sidebar__logo-text">HiredLogics</span>
-        </Link>
+      <div className="admin-mobile-bar">
+        <button
+          type="button"
+          className="admin-mobile-bar__menu"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open navigation menu"
+        >
+          <Menu size={22} />
+        </button>
+        <span className="admin-mobile-bar__title">Admin Portal</span>
+      </div>
+
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="admin-sidebar-overlay"
+          aria-label="Close menu"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside className={`admin-sidebar${sidebarOpen ? ' admin-sidebar--open' : ''}`}>
+        <div className="admin-sidebar__top">
+          <Link to="/" className="admin-sidebar__logo" onClick={() => setSidebarOpen(false)}>
+            <img src="/logo.png" alt="HiredLogics" />
+            <span className="admin-sidebar__logo-text">HiredLogics</span>
+          </Link>
+          <button
+            type="button"
+            className="admin-sidebar__close"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close navigation"
+          >
+            <X size={22} />
+          </button>
+        </div>
         <div className="admin-sidebar__sub">Admin Portal</div>
         {user && (
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.72)', marginBottom: 24 }}>
+          <div className="admin-sidebar__user-hint">
             Logged in as <strong>{user.email}</strong>
           </div>
         )}
@@ -37,6 +97,7 @@ export default function AdminLayout() {
               to={to}
               end={end}
               className={({ isActive }) => `admin-sidebar__nav-item${isActive ? ' active' : ''}`}
+              onClick={() => setSidebarOpen(false)}
             >
               <Icon size={18} />
               {label}

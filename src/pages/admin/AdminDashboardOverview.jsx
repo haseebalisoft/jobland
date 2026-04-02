@@ -114,7 +114,7 @@ export default function AdminDashboardOverview() {
             <UserPlus size={20} />
             User growth
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
+          <div className="admin-dashboard-grid-3">
             <div className="admin-card" style={{ padding: 20 }}>
               <div style={{ fontSize: 13, color: theme.textMuted, marginBottom: 4 }}>By role</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>

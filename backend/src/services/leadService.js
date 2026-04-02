@@ -18,7 +18,14 @@ function parsePagination({ page, limit }) {
 }
 
 export async function createLeadForBd(bdId, payload, actorRole = 'bd') {
-  const { job_id, job_title, company_name, job_link, assigned_user_id } = payload || {};
+  const {
+    job_id,
+    job_title,
+    company_name,
+    job_link,
+    job_description,
+    assigned_user_id,
+  } = payload || {};
 
   if (!job_title || !company_name || !job_link) {
     const err = new Error('job_title, company_name and job_link are required');
@@ -44,7 +51,8 @@ export async function createLeadForBd(bdId, payload, actorRole = 'bd') {
     job_title,
     company_name,
     job_link,
-    status: 'pending',
+    job_description: typeof job_description === 'string' ? job_description.trim() : null,
+    status: allowedUserId ? 'assigned' : 'pending',
     assigned_user_id: allowedUserId,
     bd_id: bdId,
   });
@@ -89,8 +97,48 @@ export async function assignLead(leadId, bdIdOrAdminId, assignedUserId, actorRol
     throw err;
   }
 
+  if (assignedUserId && lead.bd_id) {
+    const linkRes = await query(
+      'SELECT 1 FROM user_bd_assignments WHERE user_id = $1 AND bd_id = $2',
+      [assignedUserId, lead.bd_id],
+    );
+    if (linkRes.rowCount === 0) {
+      const err = new Error(
+        'That user is not assigned to this lead\'s BD. Link them in Admin → Users first.',
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+
   const updated = await updateLeadAssignment(leadId, assignedUserId);
-  return updated;
+
+  // When a BD/admin assigns a user to a lead, ensure an application row exists
+  // so BD can immediately edit application status (applied/interview/acceptance/etc.).
+  if (assignedUserId && updated?.job_id) {
+    const profileRes = await query(
+      `SELECT id FROM profiles WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [assignedUserId],
+    );
+    const profileId = profileRes.rowCount > 0 ? profileRes.rows[0].id : null;
+    if (profileId) {
+      await query(
+        `
+          INSERT INTO applications (
+            id, user_id, profile_id, job_id, bd_id,
+            current_status, applied_at, last_status_updated_at, notes, is_active, created_at, updated_at
+          )
+          VALUES (gen_random_uuid(), $1, $2, $3, $4, 'applied', NOW(), NOW(), NULL, TRUE, NOW(), NOW())
+          ON CONFLICT (user_id, job_id) DO NOTHING
+        `,
+        [assignedUserId, profileId, updated.job_id, updated.bd_id],
+      );
+    }
+  }
+
+  // Re-fetch to include application_id / application_status in responses
+  const withApplication = await findLeadById(leadId);
+  return withApplication || updated;
 }
 
 export async function updateLeadStatusService(leadId, newStatus, actor) {
@@ -128,28 +176,54 @@ export async function listBdLeads(bdId, { range, page, limit }) {
   params.push(l, offset);
 
   const dataQuery = `
+    WITH latest_assignments AS (
+      SELECT DISTINCT ON (ja.job_id, ja.user_id, ja.bd_id)
+        ja.*
+      FROM job_assignments ja
+      WHERE ja.bd_id = $1
+      ORDER BY ja.job_id, ja.user_id, ja.bd_id, ja.created_at DESC
+    )
     SELECT
       ja.id,
       ja.job_id,
       j.title AS job_title,
       j.company_name,
       j.job_url AS job_link,
+      j.description AS job_description,
       ja.status,
       ja.user_id AS assigned_user_id,
       ja.bd_id,
-      ja.created_at
-    FROM job_assignments ja
+      ja.created_at,
+      a.id AS application_id,
+      a.current_status AS application_status,
+      ar.source AS resume_source,
+      ar.created_at AS resume_uploaded_at,
+      (ar.id IS NOT NULL) AS has_resume
+    FROM latest_assignments ja
     JOIN jobs j ON j.id = ja.job_id
-    WHERE ja.bd_id = $1
+    LEFT JOIN applications a
+      ON a.job_id = ja.job_id
+     AND a.bd_id = ja.bd_id
+     AND a.user_id = ja.user_id
+    LEFT JOIN application_resumes ar
+      ON ar.application_id = a.id
+    WHERE 1=1
     ${clause}
     ORDER BY ja.created_at DESC
     LIMIT $${limitIndex} OFFSET $${offsetIndex}
   `;
 
   const countQuery = `
+    WITH latest_assignments AS (
+      SELECT DISTINCT ON (ja.job_id, ja.user_id, ja.bd_id)
+        ja.*
+      FROM job_assignments ja
+      WHERE ja.bd_id = $1
+      ORDER BY ja.job_id, ja.user_id, ja.bd_id, ja.created_at DESC
+    )
     SELECT COUNT(*)::int AS count
-    FROM job_assignments ja
-    WHERE ja.bd_id = $1
+    FROM latest_assignments ja
+    WHERE 1=1
     ${clause}
   `;
 
@@ -181,30 +255,64 @@ export async function listUserLeads(userId, { range, page, limit }) {
   params.push(l, offset);
 
   const dataQuery = `
+    WITH latest_assignments AS (
+      SELECT DISTINCT ON (ja.job_id, ja.user_id, ja.bd_id)
+        ja.*
+      FROM job_assignments ja
+      WHERE ja.user_id = $1
+      ORDER BY ja.job_id, ja.user_id, ja.bd_id, ja.created_at DESC
+    )
     SELECT
       ja.id,
       ja.job_id,
       j.title AS job_title,
       j.company_name,
       j.job_url AS job_link,
+      j.description AS job_description,
       ja.status,
       ja.user_id AS assigned_user_id,
       ja.bd_id,
-      ja.created_at
-    FROM job_assignments ja
+      ja.created_at,
+      a.id AS application_id,
+      a.current_status AS application_status,
+      ar.source AS resume_source,
+      ar.created_at AS resume_uploaded_at,
+      (ar.id IS NOT NULL) AS has_resume,
+      i.mode AS interview_mode,
+      i.interview_date,
+      i.interview_time,
+      i.duration_minutes,
+      i.timezone AS interview_timezone,
+      i.link AS interview_link
+    FROM latest_assignments ja
     JOIN jobs j ON j.id = ja.job_id
     JOIN user_bd_assignments uba ON uba.bd_id = ja.bd_id AND uba.user_id = $1
-    WHERE ja.user_id = $1
+    LEFT JOIN applications a
+      ON a.job_id = ja.job_id
+     AND a.user_id = ja.user_id
+     AND a.bd_id = ja.bd_id
+    LEFT JOIN interviews i
+      ON i.application_id = a.id
+    LEFT JOIN application_resumes ar
+      ON ar.application_id = a.id
+    WHERE 1=1
     ${clause}
     ORDER BY ja.created_at DESC
     LIMIT $${limitIndex} OFFSET $${offsetIndex}
   `;
 
   const countQuery = `
+    WITH latest_assignments AS (
+      SELECT DISTINCT ON (ja.job_id, ja.user_id, ja.bd_id)
+        ja.*
+      FROM job_assignments ja
+      WHERE ja.user_id = $1
+      ORDER BY ja.job_id, ja.user_id, ja.bd_id, ja.created_at DESC
+    )
     SELECT COUNT(*)::int AS count
-    FROM job_assignments ja
+    FROM latest_assignments ja
     JOIN user_bd_assignments uba ON uba.bd_id = ja.bd_id AND uba.user_id = $1
-    WHERE ja.user_id = $1
+    WHERE 1=1
     ${clause}
   `;
 
@@ -357,5 +465,101 @@ export async function markLeadAppliedByUser(leadId, userId) {
   } finally {
     client.release();
   }
+}
+
+function ensureLeadAccessForActor(lead, actor) {
+  if (!lead) {
+    const err = new Error('Lead not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (!actor || !actor.id) {
+    const err = new Error('Unauthorized');
+    err.statusCode = 401;
+    throw err;
+  }
+
+  if (actor.role === 'user') {
+    if (lead.assigned_user_id !== actor.id) {
+      const err = new Error('You can only access your own leads');
+      err.statusCode = 403;
+      throw err;
+    }
+  } else if (actor.role === 'bd') {
+    if (lead.bd_id !== actor.id) {
+      const err = new Error('You can only access your own leads');
+      err.statusCode = 403;
+      throw err;
+    }
+  } else if (actor.role !== 'admin') {
+    const err = new Error('Forbidden');
+    err.statusCode = 403;
+    throw err;
+  }
+}
+
+export async function getLeadMessagesService(leadId, actor) {
+  const lead = await findLeadById(leadId);
+  ensureLeadAccessForActor(lead, actor);
+
+  const res = await query(
+    `
+      SELECT
+        lm.id,
+        lm.job_assignment_id,
+        lm.sender_id,
+        lm.sender_role,
+        lm.message,
+        lm.created_at,
+        u.full_name,
+        u.email
+      FROM lead_messages lm
+      JOIN users u ON u.id = lm.sender_id
+      WHERE lm.job_assignment_id = $1
+      ORDER BY lm.created_at ASC
+    `,
+    [leadId],
+  );
+
+  return {
+    lead,
+    messages: res.rows || [],
+  };
+}
+
+export async function addLeadMessageService(leadId, actor, message) {
+  const trimmed = (message || '').trim();
+  if (!trimmed) {
+    const err = new Error('message is required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const lead = await findLeadById(leadId);
+  ensureLeadAccessForActor(lead, actor);
+
+  const res = await query(
+    `
+      INSERT INTO lead_messages (
+        job_assignment_id,
+        sender_id,
+        sender_role,
+        message,
+        created_at
+      )
+      VALUES ($1, $2, $3, $4, NOW())
+      RETURNING
+        id,
+        job_assignment_id,
+        sender_id,
+        sender_role,
+        message,
+        created_at
+    `,
+    [leadId, actor.id, actor.role, trimmed],
+  );
+
+  return res.rows[0];
 }
 

@@ -8,6 +8,7 @@ import {
 import api from '../services/api';
 import debounce from 'lodash.debounce';
 import UserSidebar from '../components/UserSidebar';
+import { computeProfileAccuracy } from '../utils/profileAccuracy.js';
 import './ProfileBuilder.css';
 
 function formatPeriod(startDate, endDate, isCurrent) {
@@ -58,79 +59,6 @@ function mapApiToProfileState(data) {
       portfolio: profile.portfolio_url || '',
     },
   };
-}
-
-/**
- * Compute profile accuracy in real time using ATS-friendly and recruiter metrics.
- * Weights: contact info, headline, summary, work experience, education, skills, links.
- */
-function computeProfileAccuracy(profile) {
-  const missing = [];
-  let score = 0;
-  const maxScore = 100;
-
-  const personal = profile?.personal || {};
-  const professional = profile?.professional || {};
-  const education = profile?.education || [];
-  const workExperience = professional?.workExperience || [];
-  const skills = Array.isArray(professional?.skills) ? professional.skills : [];
-  const links = profile?.links || {};
-
-  // Contact info (25% total) - critical for ATS
-  if ((personal.fullName || '').trim().length >= 2) score += 8; else missing.push({ label: 'Full name', tab: 'Personal' });
-  if ((personal.email || '').trim().length >= 5) score += 8; else missing.push({ label: 'Email', tab: 'Personal' });
-  if ((personal.phone || '').trim().length >= 6) score += 4; else missing.push({ label: 'Phone', tab: 'Personal' });
-  if ((personal.location || '').trim().length >= 2) score += 5; else missing.push({ label: 'Location', tab: 'Personal' });
-
-  // Professional title (15%) - headline is key for ATS and recruiters
-  const title = (professional.currentTitle || '').trim();
-  if (title.length >= 2) score += 15; else missing.push({ label: 'Professional title', tab: 'Personal' });
-
-  // Summary (15%) - 50–300 chars is ideal for ATS
-  const summary = (professional.summary || '').trim();
-  if (summary.length >= 150) score += 15;
-  else if (summary.length >= 50) score += 10;
-  else if (summary.length >= 1) score += 5;
-  else missing.push({ label: 'Professional summary', tab: 'Personal' });
-
-  // Work experience (25%) - at least one role with company, title, description
-  if (workExperience.length === 0) {
-    missing.push({ label: 'At least one work experience', tab: 'Work Experience' });
-  } else {
-    const first = workExperience[0];
-    const hasCompany = (first.company || '').trim().length >= 1;
-    const hasRole = (first.role || '').trim().length >= 1;
-    const hasDescription = (first.description || '').trim().length >= 50;
-    if (hasCompany && hasRole && hasDescription) score += 25;
-    else if (hasCompany && hasRole) score += 18;
-    else if (hasCompany || hasRole) score += 10;
-    else missing.push({ label: 'Company & role in work experience', tab: 'Work Experience' });
-  }
-
-  // Education (12%) - at least one entry with degree and institution
-  if (education.length === 0) {
-    missing.push({ label: 'At least one education entry', tab: 'Education' });
-  } else {
-    const first = education[0];
-    const hasDegree = (first.degree || '').trim().length >= 1;
-    const hasInstitution = (first.institution || '').trim().length >= 1;
-    if (hasDegree && hasInstitution) score += 12;
-    else if (hasDegree || hasInstitution) score += 6;
-    else missing.push({ label: 'Degree & institution', tab: 'Education' });
-  }
-
-  // Skills (6%) - 3+ skills improve ATS keyword match
-  if (skills.length >= 5) score += 6;
-  else if (skills.length >= 3) score += 4;
-  else if (skills.length >= 1) score += 2;
-  else missing.push({ label: 'Add 3+ skills', tab: 'Skills' });
-
-  // LinkedIn or portfolio (2%) - improves discoverability
-  const hasLink = ((links.linkedin || '').trim().length >= 10) || ((links.portfolio || '').trim().length >= 10) || ((links.github || '').trim().length >= 10);
-  if (hasLink) score += 2;
-
-  const completionPercent = Math.min(100, Math.round(score));
-  return { completionPercent, missingFields: missing };
 }
 
 const ProfileBuilder = () => {
@@ -380,7 +308,7 @@ const ProfileBuilder = () => {
     );
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
+        <div className="onboarding-page" style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
             <UserSidebar />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
             <header style={{ borderBottom: '1px solid #e2e8f0', background: 'white', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

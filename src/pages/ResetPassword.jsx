@@ -137,21 +137,21 @@ export default function ResetPassword() {
     )
 }
 
-const theme = { primary: '#10B981', dark: '#0F172A', muted: '#64748B', border: '#E2E8F0' }
+const theme = { primary: '#2563EB', dark: '#0F172A', muted: '#64748B', border: '#E2E8F0' }
 const styles = {
     container: {
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(160deg, #ecfdf5 0%, #f0fdf4 40%, #f8fafc 100%)',
+        background: 'linear-gradient(160deg, #EFF6FF 0%, #DBEAFE 40%, #F8FAFC 100%)',
         padding: '24px',
     },
     card: {
         background: 'white',
         padding: '48px 40px',
         borderRadius: '24px',
-        boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(16, 185, 129, 0.08)',
+        boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(37, 99, 235, 0.10)',
         width: '100%',
         maxWidth: '440px',
     },

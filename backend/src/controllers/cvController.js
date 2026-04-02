@@ -1,10 +1,56 @@
-import { getResumeProfile, saveResumeProfile } from '../services/cvService.js';
-import { improveSummary, optimizeExperience, jdAlignedResume } from '../utils/aiHelper.js';
+import {
+  getResumeProfile,
+  saveResumeProfile,
+  saveFinalizedResume,
+  saveUploadedSavedResume,
+  listSavedResumesForUser,
+  listSavedResumesForBdUser,
+  getSavedResumeFileForActor,
+  deleteSavedResumeForUser,
+} from '../services/cvService.js';
+import {
+  improveSummary,
+  optimizeExperience,
+  jdAlignedResume,
+  analyzeJdResumeGap,
+  analyzeAtsDeepResume,
+} from '../utils/aiHelper.js';
 import { parseCVWithAI } from '../utils/aiParser.js';
 import { buildResumePdf } from '../services/pdfService.js';
 
 const multer = (await import('multer')).default;
 const upload = multer({ storage: multer.memoryStorage() });
+const uploadSavedPdf = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+/** Enough resume text to compare to a JD (avoids matching against an empty/minimal profile). */
+function profileHasSubstanceForJobMatch(profile) {
+  if (!profile || typeof profile !== 'object') return false;
+  const personal = profile.personal || {};
+  const prof = profile.professional || {};
+  const summary = String(prof.summary || '').trim();
+  const skills = Array.isArray(prof.skills) ? prof.skills.filter((s) => String(s).trim().length > 0) : [];
+  const work = Array.isArray(prof.workExperience) ? prof.workExperience : [];
+  if (work.length >= 1) {
+    const w = work[0];
+    const desc = String(w.description || '').trim();
+    const company = String(w.company || '').trim();
+    const role = String(w.role || '').trim();
+    if (desc.length >= 50) return true;
+    if (company.length >= 1 && role.length >= 1 && desc.length >= 25) return true;
+  }
+  if (summary.length >= 80) return true;
+  if (skills.length >= 5) return true;
+  if (skills.length >= 3 && summary.length >= 40) return true;
+  if (String(personal.fullName || '').trim().length >= 2 && summary.length >= 120) return true;
+  return false;
+}
+
+function hasResumePdfOnRecord(profile) {
+  return !!(profile && profile.resumeUploadedAt);
+}
 
 export async function getCvProfile(req, res, next) {
   try {
@@ -51,9 +97,23 @@ export async function optimizeExperienceHandler(req, res, next) {
 
 export async function optimizeFullResumeHandler(req, res, next) {
   try {
-    const { profile, jd } = req.body || {};
-    if (!profile || !jd) {
-      return res.status(400).json({ error: 'Profile and job description (jd) are required' });
+    const { jd } = req.body || {};
+    if (!jd || !String(jd).trim()) {
+      return res.status(400).json({ error: 'Job description (jd) is required' });
+    }
+    const userId = req.user.id;
+    const profile = await getResumeProfile(userId);
+    if (!hasResumePdfOnRecord(profile)) {
+      return res.status(400).json({
+        error: 'Upload a resume PDF first (ATS & match → Upload resume). Job match uses your parsed resume only.',
+        code: 'RESUME_NOT_UPLOADED',
+      });
+    }
+    if (!profileHasSubstanceForJobMatch(profile)) {
+      return res.status(400).json({
+        error: 'Your saved resume is too thin to compare. Re-upload a clearer PDF or add experience in Profile.',
+        code: 'PROFILE_TOO_THIN',
+      });
     }
     const result = await jdAlignedResume(profile, jd);
     res.json(result);
@@ -63,24 +123,94 @@ export async function optimizeFullResumeHandler(req, res, next) {
   }
 }
 
+/** Deep ATS analysis (Groq/Gemini) — keywords, impact, structure; see docs/ATS_SCORING_CRITERIA.md */
+export async function atsDeepAnalysisHandler(req, res, next) {
+  try {
+    const { profile } = req.body || {};
+    if (!profile || typeof profile !== 'object') {
+      return res.status(400).json({ error: 'Profile is required' });
+    }
+    const analysis = await analyzeAtsDeepResume(profile);
+    res.json(analysis);
+  } catch (err) {
+    console.error('ATS deep analysis error:', err);
+    if (err.message && (err.message.includes('rate limit') || err.message.includes('GROQ'))) {
+      return res.status(429).json({ error: err.message, code: 'RATE_LIMIT' });
+    }
+    res.status(500).json({ error: err.message || 'ATS analysis failed' });
+  }
+}
+
+/** Gap analysis only (no optimized profile) — for free-tier job match UI. */
+export async function jobMatchOnlyHandler(req, res, next) {
+  try {
+    const { jd } = req.body || {};
+    if (!jd || !String(jd).trim()) {
+      return res.status(400).json({ error: 'Job description (jd) is required' });
+    }
+    const userId = req.user.id;
+    const profile = await getResumeProfile(userId);
+    if (!hasResumePdfOnRecord(profile)) {
+      return res.status(400).json({
+        error: 'Upload a resume PDF first (ATS & match → Upload resume). Job match uses your parsed resume only.',
+        code: 'RESUME_NOT_UPLOADED',
+      });
+    }
+    if (!profileHasSubstanceForJobMatch(profile)) {
+      return res.status(400).json({
+        error: 'Your saved resume is too thin to compare. Re-upload a clearer PDF or add experience in Profile.',
+        code: 'PROFILE_TOO_THIN',
+      });
+    }
+    const gapAnalysis = await analyzeJdResumeGap(profile, jd);
+    res.json({ gapAnalysis });
+  } catch (err) {
+    console.error('Job match analysis error:', err);
+    res.status(500).json({ error: err.message || 'Failed to analyze job match' });
+  }
+}
+
 export async function listTemplates(req, res, next) {
   try {
+    // Keep the templates endpoint for now; all options use the same
+    // underlying pdfkit layout after reverting away from LaTeX.
     res.json([
       { id: 'classic', name: 'Classic' },
       { id: 'modern', name: 'Modern' },
+      { id: 'professional', name: 'Professional' },
+      { id: 'executive', name: 'Executive' },
+      { id: 'minimal', name: 'Minimal' },
+      { id: 'dynamics', name: 'Dynamics' },
     ]);
   } catch (err) {
     next(err);
   }
 }
 
-export async function downloadPdf(req, res, next) {
+export async function previewPdf(req, res, next) {
   try {
-    const { profile } = req.body || {};
+    const { profile, customization } = req.body || {};
     if (!profile) {
       return res.status(400).json({ error: 'Profile is required' });
     }
-    const buffer = await buildResumePdf(profile);
+    const buffer = await buildResumePdf(profile, customization || {});
+    res.setHeader('Content-Type', 'application/pdf');
+    const name = (profile.personal?.fullName || 'Resume').replace(/\s+/g, '_');
+    res.setHeader('Content-Disposition', `inline; filename="Resume_${name}.pdf"`);
+    res.send(buffer);
+  } catch (err) {
+    console.error('PDF preview error:', err);
+    res.status(500).json({ error: err.message || 'Failed to generate PDF' });
+  }
+}
+
+export async function downloadPdf(req, res, next) {
+  try {
+    const { profile, customization } = req.body || {};
+    if (!profile) {
+      return res.status(400).json({ error: 'Profile is required' });
+    }
+    const buffer = await buildResumePdf(profile, customization || {});
     res.setHeader('Content-Type', 'application/pdf');
     const name = (profile.personal?.fullName || 'Resume').replace(/\s+/g, '_');
     res.setHeader('Content-Disposition', `attachment; filename="Resume_${name}.pdf"`);
@@ -113,9 +243,10 @@ export async function parseCv(req, res, next) {
 
     const profileData = await parseCVWithAI(text);
     const userId = req.user.id;
-    await saveResumeProfile(userId, profileData);
+    await saveResumeProfile(userId, profileData, { markResumeParsed: true });
 
-    res.json(profileData);
+    const saved = await getResumeProfile(userId);
+    res.json(saved);
   } catch (err) {
     console.error('CV parse error:', err);
     if (err.message && (err.message.includes('rate limit') || err.message.includes('GROQ'))) {
@@ -130,4 +261,95 @@ export async function parseCv(req, res, next) {
 
 export function attachParseUpload() {
   return upload.single('resume');
+}
+
+export async function saveFinalizedResumeHandler(req, res, next) {
+  try {
+    const actor = req.user;
+    if (!actor) return res.status(401).json({ message: 'Unauthorized' });
+    if (actor.role !== 'user') {
+      return res.status(403).json({ message: 'Only users can save finalized resumes.' });
+    }
+    const { title, profile } = req.body || {};
+    const created = await saveFinalizedResume(actor.id, title, profile, actor);
+    res.status(201).json(created);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listMySavedResumesHandler(req, res, next) {
+  try {
+    const actor = req.user;
+    if (!actor) return res.status(401).json({ message: 'Unauthorized' });
+    const items = await listSavedResumesForUser(actor.id);
+    res.json(items);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listBdUserSavedResumesHandler(req, res, next) {
+  try {
+    const actor = req.user;
+    if (!actor || (actor.role !== 'bd' && actor.role !== 'admin')) {
+      return res.status(403).json({ message: 'BD or admin only' });
+    }
+    const { userId } = req.params;
+    const items = actor.role === 'admin'
+      ? await listSavedResumesForUser(userId)
+      : await listSavedResumesForBdUser(actor.id, userId);
+    res.json(items);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export const uploadSavedResumeMiddleware = uploadSavedPdf.single('resume');
+
+export async function uploadSavedResumeHandler(req, res, next) {
+  try {
+    const actor = req.user;
+    if (!actor) return res.status(401).json({ message: 'Unauthorized' });
+    if (actor.role !== 'user') {
+      return res.status(403).json({ message: 'Only users can upload saved resumes here.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: 'resume PDF file is required' });
+    }
+    const title = (req.body?.title && String(req.body.title).trim()) || (req.file?.originalname || 'Uploaded resume').replace(/\.pdf$/i, '');
+    const created = await saveUploadedSavedResume(actor.id, title, req.file, actor);
+    res.status(201).json(created);
+  } catch (err) {
+    if (err?.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: 'Resume file must be 5MB or smaller.' });
+    }
+    next(err);
+  }
+}
+
+export async function getSavedResumeFileHandler(req, res, next) {
+  try {
+    const actor = req.user;
+    if (!actor) return res.status(401).json({ message: 'Unauthorized' });
+    const { id } = req.params;
+    const file = await getSavedResumeFileForActor(id, actor);
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${file.fileName}"`);
+    res.sendFile(file.absolutePath);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteSavedResumeHandler(req, res, next) {
+  try {
+    const actor = req.user;
+    if (!actor) return res.status(401).json({ message: 'Unauthorized' });
+    const { id } = req.params;
+    await deleteSavedResumeForUser(id, actor);
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
 }

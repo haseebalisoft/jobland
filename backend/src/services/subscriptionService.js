@@ -17,7 +17,8 @@ const PLAN_CONFIG = {
   starter: {
     id: 'starter',
     name: 'Starter Pack',
-    mode: 'subscription',
+    // One-time Checkout: Stripe Price must be one-time (not recurring monthly).
+    mode: 'payment',
     priceId:
       process.env.STRIPE_PRICE_STARTER_ID ||
       process.env.STRIPE_PRICE_STARTER_PACK_ID ||
@@ -26,7 +27,7 @@ const PLAN_CONFIG = {
   success: {
     id: 'success',
     name: 'Success Pack',
-    mode: 'subscription',
+    mode: 'payment',
     priceId:
       process.env.STRIPE_PRICE_SUCCESS_ID ||
       process.env.STRIPE_PRICE_SUCCESS_PACK_ID ||
@@ -35,7 +36,7 @@ const PLAN_CONFIG = {
   elite: {
     id: 'elite',
     name: 'Elite Pack',
-    mode: 'subscription',
+    mode: 'payment',
     priceId:
       process.env.STRIPE_PRICE_ELITE_ID ||
       process.env.STRIPE_PRICE_ELITE_PACK_ID ||
@@ -45,6 +46,17 @@ const PLAN_CONFIG = {
 
 let subscriptionsTableEnsured = false;
 let usersStripeColumnEnsured = false;
+
+function normalizeSubscriptionStatus(status) {
+  const normalized = String(status || '').toLowerCase().trim();
+  if (normalized === 'trialing') return 'trialing';
+  if (normalized === 'past_due') return 'past_due';
+  if (normalized === 'canceled' || normalized === 'cancelled') return 'canceled';
+  // Stripe checkout for one-time payments may produce "paid" at session level.
+  // Our DB enum only allows active/trialing/canceled/past_due.
+  if (normalized === 'paid') return 'active';
+  return 'active';
+}
 
 async function ensureUsersStripeCustomerIdColumn() {
   if (usersStripeColumnEnsured) return;
@@ -227,6 +239,7 @@ async function upsertSubscriptionRecord({
   }
 
   await ensureSubscriptionsTable();
+  const safeStatus = normalizeSubscriptionStatus(status);
 
   const execute = client ? client.query.bind(client) : query;
   let subscriptionPlanId = null;
@@ -267,7 +280,7 @@ async function upsertSubscriptionRecord({
         subscriptionId,
         checkoutSessionId,
         subscriptionPlanId ?? existingPlanId,
-        status,
+        safeStatus,
         currentPeriodEnd,
         lookupResult.rows[0].id,
       ],
@@ -298,7 +311,7 @@ async function upsertSubscriptionRecord({
       customerId,
       subscriptionId,
       checkoutSessionId,
-      status ?? 'active',
+      safeStatus,
       currentPeriodEnd,
     ],
   );
@@ -481,16 +494,16 @@ async function getCheckoutActivationData(session) {
 
   return {
     email: email.toLowerCase(),
-    fullName: session.customer_details?.name || null,
+    fullName: null,
     planId,
     customerId:
       (typeof session.customer === 'string' ? session.customer : null) ||
       (typeof subscription?.customer === 'string' ? subscription.customer : null),
     subscriptionId: subscription?.id || null,
     checkoutSessionId: session.id,
-    status:
-      subscription?.status ||
-      (session.mode === 'payment' ? 'paid' : session.payment_status || 'active'),
+    status: normalizeSubscriptionStatus(
+      subscription?.status || (session.mode === 'payment' ? 'paid' : session.payment_status),
+    ),
     currentPeriodEnd: subscription?.current_period_end
       ? new Date(subscription.current_period_end * 1000)
       : null,
@@ -528,8 +541,11 @@ export async function createCheckoutSession({ userId = null, planId, email = nul
   }
 
   const clientBaseUrl = config.clientUrl.replace(/\/$/, '');
-  // After payment, direct users to the password setup page
-  const successUrl = `${clientBaseUrl}/set-password?session_id={CHECKOUT_SESSION_ID}`;
+  // Authenticated buyers should land on checkout-success/dashboard flow.
+  // Guest buyers should land on set-password to finish onboarding.
+  const successUrl = userId
+    ? `${clientBaseUrl}/checkout-success?session_id={CHECKOUT_SESSION_ID}`
+    : `${clientBaseUrl}/set-password?session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${clientBaseUrl}/checkout?plan=${encodeURIComponent(plan.name)}`;
 
   if (config.stripe.mockMode) {
@@ -677,7 +693,7 @@ async function updateSubscriptionStatus({
 
   await ensureSubscriptionsTable();
 
-  const normalizedStatus = status === 'canceled' ? 'canceled' : status === 'past_due' ? 'past_due' : status === 'trialing' ? 'trialing' : 'active';
+  const normalizedStatus = normalizeSubscriptionStatus(status);
   await query(
     `
       UPDATE subscriptions
@@ -747,5 +763,110 @@ export async function handleStripeEvents(event) {
     default:
       break;
   }
+}
+
+/**
+ * User opts out of paid subscription: Stripe recurring subs are canceled (best effort),
+ * local subscription rows marked canceled, user set to free + active. No new subscription row.
+ */
+export async function optOutToFreeTier(userId) {
+  if (!userId) {
+    const err = new Error('User ID is required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const userRes = await query(
+    `
+      SELECT id, role, is_verified
+      FROM users
+      WHERE id = $1
+    `,
+    [userId],
+  );
+
+  if (userRes.rowCount === 0) {
+    const err = new Error('User not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const row = userRes.rows[0];
+  if (row.role && row.role !== 'user') {
+    const err = new Error('Only customer accounts can use this action');
+    err.statusCode = 403;
+    throw err;
+  }
+  if (!row.is_verified) {
+    const err = new Error('Please verify your email first');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  await ensureSubscriptionsTable();
+  let canceledSubscriptions = 0;
+  let stripeCancellationFailures = 0;
+
+  if (!config.stripe.mockMode) {
+    try {
+      const stripe = getStripeClient();
+      const subRows = await query(
+        `
+          SELECT stripe_subscription_id
+          FROM subscriptions
+          WHERE user_id = $1
+            AND stripe_subscription_id IS NOT NULL
+            AND status IN ('active', 'trialing', 'past_due')
+        `,
+        [userId],
+      );
+      for (const s of subRows.rows) {
+        try {
+          await stripe.subscriptions.cancel(s.stripe_subscription_id);
+          canceledSubscriptions += 1;
+        } catch (e) {
+          stripeCancellationFailures += 1;
+          console.error('optOutToFreeTier: Stripe cancel failed', e?.message || e);
+        }
+      }
+    } catch (e) {
+      if (e?.statusCode === 500) {
+        console.warn('optOutToFreeTier: Stripe unavailable, skipping remote cancel');
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  await query(
+    `
+      UPDATE subscriptions
+      SET status = 'canceled',
+          updated_at = NOW()
+      WHERE user_id = $1
+        AND status IN ('active', 'trialing', 'past_due')
+    `,
+    [userId],
+  );
+
+  await query(
+    `
+      UPDATE users
+      SET subscription_plan = 'free',
+          is_active = true,
+          updated_at = NOW()
+      WHERE id = $1
+    `,
+    [userId],
+  );
+
+  const user = await getUserSnapshot(userId);
+  const alreadyOnFree = user?.subscription_plan === 'free' && canceledSubscriptions === 0;
+  return {
+    user,
+    canceledSubscriptions,
+    stripeCancellationFailures,
+    alreadyOnFree,
+  };
 }
 

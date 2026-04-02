@@ -5,6 +5,7 @@ import {
   startSignupController,
   startEmailVerificationController,
   verifyOtpController,
+  completeOtpSignupController,
   setPassword,
   setPasswordBySession,
   login,
@@ -18,6 +19,7 @@ import {
   bdLogin,
   forgotPasswordController,
   resetPasswordController,
+  resendVerificationController,
 } from '../controllers/authController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import {
@@ -45,6 +47,13 @@ router.post(
   signup,
 );
 
+router.post(
+  '/resend-verification',
+  signupRateLimiter,
+  [body('email').isEmail().withMessage('Valid email is required')],
+  resendVerificationController,
+);
+
 // Legacy OTP-based signup flow (pre-payment password) – kept for backwards compatibility
 router.post(
   '/start-signup',
@@ -69,6 +78,27 @@ router.post(
     body('otp').isLength({ min: 4, max: 10 }).withMessage('OTP is required'),
   ],
   verifyOtpController,
+);
+
+router.post(
+  '/complete-otp-signup',
+  signupRateLimiter,
+  [
+    body('verificationToken').isString().notEmpty().withMessage('verificationToken is required'),
+    body('password')
+      .isLength({ min: 8 })
+      .matches(/[A-Z]/)
+      .matches(/[a-z]/)
+      .matches(/[0-9]/)
+      .matches(/[^A-Za-z0-9]/)
+      .withMessage(
+        'Password must be at least 8 characters and include uppercase, lowercase, number, and special character',
+      ),
+    body('confirm_password')
+      .custom((value, { req }) => value === req.body.password)
+      .withMessage('Passwords do not match'),
+  ],
+  completeOtpSignupController,
 );
 
 // Post-payment password setup for USERS (by email – use when no session_id in URL)
@@ -141,6 +171,12 @@ router.post(
 router.post(
   '/bd/signup',
   [
+    body('full_name')
+      .trim()
+      .notEmpty()
+      .withMessage('Full name is required')
+      .isLength({ min: 2 })
+      .withMessage('Full name must be at least 2 characters'),
     body('email').isEmail().withMessage('Valid email is required'),
     body('password')
       .isLength({ min: 6 })

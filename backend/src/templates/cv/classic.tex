@@ -1,0 +1,30 @@
+\documentclass[11pt,a4paper,sans]{moderncv}
+\moderncvstyle{classic}
+\moderncvcolor{blue}
+\usepackage[utf8]{inputenc}
+\usepackage[scale=0.75]{geometry}
+
+\name{ {{FIRST_NAME}} }{ {{LAST_NAME}} }
+\title{ {{TITLE}} }
+\address{ {{LOCATION}} }
+\phone[mobile]{ {{PHONE}} }
+\email{ {{EMAIL}} }
+{{#HP}}\homepage{ {{HP}} }{{/HP}}
+{{#LINKEDIN}}\social[linkedin]{ {{LINKEDIN}} }{{/LINKEDIN}}
+
+\begin{document}
+\makecvtitle
+
+\section{Summary}
+{{SUMMARY}}
+
+\section{Experience}
+{{EXPERIENCE}}
+
+\section{Education}
+{{EDUCATION}}
+
+\section{Skills}
+\cvitem{Skills}{ {{SKILLS}} }
+
+\end{document}
