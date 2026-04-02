@@ -1,0 +1,2 @@
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS resume_full_name VARCHAR(255);

@@ -513,7 +513,11 @@ const swaggerDefinition = {
                       name: { type: 'string', example: 'Professional Resume' },
                       price: { type: 'number', example: 14.99 },
                       currency: { type: 'string', example: 'USD' },
-                      billing_interval: { type: 'string', example: 'one-time', enum: ['one-time', 'monthly', 'never'] },
+                      billing_interval: {
+                        type: 'string',
+                        example: 'per_interview',
+                        enum: ['per_interview', 'one-time', 'monthly', 'yearly', 'never'],
+                      },
                       description: { type: 'string', description: 'Plan description' },
                     },
                   },
@@ -527,8 +531,9 @@ const swaggerDefinition = {
     '/subscriptions/checkout-session': {
       post: {
         tags: ['Subscriptions', 'Stripe'],
-        summary: 'Create Stripe Checkout session for subscription',
-        description: 'Optional JWT (logged-in user) or anonymous. Creates Stripe Checkout Session. Send plan_id from GET /plans. Redirect user to returned url.',
+        summary: 'Create Stripe Checkout session (subscription or one-time payment)',
+        description:
+          'Optional JWT (logged-in user) or anonymous. Creates a Stripe Checkout Session (mode depends on plan: packs use one-time payment, some products use subscription). Send plan_id from GET /plans. Redirect user to returned url.',
         requestBody: {
           required: true,
           content: {

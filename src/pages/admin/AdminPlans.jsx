@@ -60,7 +60,7 @@ export default function AdminPlans() {
         <section className="admin-section">
           <h2 className="admin-section-title"><BarChart3 size={20} /> Plans</h2>
           <p className="admin-helper">plan_id is a unique slug (e.g. starter, elite).</p>
-          <form onSubmit={createPlan} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 }}>
+          <form onSubmit={createPlan} className="admin-form-inline">
             <input name="plan_id" placeholder="plan_id (slug)" value={newPlan.plan_id} onChange={handleNewPlanChange} className="admin-input" style={{ minWidth: 140 }} />
             <input name="name" placeholder="Display name" value={newPlan.name} onChange={handleNewPlanChange} className="admin-input" style={{ minWidth: 160 }} />
             <input name="price" type="number" step="0.01" placeholder="Price" value={newPlan.price} onChange={handleNewPlanChange} className="admin-input" style={{ width: 90 }} />

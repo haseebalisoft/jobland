@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { BarChart2, Briefcase, CheckCircle, Clock, ExternalLink, Filter, LogOut, Search, Users, Lock } from 'lucide-react'
 import api from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -15,6 +15,8 @@ const RANGE_OPTIONS = [
 
 // job_assignments.status enum in 001_initial: pending, assigned, completed, failed
 const STATUS_OPTIONS = ['pending', 'assigned', 'completed', 'failed']
+// applications.current_status enum in 001_initial: applied, interview, acceptance, rejection, withdrawn
+const APPLICATION_STATUS_OPTIONS = ['applied', 'interview', 'acceptance', 'rejection', 'withdrawn']
 
 const theme = {
   primary: '#10B981',
@@ -33,11 +35,13 @@ const theme = {
 
 export default function BdDashboard() {
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const [range, setRange] = useState('7days')
   const [loading, setLoading] = useState(true)
   const [leads, setLeads] = useState([])
   const [creating, setCreating] = useState(false)
   const [updatingId, setUpdatingId] = useState(null)
+  const [updatingAppId, setUpdatingAppId] = useState(null)
   const [myUsers, setMyUsers] = useState([])
   const [myUsersLoading, setMyUsersLoading] = useState(false)
   const [myUsersError, setMyUsersError] = useState('')
@@ -175,6 +179,31 @@ export default function BdDashboard() {
     }
   }
 
+  const handleApplicationStatusChange = async (lead, status) => {
+    if (!lead.application_id) {
+      alert('Application record does not exist yet for this lead. Ask the user to mark it applied first.')
+      return
+    }
+    setUpdatingAppId(lead.application_id)
+    try {
+      await api.patch(`/applications/${lead.application_id}/status`, { status })
+      // Reflect application_status change locally
+      setLeads((prev) =>
+        prev.map((l) =>
+          l.id === lead.id ? { ...l, application_status: status } : l,
+        ),
+      )
+      if (status === 'interview') {
+        navigate(`/bd/interview?applicationId=${lead.application_id}`)
+      }
+    } catch (e) {
+      console.error(e)
+      alert(e.response?.data?.message || 'Failed to update application status')
+    } finally {
+      setUpdatingAppId(null)
+    }
+  }
+
   return (
     <div style={styles.layout}>
       <aside style={styles.sidebar}>
@@ -257,6 +286,7 @@ export default function BdDashboard() {
               </div>
             ) : (
               <div style={styles.tableWrapper}>
+                <div className="bd-table-wrap">
                 <table className="bd-table" style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
@@ -275,6 +305,7 @@ export default function BdDashboard() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </section>
@@ -386,6 +417,7 @@ export default function BdDashboard() {
               </div>
             ) : (
               <div style={styles.tableWrapper}>
+                <div className="bd-table-wrap">
                 <table className="bd-table" style={styles.table}>
                   <thead>
                     <tr style={styles.tableHeaderRow}>
@@ -393,7 +425,8 @@ export default function BdDashboard() {
                       <th style={styles.tableHeaderCell}>Company</th>
                       <th style={styles.tableHeaderCell}>Assigned user</th>
                       <th style={styles.tableHeaderCell}>Created</th>
-                      <th style={styles.tableHeaderCell}>Status</th>
+                      <th style={styles.tableHeaderCell}>Lead status</th>
+                      <th style={styles.tableHeaderCell}>Application status</th>
                       <th style={styles.tableHeaderCell}>Job link</th>
                     </tr>
                   </thead>
@@ -409,13 +442,18 @@ export default function BdDashboard() {
                           <td>{assignedUser ? (assignedUser.full_name || assignedUser.email) : '—'}</td>
                           <td>{lead.created_at ? new Date(lead.created_at).toLocaleDateString() : '—'}</td>
                           <td>
+                            <span style={{ fontSize: 13, color: theme.text }}>
+                              {lead.status || 'pending'}
+                            </span>
+                          </td>
+                          <td>
                             <select
-                              value={lead.status || 'pending'}
-                              onChange={(e) => handleStatusChange(lead.id, e.target.value)}
-                              disabled={updatingId === lead.id}
+                              value={lead.application_status || 'applied'}
+                              onChange={(e) => handleApplicationStatusChange(lead, e.target.value)}
+                              disabled={updatingAppId === lead.application_id || !lead.assigned_user_id}
                               style={styles.statusSelect}
                             >
-                              {STATUS_OPTIONS.map((s) => (
+                              {APPLICATION_STATUS_OPTIONS.map((s) => (
                                 <option key={s} value={s}>
                                   {s}
                                 </option>
@@ -443,6 +481,7 @@ export default function BdDashboard() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </section>

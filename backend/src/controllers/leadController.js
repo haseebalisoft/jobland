@@ -7,6 +7,8 @@ import {
   listLeadsForAdmin,
   getLeadStats,
   markLeadAppliedByUser,
+  getLeadMessagesService,
+  addLeadMessageService,
 } from '../services/leadService.js';
 
 export async function createLead(req, res, next) {
@@ -43,8 +45,8 @@ export async function assignLeadController(req, res, next) {
 export async function updateLeadStatusController(req, res, next) {
   try {
     const actor = req.user;
-    if (actor.role !== 'bd' && actor.role !== 'admin') {
-      return res.status(403).json({ message: 'Only BD or admin can update lead status' });
+    if (actor.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admin can update lead status' });
     }
     const { id } = req.params;
     const { status } = req.body || {};
@@ -146,4 +148,28 @@ export async function markLeadAppliedController(req, res, next) {
     next(err);
   }
 }
+
+export async function getLeadMessagesController(req, res, next) {
+  try {
+    const actor = req.user;
+    const { id } = req.params;
+    const result = await getLeadMessagesService(id, actor);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function addLeadMessageController(req, res, next) {
+  try {
+    const actor = req.user;
+    const { id } = req.params;
+    const { message } = req.body || {};
+    const saved = await addLeadMessageService(id, actor, message);
+    res.status(201).json(saved);
+  } catch (err) {
+    next(err);
+  }
+}
+
 

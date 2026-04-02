@@ -18,7 +18,7 @@ export async function getPlans(req, res, next) {
       name: row.name,
       price: Number(row.price),
       currency: row.currency || 'USD',
-      billing_interval: row.billing_interval || 'monthly',
+      billing_interval: row.billing_interval || 'per_interview',
       description: row.description || '',
     }));
 

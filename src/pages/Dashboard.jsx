@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Bell, Search, CheckCircle, Clock, ExternalLink, FileText } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api.js'
@@ -30,6 +30,16 @@ export default function Dashboard() {
     const [leads, setLeads] = useState({ items: [], total: 0 })
     const [leadsLoading, setLeadsLoading] = useState(false)
     const [leadsRange, setLeadsRange] = useState('all')
+    const [showNotifications, setShowNotifications] = useState(false)
+    const [readNotificationIds, setReadNotificationIds] = useState(() => {
+        try {
+            const raw = localStorage.getItem('dashboard_read_notification_ids')
+            return raw ? JSON.parse(raw) : []
+        } catch {
+            return []
+        }
+    })
+    const notificationRef = useRef(null)
 
     useEffect(() => {
         let isMounted = true
@@ -66,6 +76,67 @@ export default function Dashboard() {
         fetchLeads()
     }, [user, leadsRange])
 
+    useEffect(() => {
+        try {
+            localStorage.setItem('dashboard_read_notification_ids', JSON.stringify(readNotificationIds))
+        } catch {
+            // Ignore storage errors (private mode, quota, etc.)
+        }
+    }, [readNotificationIds])
+
+    useEffect(() => {
+        const onClickOutside = (event) => {
+            if (!notificationRef.current) return
+            if (!notificationRef.current.contains(event.target)) {
+                setShowNotifications(false)
+            }
+        }
+        document.addEventListener('mousedown', onClickOutside)
+        return () => document.removeEventListener('mousedown', onClickOutside)
+    }, [])
+
+    const notifications = useMemo(() => {
+        const now = Date.now()
+        const items = (leads.items || [])
+            .filter((lead) => !!lead.interview_mode)
+            .map((lead) => {
+                const datePart = lead.interview_date ? new Date(lead.interview_date).toLocaleDateString() : ''
+                const timePart = lead.interview_time || ''
+                const whenLabel = [datePart, timePart].filter(Boolean).join(' · ') || 'Interview scheduled'
+                const scheduledTs = lead.interview_date ? new Date(lead.interview_date).getTime() : null
+                const isUpcoming = scheduledTs ? scheduledTs >= now - 86400000 : false
+                return {
+                    id: `interview-${lead.id}`,
+                    title: `${lead.job_title || 'Interview'} at ${lead.company_name || 'Company'}`,
+                    subtitle: whenLabel + (lead.interview_timezone ? ` (${lead.interview_timezone})` : ''),
+                    type: isUpcoming ? 'Upcoming interview' : 'Interview update',
+                    ts: scheduledTs || (lead.created_at ? new Date(lead.created_at).getTime() : 0),
+                    leadId: lead.id,
+                }
+            })
+            .sort((a, b) => b.ts - a.ts)
+
+        return items
+    }, [leads.items])
+
+    const unreadCount = useMemo(
+        () => notifications.filter((n) => !readNotificationIds.includes(n.id)).length,
+        [notifications, readNotificationIds]
+    )
+
+    const toggleNotifications = () => {
+        setShowNotifications((prev) => {
+            const next = !prev
+            if (!prev && notifications.length > 0) {
+                setReadNotificationIds((current) => {
+                    const allIds = notifications.map((n) => n.id)
+                    const merged = Array.from(new Set([...(current || []), ...allIds]))
+                    return merged
+                })
+            }
+            return next
+        })
+    }
 
     if (!user) return null
 
@@ -126,9 +197,48 @@ export default function Dashboard() {
                         <button type="button" className="dashboard-tab" onClick={() => setActiveSection('applications')} style={{ padding: '10px 20px', borderRadius: 12, border: 'none', background: activeSection === 'applications' ? theme.primary : 'transparent', color: activeSection === 'applications' ? 'white' : theme.textMuted, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Applications</button>
                     </div>
                     <div style={styles.profileArea}>
-                        <button type="button" className="dashboard-icon-btn" style={styles.iconBtn} aria-label="Notifications">
-                            <Bell size={20} />
-                        </button>
+                        <div style={styles.notificationWrapper} ref={notificationRef}>
+                            <button
+                                type="button"
+                                className="dashboard-icon-btn"
+                                style={styles.iconBtn}
+                                aria-label="Notifications"
+                                onClick={toggleNotifications}
+                            >
+                                <Bell size={20} />
+                            </button>
+                            {unreadCount > 0 && (
+                                <span style={styles.notificationBadge}>
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </span>
+                            )}
+                            {showNotifications && (
+                                <div style={styles.notificationPanel}>
+                                    <div style={styles.notificationPanelHeader}>Notifications</div>
+                                    {notifications.length === 0 ? (
+                                        <div style={styles.notificationEmpty}>No notifications yet.</div>
+                                    ) : (
+                                        <div style={styles.notificationList}>
+                                            {notifications.slice(0, 8).map((item) => (
+                                                <button
+                                                    type="button"
+                                                    key={item.id}
+                                                    style={styles.notificationItem}
+                                                    onClick={() => {
+                                                        setActiveSection('applications')
+                                                        setShowNotifications(false)
+                                                    }}
+                                                >
+                                                    <div style={styles.notificationType}>{item.type}</div>
+                                                    <div style={styles.notificationTitle}>{item.title}</div>
+                                                    <div style={styles.notificationSubtitle}>{item.subtitle}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                         <div style={styles.avatar}>{initials}</div>
                     </div>
                 </header>
@@ -143,7 +253,7 @@ export default function Dashboard() {
                                     : "Here's what's happening with your job search."}
                             </p>
 
-                            <div style={styles.statsGrid}>
+                            <div className="dashboard-stats-grid">
                                 <StatCard number={currentPlanLabel} label="Current plan" color={theme.primary} icon={<FileText size={22} />} />
                                 <StatCard number={renewLabel} label="Renews on" color={theme.blue} icon={<Clock size={22} />} />
                                 <StatCard number={totalApplications} label="Applications" color={theme.primary} icon={<CheckCircle size={22} />} />
@@ -155,14 +265,35 @@ export default function Dashboard() {
                                 <div className="dashboard-activity-card" style={styles.activityCard}>
                                     {leads.items.length > 0 ? (
                                         <div style={styles.activityList}>
-                                            {leads.items.slice(0, 5).map((lead) => (
-                                                <ActivityItem
-                                                    key={lead.id}
-                                                    title={lead.job_title || 'Job'}
-                                                    desc={`${lead.company_name || ''} · ${lead.status || 'pending'}`}
-                                                    time={lead.created_at ? new Date(lead.created_at).toLocaleDateString() : ''}
-                                                />
-                                            ))}
+                                            {leads.items.slice(0, 5).map((lead) => {
+                                                const hasInterview = !!lead.interview_mode;
+                                                const title = hasInterview
+                                                    ? `Interview: ${lead.job_title || 'Job'}`
+                                                    : (lead.job_title || 'Job');
+                                                const desc = hasInterview
+                                                    ? `${lead.company_name || ''} · Interview scheduled`
+                                                    : `${lead.company_name || ''} · ${lead.status || 'pending'}`;
+                                                const when = hasInterview && (lead.interview_date || lead.interview_time)
+                                                    ? [
+                                                        lead.interview_date
+                                                            ? new Date(lead.interview_date).toLocaleDateString()
+                                                            : null,
+                                                        lead.interview_time || null,
+                                                    ]
+                                                        .filter(Boolean)
+                                                        .join(' · ')
+                                                    : (lead.created_at
+                                                        ? new Date(lead.created_at).toLocaleDateString()
+                                                        : '');
+                                                return (
+                                                    <ActivityItem
+                                                        key={lead.id}
+                                                        title={title}
+                                                        desc={desc}
+                                                        time={when}
+                                                    />
+                                                );
+                                            })}
                                         </div>
                                     ) : (
                                         <p style={styles.emptyText}>No recent activity. Your assigned BD will add job leads here.</p>
@@ -208,11 +339,88 @@ export default function Dashboard() {
                                                 <div style={styles.leadTitle}>{lead.job_title || 'Untitled role'}</div>
                                                 <div style={styles.leadCompany}>{lead.company_name || '—'}</div>
                                                 <div style={styles.leadMeta}>
-                                                    <span style={statusBadgeStyle(lead.status)}>{lead.status}</span>
+                                                    <span style={statusBadgeStyle(lead.application_status || lead.status)}>
+                                                        {lead.application_status || lead.status}
+                                                    </span>
                                                     {lead.created_at && (
                                                         <span style={styles.leadDate}>Added {new Date(lead.created_at).toLocaleDateString()}</span>
                                                     )}
                                                 </div>
+                                                {lead.interview_mode && (
+                                                    <div
+                                                        style={{
+                                                            marginTop: 14,
+                                                            padding: '14px 16px',
+                                                            borderRadius: 14,
+                                                            background: 'linear-gradient(135deg, #EEF2FF 0%, #EFF6FF 100%)',
+                                                            border: '1px solid rgba(129,140,248,0.35)',
+                                                            display: 'flex',
+                                                            alignItems: 'stretch',
+                                                            gap: 16,
+                                                        }}
+                                                    >
+                                                        <div
+                                                            style={{
+                                                                width: 36,
+                                                                height: 36,
+                                                                borderRadius: 999,
+                                                                background: '#4F46E5',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                color: 'white',
+                                                                fontSize: 16,
+                                                                fontWeight: 700,
+                                                                flexShrink: 0,
+                                                            }}
+                                                        >
+                                                            i
+                                                        </div>
+                                                        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1.6fr)', gap: 8 }}>
+                                                            <div>
+                                                                <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#4F46E5', marginBottom: 4 }}>
+                                                                    Interview scheduled
+                                                                </div>
+                                                                <div style={{ fontSize: 13, color: theme.textMuted, textTransform: 'capitalize' }}>
+                                                                    {String(lead.interview_mode).replace('_', ' ')}
+                                                                </div>
+                                                                {lead.interview_link && (
+                                                                    <a
+                                                                        href={lead.interview_link}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        style={{
+                                                                            marginTop: 6,
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            gap: 4,
+                                                                            fontSize: 12,
+                                                                            fontWeight: 600,
+                                                                            color: '#2563EB',
+                                                                            textDecoration: 'none',
+                                                                        }}
+                                                                    >
+                                                                        <ExternalLink size={12} /> Join link
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                            <div style={{ textAlign: 'right', fontSize: 12, color: theme.textMuted, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 2 }}>
+                                                                {lead.interview_date && (
+                                                                    <span style={{ fontWeight: 600, color: theme.text }}>
+                                                                        {new Date(lead.interview_date).toLocaleDateString()}
+                                                                    </span>
+                                                                )}
+                                                                {lead.interview_time && (
+                                                                    <span>
+                                                                        {lead.interview_time}
+                                                                        {lead.interview_timezone ? ` (${lead.interview_timezone})` : ''}
+                                                                    </span>
+                                                                )}
+                                                                {lead.duration_minutes != null && <span>{lead.duration_minutes} min</span>}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                             {lead.job_link && (
                                                 <a href={lead.job_link} target="_blank" rel="noopener noreferrer" className="dashboard-link-btn" style={styles.linkBtn}>
@@ -315,6 +523,81 @@ const styles = {
         color: theme.text,
     },
     profileArea: { display: 'flex', alignItems: 'center', gap: 16 },
+    notificationWrapper: {
+        position: 'relative',
+    },
+    notificationBadge: {
+        position: 'absolute',
+        top: 2,
+        right: 2,
+        minWidth: 18,
+        height: 18,
+        borderRadius: 999,
+        background: '#ef4444',
+        color: 'white',
+        fontSize: 11,
+        fontWeight: 700,
+        lineHeight: '18px',
+        textAlign: 'center',
+        padding: '0 5px',
+        border: '2px solid white',
+    },
+    notificationPanel: {
+        position: 'absolute',
+        top: 'calc(100% + 10px)',
+        right: 0,
+        width: 320,
+        background: theme.cardBg,
+        border: `1px solid ${theme.border}`,
+        borderRadius: 14,
+        boxShadow: '0 18px 35px rgba(15,23,42,0.14)',
+        zIndex: 40,
+        overflow: 'hidden',
+    },
+    notificationPanelHeader: {
+        padding: '12px 14px',
+        borderBottom: `1px solid ${theme.border}`,
+        fontSize: 13,
+        fontWeight: 700,
+        color: theme.text,
+        background: '#f8fafc',
+    },
+    notificationList: {
+        maxHeight: 320,
+        overflowY: 'auto',
+    },
+    notificationItem: {
+        width: '100%',
+        border: 'none',
+        background: 'transparent',
+        textAlign: 'left',
+        padding: '12px 14px',
+        cursor: 'pointer',
+        borderBottom: `1px solid ${theme.border}`,
+    },
+    notificationType: {
+        fontSize: 11,
+        fontWeight: 700,
+        color: theme.violet,
+        marginBottom: 4,
+        textTransform: 'uppercase',
+        letterSpacing: '0.04em',
+    },
+    notificationTitle: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: theme.text,
+        marginBottom: 3,
+    },
+    notificationSubtitle: {
+        fontSize: 12,
+        color: theme.textMuted,
+    },
+    notificationEmpty: {
+        padding: '16px 14px',
+        color: theme.textMuted,
+        fontSize: 13,
+    },
     iconBtn: {
         background: 'none',
         border: 'none',
@@ -348,12 +631,6 @@ const styles = {
         color: theme.textMuted,
         fontSize: 15,
         marginBottom: 28,
-    },
-    statsGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: 16,
-        marginBottom: 32,
     },
     statCard: {
         background: theme.cardBg,

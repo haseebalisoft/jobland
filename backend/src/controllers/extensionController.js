@@ -39,8 +39,8 @@ export async function submitJobFromExtension(req, res, next) {
 
     const jobUrl = String(job_url).trim();
     let existingJob = await query(
-      'SELECT id FROM jobs WHERE job_url = $1',
-      [jobUrl]
+      'SELECT id, bd_id FROM jobs WHERE job_url = $1 AND bd_id = $2',
+      [jobUrl, bdId]
     );
 
     let jobId;
@@ -49,8 +49,8 @@ export async function submitJobFromExtension(req, res, next) {
     } else {
       try {
         const insertJob = await query(
-          `INSERT INTO jobs (company_name, company_website, title, job_url, platform, location, description, work_type, created_at)
-           VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, NOW())
+          `INSERT INTO jobs (company_name, company_website, title, job_url, platform, location, description, work_type, bd_id, created_at)
+           VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, $8, NOW())
            RETURNING id`,
           [
             String(company_name).trim(),
@@ -60,12 +60,13 @@ export async function submitJobFromExtension(req, res, next) {
             String(location).trim().slice(0, 255),
             description ? String(description).trim().slice(0, 5000) : null,
             workType,
+            bdId,
           ]
         );
         jobId = insertJob.rows[0].id;
       } catch (err) {
         if (err.code === '23505') {
-          existingJob = await query('SELECT id FROM jobs WHERE job_url = $1', [jobUrl]);
+          existingJob = await query('SELECT id, bd_id FROM jobs WHERE job_url = $1 AND bd_id = $2', [jobUrl, bdId]);
           if (existingJob.rowCount > 0) jobId = existingJob.rows[0].id;
           else throw err;
         } else throw err;

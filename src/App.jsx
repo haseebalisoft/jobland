@@ -12,6 +12,7 @@ import BdDashboardOverview from './pages/bd/BdDashboardOverview'
 import BdCreateLead from './pages/bd/BdCreateLead'
 import BdAssignedProfiles from './pages/bd/BdAssignedProfiles'
 import BdYourLeads from './pages/bd/BdYourLeads'
+import BdInterviewDetails from './pages/bd/BdInterviewDetails'
 import BdSignup from './pages/BdSignup'
 import Checkout from './pages/Checkout'
 import VerifyEmail from './pages/VerifyEmail'
@@ -37,6 +38,8 @@ import AdminUsers from './pages/admin/AdminUsers'
 import AdminLeads from './pages/admin/AdminLeads'
 import AdminBds from './pages/admin/AdminBds'
 import AdminSubscriptions from './pages/admin/AdminSubscriptions'
+import UserLeadHelp from './pages/UserLeadHelp'
+import BdLeadHelp from './pages/bd/BdLeadHelp'
 
 function App() {
   return (
@@ -71,6 +74,22 @@ function App() {
             }
           />
           <Route
+            path="/dashboard/help"
+            element={
+              <ProtectedRoute>
+                <UserLeadHelp />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/help/:leadId"
+            element={
+              <ProtectedRoute>
+                <UserLeadHelp />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/profile"
             element={
               <ProtectedRoute>
@@ -99,6 +118,8 @@ function App() {
             <Route path="create-lead" element={<BdCreateLead />} />
             <Route path="assigned-profiles" element={<BdAssignedProfiles />} />
             <Route path="leads" element={<BdYourLeads />} />
+            <Route path="interview" element={<BdInterviewDetails />} />
+            <Route path="help" element={<BdLeadHelp />} />
           </Route>
         </Routes>
       </AuthProvider>

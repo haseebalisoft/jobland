@@ -8,6 +8,14 @@
   font-family: var(--font-primary), system-ui, sans-serif;
 }
 
+.bd-mobile-bar {
+  display: none;
+}
+
+.bd-sidebar-overlay {
+  display: none;
+}
+
 .bd-page .bd-sidebar {
   flex-shrink: 0;
 }
@@ -22,13 +30,42 @@
   border-right: 1px solid #1E293B;
 }
 
+.bd-sidebar__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.bd-sidebar__close {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.bd-sidebar__close:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
 .bd-sidebar__logo {
   display: flex;
   align-items: center;
   gap: 12px;
   text-decoration: none;
   color: #fff;
-  margin-bottom: 4px;
+  margin-bottom: 0;
+  min-width: 0;
 }
 
 .bd-sidebar__logo img {
@@ -51,7 +88,16 @@
   color: #10B981;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  margin-bottom: 28px;
+  margin-bottom: 12px;
+}
+
+.bd-sidebar__user-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 24px;
+  line-height: 1.45;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .bd-sidebar__nav {
@@ -122,14 +168,24 @@
 }
 
 .bd-header {
-  height: 72px;
+  min-height: 72px;
+  height: auto;
   background: #fff;
   border-bottom: 1px solid #E2E8F0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
+  gap: 12px 16px;
+  padding: 14px 32px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.bd-header__right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
 }
 
 .bd-content {
@@ -146,6 +202,171 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+}
+
+/* BD Lead Help: two columns on desktop, single column on narrow viewports */
+.bd-lead-help-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.bd-lead-help-header__titles {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.bd-lead-help-header__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  font-size: 12px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.bd-lead-help-page__title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px;
+}
+
+.bd-lead-help-page__subtitle {
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.bd-lead-help-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+}
+
+.bd-lead-help-list {
+  max-height: 360px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bd-lead-help-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  padding: 14px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.bd-lead-help-card__heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 10px;
+}
+
+.bd-lead-help-row {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  text-align: left;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: block;
+  font: inherit;
+}
+
+.bd-lead-help-row__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.bd-lead-help-row__company {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .bd-lead-help-layout {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .bd-lead-help-list {
+    max-height: min(280px, 42vh);
+  }
+
+  .bd-content.bd-lead-help-page {
+    padding-top: 12px;
+  }
+
+  .bd-lead-help-header {
+    margin-bottom: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .bd-content.bd-lead-help-page {
+    padding-top: 6px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .bd-lead-help-card {
+    padding: 16px;
+  }
+
+  .bd-lead-help-row {
+    padding: 12px 14px;
+  }
+
+  .bd-lead-help-page__title {
+    font-size: 18px;
+    margin-bottom: 2px;
+    line-height: 1.25;
+  }
+
+  .bd-lead-help-page__subtitle {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .bd-lead-help-header {
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+
+  .bd-lead-help-header__badge {
+    align-self: flex-start;
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  /* Help page: mobile bar already shows “BD Portal”; hide duplicate header to pull content up */
+  .bd-header--hide-mobile-help {
+    display: none;
+  }
 }
 
 /* Dashboard overview: cards span full width */
@@ -168,6 +389,123 @@
 
   .bd-dashboard-activity-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* iPad / tablet: room for sidebar + stacked header — no hamburger */
+@media (max-width: 1024px) {
+  .bd-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 14px 20px;
+  }
+
+  .bd-header__right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .bd-content {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .bd-mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1003;
+    padding: 0 12px 0 8px;
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(52px + env(safe-area-inset-top, 0px));
+    box-sizing: border-box;
+    background: #fff;
+    border-bottom: 1px solid #E2E8F0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  .bd-mobile-bar__menu {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 10px;
+    background: #F1F5F9;
+    color: #0F172A;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .bd-mobile-bar__menu:hover {
+    background: #E2E8F0;
+  }
+
+  .bd-mobile-bar__title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0F172A;
+    letter-spacing: -0.02em;
+  }
+
+  .bd-sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1001;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: rgba(15, 23, 42, 0.45);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .bd-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(288px, 88vw);
+    height: 100vh;
+    height: 100dvh;
+    min-height: -webkit-fill-available;
+    z-index: 1002;
+    transform: translateX(-100%);
+    transition: transform 0.28s ease;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-top: 20px;
+  }
+
+  .bd-sidebar--open {
+    transform: translateX(0);
+  }
+
+  .bd-sidebar__close {
+    display: flex;
+  }
+
+  .bd-page .bd-sidebar {
+    width: min(288px, 88vw);
+  }
+
+  .bd-main {
+    padding-top: calc(52px + env(safe-area-inset-top, 0px));
+    width: 100%;
+  }
+
+  .bd-header {
+    padding: 14px 16px;
+  }
+
+  .bd-content {
+    padding: 16px;
   }
 }
 
@@ -204,6 +542,23 @@
 .bd-primary-btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.bd-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+/* Wide tables: keep layout readable; parent .bd-table-wrap scrolls horizontally on narrow viewports */
+.bd-content .bd-table {
+  min-width: 720px;
+  width: 100%;
+  table-layout: auto;
 }
 
 .bd-table tbody tr:hover {
