@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
+import DashboardApplications from './pages/DashboardApplications.jsx'
 // import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import BdLogin from './pages/BdLogin'
@@ -87,6 +88,7 @@ function App() {
           <Route path="/success" element={<CheckoutSuccess />} />
           <Route path="/checkout-success" element={<CheckoutSuccess />} />
           <Route path="/dashboard" element={<PaidRoute><Dashboard /></PaidRoute>} />
+          <Route path="/dashboard/applications" element={<PaidRoute><DashboardApplications /></PaidRoute>} />
           <Route path="/dashboard/help" element={<PaidRoute><UserLeadHelp /></PaidRoute>} />
           <Route path="/dashboard/help/:leadId" element={<PaidRoute><UserLeadHelp /></PaidRoute>} />
           <Route path="/profile" element={<PaidRoute><ProfileBuilder /></PaidRoute>} />

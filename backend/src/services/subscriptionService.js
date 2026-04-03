@@ -269,7 +269,7 @@ async function upsertSubscriptionRecord({
             stripe_subscription_id = COALESCE($3, stripe_subscription_id),
             stripe_checkout_session_id = COALESCE($4, stripe_checkout_session_id),
             subscription_plan_id = COALESCE($5, subscription_plan_id),
-            status = COALESCE($6::subscription_status, status),
+            status = COALESCE($6, status),
             current_period_end = $7,
             updated_at = NOW()
         WHERE id = $8
@@ -303,7 +303,7 @@ async function upsertSubscriptionRecord({
         status,
         current_period_end
       )
-      VALUES ($1, $2, $3, $4, $5, $6::subscription_status, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
     `,
     [
       userId,
@@ -698,7 +698,7 @@ async function updateSubscriptionStatus({
     `
       UPDATE subscriptions
       SET stripe_customer_id = COALESCE($1, stripe_customer_id),
-          status = $2::subscription_status,
+          status = $2,
           current_period_end = COALESCE($3, current_period_end),
           updated_at = NOW()
       WHERE stripe_subscription_id = $4
