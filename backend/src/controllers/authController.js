@@ -19,6 +19,7 @@ import {
   requestPasswordReset,
   resetPasswordWithToken,
   resendVerificationEmail,
+  loginWithGoogle,
 } from '../services/authService.js';
 import { getOrCreateUserFromCheckoutSession } from '../services/subscriptionService.js';
 
@@ -278,6 +279,33 @@ export async function resetPasswordController(req, res, next) {
       .cookie(REFRESH_COOKIE_NAME, refreshToken, buildRefreshCookieOptions())
       .json({
         message: 'Password reset successfully.',
+        accessToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          emailVerified: user.emailVerified,
+          isActive: user.isActive,
+          subscription_plan: user.subscription_plan,
+        },
+      });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ message: err.message });
+    }
+    next(err);
+  }
+}
+
+export async function googleLogin(req, res, next) {
+  try {
+    const credential = req.body.credential || req.body.id_token;
+    const { user, accessToken, refreshToken } = await loginWithGoogle({ idToken: credential });
+
+    res
+      .cookie(REFRESH_COOKIE_NAME, refreshToken, buildRefreshCookieOptions())
+      .json({
         accessToken,
         user: {
           id: user._id,

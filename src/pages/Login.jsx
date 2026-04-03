@@ -4,40 +4,59 @@ import '../index.css'
 import './Auth.css'
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google'
 
-export default function Login() {
-    const navigate = useNavigate();
-    const { login } = useAuth();
-    const [error, setError] = useState('');
+function navigateAfterLogin(loggedInUser, navigate) {
+    if (loggedInUser.role === 'bd' || loggedInUser.role === 'admin') {
+        navigate('/bd')
+        return
+    }
+    if (!loggedInUser.isActive) {
+        navigate('/billing')
+        return
+    }
+    const free = String(loggedInUser.subscription_plan || 'free').toLowerCase() === 'free'
+    navigate(free ? '/free-tools' : '/dashboard')
+}
+
+function LoginContent() {
+    const navigate = useNavigate()
+    const { login, loginWithGoogle } = useAuth()
+    const [error, setError] = useState('')
+    const [googleLoading, setGoogleLoading] = useState(false)
+    const hasGoogle = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID)
 
     const handleLogin = async (e) => {
-        e.preventDefault();
-        setError('');
-        const email = e.target.email.value;
-        const password = e.target.password.value;
+        e.preventDefault()
+        setError('')
+        const email = e.target.email.value
+        const password = e.target.password.value
 
         try {
-            const loggedInUser = await login(email, password);
-
-            // BD or Admin → always go to BD portal (leads dashboard)
-            if (loggedInUser.role === 'bd' || loggedInUser.role === 'admin') {
-                navigate('/bd');
-                return;
-            }
-
-            if (!loggedInUser.isActive) {
-                // No active subscription: send logged-in users to account-bound billing flow.
-                navigate('/billing');
-            } else {
-                const free =
-                    String(loggedInUser.subscription_plan || 'free').toLowerCase() === 'free';
-                navigate(free ? '/free-tools' : '/dashboard');
-                return;
-            }
+            const loggedInUser = await login(email, password)
+            navigateAfterLogin(loggedInUser, navigate)
         } catch (err) {
-            setError(err.response?.data?.message || 'Login failed');
+            setError(err.response?.data?.message || 'Login failed')
         }
-    };
+    }
+
+    const handleGoogleSuccess = async (credentialResponse) => {
+        const cred = credentialResponse?.credential
+        if (!cred) {
+            setError('Google did not return a credential.')
+            return
+        }
+        setError('')
+        setGoogleLoading(true)
+        try {
+            const loggedInUser = await loginWithGoogle(cred)
+            navigateAfterLogin(loggedInUser, navigate)
+        } catch (err) {
+            setError(err.response?.data?.message || 'Google sign-in failed')
+        } finally {
+            setGoogleLoading(false)
+        }
+    }
 
     return (
         <div className="auth-container" style={styles.container}>
@@ -78,12 +97,48 @@ export default function Login() {
                     </button>
                 </form>
 
+                {hasGoogle ? (
+                    <>
+                        <div style={styles.divider}>
+                            <span style={styles.dividerLine} />
+                            <span style={styles.dividerText}>or</span>
+                            <span style={styles.dividerLine} />
+                        </div>
+                        <div style={styles.googleWrap}>
+                            <GoogleLogin
+                                onSuccess={handleGoogleSuccess}
+                                onError={() => setError('Google sign-in was cancelled or failed.')}
+                                theme="outline"
+                                size="large"
+                                width="384"
+                                text="continue_with"
+                                locale="en"
+                            />
+                            {googleLoading ? (
+                                <p style={{ fontSize: '13px', color: theme.muted, margin: '8px 0 0', textAlign: 'center' }}>Signing in…</p>
+                            ) : null}
+                        </div>
+                    </>
+                ) : null}
+
                 <p style={styles.footer}>
                     Don't have an account? <Link to="/#pricing" style={styles.link}>View pricing & get started</Link>
                 </p>
             </div>
         </div>
     )
+}
+
+export default function Login() {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    if (clientId) {
+        return (
+            <GoogleOAuthProvider clientId={clientId}>
+                <LoginContent />
+            </GoogleOAuthProvider>
+        )
+    }
+    return <LoginContent />
 }
 
 const theme = { primary: '#2563EB', dark: '#0F172A', muted: '#64748B', border: '#E2E8F0' }
@@ -177,6 +232,30 @@ const styles = {
         padding: '14px 20px',
         fontSize: '16px',
         borderRadius: '14px',
+    },
+    divider: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        margin: '8px 0 4px',
+    },
+    dividerLine: {
+        flex: 1,
+        height: '1px',
+        background: theme.border,
+    },
+    dividerText: {
+        fontSize: '13px',
+        color: theme.muted,
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: '0.06em',
+    },
+    googleWrap: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        width: '100%',
     },
     footer: {
         textAlign: 'center',
