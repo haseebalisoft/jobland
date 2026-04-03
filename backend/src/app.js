@@ -33,8 +33,23 @@ app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }), stripe
 
 app.use(
   cors({
-    origin: true,
     credentials: true,
+    origin(origin, callback) {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      const { corsAllowedOrigins } = config;
+      if (!corsAllowedOrigins.length) {
+        callback(null, true);
+        return;
+      }
+      if (corsAllowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`Not allowed by CORS: ${origin}`));
+    },
   }),
 );
 app.use(morgan('dev'));

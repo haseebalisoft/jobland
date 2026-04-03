@@ -2,6 +2,25 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+/** Origins allowed for credentialed browser requests (local UI → deployed API, etc.) */
+function buildCorsAllowedOrigins() {
+  const set = new Set();
+  for (const o of (process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)) {
+    set.add(o);
+  }
+  const client = (process.env.CLIENT_URL || "").trim();
+  if (client) set.add(client);
+  // http://localhost:5173 → Railway/production API during dev (opt out: CORS_ALLOW_LOCALHOST=false)
+  if (process.env.CORS_ALLOW_LOCALHOST !== "false") {
+    set.add("http://localhost:5173");
+    set.add("http://127.0.0.1:5173");
+  }
+  return Array.from(set);
+}
+
 export const config = {
   port: process.env.PORT || 5000,
 
@@ -15,6 +34,9 @@ export const config = {
   },
 
   clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
+
+  /** Used by CORS; empty array means “allow any origin” fallback in app (same as former origin: true) */
+  corsAllowedOrigins: buildCorsAllowedOrigins(),
 
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET || "change_me_access",
