@@ -76,6 +76,39 @@ const swaggerDefinition = {
         },
       },
     },
+    '/auth/google': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Sign in with Google (ID token)',
+        description:
+          'Send the JWT `credential` string from Google Identity Services (One Tap or Google Login button). Server verifies with GOOGLE_CLIENT_ID. Creates or links a user (role user only). Sets refreshToken cookie.',
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['credential'],
+                properties: {
+                  credential: {
+                    type: 'string',
+                    description: 'ID token JWT from GIS (preferred)',
+                  },
+                  id_token: { type: 'string', description: 'Alias for credential' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: 'Same shape as /auth/login' },
+          401: { description: 'Invalid Google token' },
+          403: { description: 'Wrong portal (admin/bd) or inactive account' },
+          503: { description: 'Google sign-in not configured' },
+        },
+      },
+    },
     '/auth/login': {
       post: {
         tags: ['Auth'],

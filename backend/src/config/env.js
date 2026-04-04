@@ -77,4 +77,9 @@ export const config = {
   },
 
   adminEmail: process.env.ADMIN_EMAIL || "admin@hiredlogics.com",
+
+  /** Same Client ID as VITE_GOOGLE_CLIENT_ID on the frontend (OAuth 2.0 Web client). */
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID || "",
+  },
 };

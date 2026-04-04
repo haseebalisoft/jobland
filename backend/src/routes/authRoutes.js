@@ -145,6 +145,8 @@ router.post(
   setPasswordBySession,
 );
 
+// Google Sign-In is registered on the app in app.js (POST /api/auth/google).
+
 // Unified USER login – admin/BD use separate flows
 router.post(
   '/login',
