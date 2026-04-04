@@ -53,9 +53,7 @@ function isAllowedCorsOrigin(origin) {
 
 app.use(
   cors({
-    origin: (origin, cb) => {
-      cb(null, isAllowedCorsOrigin(origin));
-    },
+    origin: true,
     credentials: true,
   }),
 );
