@@ -109,7 +109,7 @@ export default function AIAssistantTab({ profile, resumeId }) {
   };
 
   return (
-    <>
+    <div className="re-ai-tab-root">
       <div style={{ padding: '16px 20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontWeight: 700, fontSize: 16 }}>AI Assistant</span>
@@ -177,6 +177,6 @@ export default function AIAssistantTab({ profile, resumeId }) {
         </div>
       </div>
       <p className="re-ai-disclaimer">Hirdlogic AI assistant can make mistakes. Please verify responses.</p>
-    </>
+    </div>
   );
 }

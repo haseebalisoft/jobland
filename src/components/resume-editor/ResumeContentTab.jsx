@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, GripVertical, Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronUp, GripVertical, Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -38,7 +38,7 @@ function SortableRow({ id, title, expanded, onToggle, children, hasHandle }) {
           <span style={{ width: 26 }} />
         )}
         <span className="re-section-row__title">{title}</span>
-        <ChevronDown size={18} color="#94a3b8" style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
+        {expanded ? <ChevronUp size={18} color="#94a3b8" /> : <ChevronDown size={18} color="#94a3b8" />}
       </button>
       {expanded && <div className="re-section-body">{children}</div>}
     </div>
@@ -84,9 +84,8 @@ export default function ResumeContentTab({
   return (
     <div className="re-left-scroll">
       <button type="button" className="re-section-row" onClick={() => toggle('personal')}>
-        <span style={{ width: 26 }} />
-        <span className="re-section-row__title">Personal Information</span>
-        <ChevronDown size={18} color="#94a3b8" style={{ transform: personalOpen ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
+        <span className="re-section-row__title re-section-row__title--pi">Personal Information</span>
+        {personalOpen ? <ChevronUp size={18} color="#94a3b8" /> : <ChevronDown size={18} color="#94a3b8" />}
       </button>
       {personalOpen && (
         <div className="re-section-body">
@@ -100,10 +99,9 @@ export default function ResumeContentTab({
         </div>
       )}
 
-      <button type="button" className="re-section-row" onClick={() => toggle('links')}>
-        <span style={{ width: 26 }} />
+      <button type="button" className="re-section-row re-section-row--topline" onClick={() => toggle('links')}>
         <span className="re-section-row__title">Website & Social Links</span>
-        <ChevronDown size={18} color="#94a3b8" style={{ transform: linksOpen ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
+        {linksOpen ? <ChevronUp size={18} color="#94a3b8" /> : <ChevronDown size={18} color="#94a3b8" />}
       </button>
       {linksOpen && (
         <div className="re-section-body">
@@ -113,10 +111,9 @@ export default function ResumeContentTab({
         </div>
       )}
 
-      <button type="button" className="re-section-row" onClick={() => toggle('summary')}>
-        <span style={{ width: 26 }} />
+      <button type="button" className="re-section-row re-section-row--topline" onClick={() => toggle('summary')}>
         <span className="re-section-row__title">Professional Summaries</span>
-        <ChevronDown size={18} color="#94a3b8" style={{ transform: summaryOpen ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
+        {summaryOpen ? <ChevronUp size={18} color="#94a3b8" /> : <ChevronDown size={18} color="#94a3b8" />}
       </button>
       {summaryOpen && (
         <div className="re-section-body">

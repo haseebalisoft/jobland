@@ -74,7 +74,7 @@ export default function EditorBreadcrumb({
         )}
         <button
           type="button"
-          className="re-breadcrumb__link"
+          className="re-breadcrumb__link re-breadcrumb__edit"
           style={{ marginLeft: 4 }}
           aria-label="Rename"
           onClick={() => (editing ? commitRename() : setEditing(true))}

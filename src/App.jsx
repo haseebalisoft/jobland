@@ -56,11 +56,13 @@ import ApplicationMaterialsLayout from './pages/dashboard/application-materials/
 import DocumentsPage from './pages/dashboard/application-materials/DocumentsPage.jsx'
 import LinkedInPage from './pages/dashboard/application-materials/LinkedInPage.jsx'
 import CoverLettersPage from './pages/dashboard/application-materials/CoverLettersPage.jsx'
+import ChatWidget from './components/chat-support/ChatWidget.jsx'
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <ChatWidget />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/onboarding" element={<PaidRoute><Onboarding /></PaidRoute>} />

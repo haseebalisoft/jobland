@@ -114,7 +114,11 @@ export default function ResumeEditorShell(props) {
               setEducationIndex={setEducationIndex}
             />
           )}
-          {editorTab === 'ai' && <AIAssistantTab profile={profile} resumeId={resumeId} />}
+          {editorTab === 'ai' && (
+            <div className="re-left-scroll re-left-scroll--ai">
+              <AIAssistantTab profile={profile} resumeId={resumeId} />
+            </div>
+          )}
           {editorTab === 'design' && (
             <DesignTab
               design={customization}
@@ -128,33 +132,45 @@ export default function ResumeEditorShell(props) {
           )}
         </div>
         <div className="re-center">
-          <div className="re-preview-toggle">
-            <button type="button" className={previewMode === 'pdf' ? 'on' : ''} onClick={() => setPreviewMode('pdf')}>
-              Resume
-            </button>
-            <button type="button" className={previewMode === 'diff' ? 'on' : ''} onClick={() => setPreviewMode('diff')}>
-              AI diff
-            </button>
+          <div className="re-preview-toolbar">
+            <div className="re-preview-toggle" role="group" aria-label="Preview mode">
+              <button
+                type="button"
+                className={`re-preview-pill${previewMode === 'pdf' ? ' re-preview-pill--resume-on' : ' re-preview-pill--muted'}`}
+                onClick={() => setPreviewMode('pdf')}
+              >
+                Resume
+              </button>
+              <button
+                type="button"
+                className={`re-preview-pill${previewMode === 'diff' ? ' re-preview-pill--diff-on' : ' re-preview-pill--muted'}`}
+                onClick={() => setPreviewMode('diff')}
+              >
+                AI diff
+              </button>
+            </div>
           </div>
-          {previewMode === 'pdf' && (
-            <>
-              {previewLoading && (
-                <div style={{ marginBottom: 8, fontSize: 13, color: '#2563eb', fontWeight: 600 }}>Updating PDF preview…</div>
-              )}
-              <ResumePreview profile={profile} design={design} paperSize={design.paperSize} />
-              {previewUrl && (
-                <details style={{ marginTop: 16, maxWidth: 820, width: '100%' }}>
-                  <summary style={{ cursor: 'pointer', fontSize: 13, color: '#64748b' }}>Server PDF preview (ATS)</summary>
-                  <iframe
-                    title="PDF"
-                    src={`${previewUrl}#toolbar=0&navpanes=0&view=FitH`}
-                    style={{ width: '100%', height: 480, border: '1px solid #e2e8f0', marginTop: 8, borderRadius: 8 }}
-                  />
-                </details>
-              )}
-            </>
-          )}
-          {previewMode === 'diff' && centerDiffContent}
+          <div className="re-center-scroll">
+            {previewMode === 'pdf' && (
+              <>
+                {previewLoading && (
+                  <div style={{ marginBottom: 8, fontSize: 13, color: '#2563eb', fontWeight: 600 }}>Updating PDF preview…</div>
+                )}
+                <ResumePreview profile={profile} design={design} paperSize={design.paperSize} />
+                {previewUrl && (
+                  <details style={{ marginTop: 16, maxWidth: 820, width: '100%' }}>
+                    <summary style={{ cursor: 'pointer', fontSize: 13, color: '#64748b' }}>Server PDF preview (ATS)</summary>
+                    <iframe
+                      title="PDF"
+                      src={`${previewUrl}#toolbar=0&navpanes=0&view=FitH`}
+                      style={{ width: '100%', height: 480, border: '1px solid #e2e8f0', marginTop: 8, borderRadius: 8 }}
+                    />
+                  </details>
+                )}
+              </>
+            )}
+            {previewMode === 'diff' && centerDiffContent}
+          </div>
         </div>
         <div className="re-right">
           <QuickActionsPanel

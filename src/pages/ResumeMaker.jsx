@@ -791,7 +791,13 @@ const ResumeMaker = () => {
             handleAnalyzeJD();
         };
         return (
-            <DashboardLayout userName={hubDisplayName} userInitials={hubInitials}>
+            <DashboardLayout
+                userName={hubDisplayName}
+                userInitials={hubInitials}
+                hideSidebar
+                mainClassName="dl-main--editor-fill"
+            >
+                <div className="dl-editor-page-host-outer">
                 {isFreePlanUser && (
                     <div
                         style={{
@@ -826,6 +832,7 @@ const ResumeMaker = () => {
                         </button>
                     </div>
                 )}
+                <div className="dl-editor-page-host">
                 <ResumeEditorShell
                     resumeId={routeResumeId}
                     resumeTitle={resumeDisplayName}
@@ -889,6 +896,8 @@ const ResumeMaker = () => {
                     styleSettingsOpen={styleSettingsOpen}
                     setStyleSettingsOpen={setStyleSettingsOpen}
                 />
+                </div>
+                </div>
             </DashboardLayout>
         );
     }

@@ -5,9 +5,11 @@ import {
   FileText,
   Briefcase,
   MonitorPlay,
+  Target,
   MessageCircle,
   FolderOpen,
   Users,
+  SlidersHorizontal,
   Sparkles,
   Puzzle,
   Lightbulb,
@@ -22,6 +24,7 @@ const navMain = [
   { to: '/resume-maker', label: 'Resume Builder', icon: FileText },
   { to: '/dashboard/job-tracker', label: 'Job Tracker', icon: Briefcase },
   { to: '/dashboard/mock-interviews', label: 'Mock Interviews', icon: MonitorPlay },
+  { to: '/dashboard/score-resume', label: 'Score Resume', icon: Target },
   { to: '/dashboard', label: 'Negotiation Agent', icon: MessageCircle, beta: true, hash: '#negotiation' },
   {
     key: 'appmat',
@@ -34,7 +37,18 @@ const navMain = [
     ],
   },
   { key: 'net', label: 'Networking', icon: Users, children: [{ to: '/dashboard', label: 'Dashboard home' }] },
-  { key: 'ai', label: 'AI Toolbox', icon: Sparkles, children: [{ to: '/free-tools', label: 'Free tools' }] },
+  { to: '/dashboard/job-preferences', label: 'Job Preferences', icon: SlidersHorizontal },
+  {
+    key: 'ai',
+    label: 'AI Toolbox',
+    icon: Sparkles,
+    children: [
+      { to: '/dashboard/personal-brand-statement', label: 'Personal Brand Statement' },
+      { to: '/dashboard/email-writer', label: 'Email Writer' },
+      { to: '/dashboard/elevator-pitch', label: 'Elevator Pitch' },
+      { to: '/dashboard/help', label: 'Help' },
+    ],
+  },
 ];
 
 const navBottom = [
@@ -56,6 +70,18 @@ export default function DashboardSidebar({ collapsed, onToggleCollapse }) {
   useEffect(() => {
     if (path.startsWith('/dashboard/application-materials')) {
       setExpanded((e) => ({ ...e, appmat: true }));
+    }
+  }, [path]);
+
+  useEffect(() => {
+    const aiChildPrefixes = [
+      '/dashboard/personal-brand-statement',
+      '/dashboard/email-writer',
+      '/dashboard/elevator-pitch',
+      '/dashboard/help',
+    ];
+    if (aiChildPrefixes.some((p) => path === p || path.startsWith(`${p}/`))) {
+      setExpanded((e) => ({ ...e, ai: true }));
     }
   }, [path]);
 
@@ -91,7 +117,9 @@ export default function DashboardSidebar({ collapsed, onToggleCollapse }) {
           }
           const open = expanded[item.key];
           const parentActive =
-            item.key === 'appmat' && path.startsWith('/dashboard/application-materials');
+            (item.key === 'appmat' && path.startsWith('/dashboard/application-materials')) ||
+            (item.key === 'ai' &&
+              item.children?.some((c) => path === c.to || path.startsWith(`${c.to}/`)));
           return (
             <div key={item.key}>
               <button

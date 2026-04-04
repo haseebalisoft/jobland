@@ -148,6 +148,34 @@
   min-height: 0;
 }
 
+.dl-body--no-sidebar .dl-main {
+  flex: 1;
+  max-width: 100%;
+}
+
+.dl-main--editor-fill {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dl-editor-page-host-outer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dl-editor-page-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .dl-sidebar-wrap {
   position: relative;
   flex-shrink: 0;
