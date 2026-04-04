@@ -137,6 +137,22 @@ STRIPE_PRICE_ELITE_ID=price_...
 
 Recurring monthly Price IDs **cannot** be used for pack checkout. Optional aliases: `STRIPE_PRICE_STARTER_PACK_ID`, `STRIPE_PRICE_SUCCESS_PACK_ID`, `STRIPE_PRICE_ELITE_PACK_ID`.
 
+#### Google Sign-In (optional)
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create an OAuth **Web application** client. Add authorized JavaScript origins (e.g. `http://localhost:5173`) and redirect URIs if required by the client type.
+2. Run DB migration `019_add_google_id_to_users.sql` (adds `users.google_id`).
+3. Set the **same** OAuth 2.0 Client ID in both places:
+
+```env
+# Backend — verifies the ID token
+GOOGLE_CLIENT_ID=123456789-xxxx.apps.googleusercontent.com
+
+# Frontend (Vite) — Google Identity Services button
+VITE_GOOGLE_CLIENT_ID=123456789-xxxx.apps.googleusercontent.com
+```
+
+If `VITE_GOOGLE_CLIENT_ID` is omitted, the login page hides the Google button. If `GOOGLE_CLIENT_ID` is omitted on the server, `POST /auth/google` returns 503.
+
 ### Build for Production
 
 ```bash

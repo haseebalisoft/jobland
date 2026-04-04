@@ -1,10 +1,20 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
 import { config } from '../config/env.js';
 import { query } from '../config/db.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
 import { sendEmail } from '../utils/email.js';
+
+let googleOAuthClient = null;
+function getGoogleOAuthClient() {
+  if (!config.google?.clientId) return null;
+  if (!googleOAuthClient) {
+    googleOAuthClient = new OAuth2Client(config.google.clientId);
+  }
+  return googleOAuthClient;
+}
 
 let signupOtpTableEnsured = false;
 
@@ -377,6 +387,150 @@ export async function loginUser({ email, password }) {
           ? 'Use the BD login page to sign in with this account.'
           : 'Invalid credentials'
     );
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const user = mapRowToUser(row);
+  const accessToken = signAccessToken(user);
+  const refreshToken = signRefreshToken(user);
+
+  const decoded = jwt.decode(refreshToken);
+  const expiresAt = decoded?.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  await query(
+    `
+      INSERT INTO refresh_tokens (user_id, token, expires_at)
+      VALUES ($1, $2, $3)
+    `,
+    [user.id, refreshToken, expiresAt],
+  );
+
+  return { user, accessToken, refreshToken };
+}
+
+/**
+ * Sign in or register with Google ID token (GIS credential JWT).
+ * Links to an existing email/password account when email matches and role is user.
+ */
+export async function loginWithGoogle({ idToken }) {
+  const client = getGoogleOAuthClient();
+  if (!client) {
+    const err = new Error('Google sign-in is not configured on the server');
+    err.statusCode = 503;
+    throw err;
+  }
+  if (!idToken || typeof idToken !== 'string') {
+    const err = new Error('Google credential is required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  let payload;
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: config.google.clientId,
+    });
+    payload = ticket.getPayload();
+  } catch {
+    const err = new Error('Invalid or expired Google sign-in');
+    err.statusCode = 401;
+    throw err;
+  }
+
+  if (!payload?.email) {
+    const err = new Error('Google account has no email');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (payload.email_verified !== true) {
+    const err = new Error('Google email must be verified');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const sub = String(payload.sub || '');
+  if (!sub) {
+    const err = new Error('Invalid Google account');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const email = normalizeEmail(payload.email);
+  const fullName =
+    String(payload.name || payload.given_name || email.split('@')[0] || 'User').trim() || 'User';
+
+  let res = await query(
+    `
+      SELECT id, full_name, email, password_hash, role, is_verified, subscription_plan, is_active, google_id
+      FROM users
+      WHERE google_id = $1
+    `,
+    [sub],
+  );
+
+  if (res.rowCount > 0) {
+    return finalizeGoogleSession(res.rows[0]);
+  }
+
+  res = await query(
+    `
+      SELECT id, full_name, email, password_hash, role, is_verified, subscription_plan, is_active, google_id
+      FROM users
+      WHERE LOWER(email) = LOWER($1)
+    `,
+    [email],
+  );
+
+  if (res.rowCount > 0) {
+    const row = res.rows[0];
+    if (row.role && row.role !== 'user') {
+      const err = new Error(
+        row.role === 'admin'
+          ? 'Use the Admin login page for this account.'
+          : 'Use the BD login page for this account.',
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+    if (row.google_id && row.google_id !== sub) {
+      const err = new Error('This email is linked to a different Google account.');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    const upd = await query(
+      `
+        UPDATE users
+        SET google_id = $1,
+            is_verified = true,
+            is_active = COALESCE(is_active, true),
+            updated_at = NOW()
+        WHERE id = $2
+        RETURNING id, full_name, email, password_hash, role, is_verified, subscription_plan, is_active, google_id
+      `,
+      [sub, row.id],
+    );
+    return finalizeGoogleSession(upd.rows[0]);
+  }
+
+  const placeholderHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+  const insertRes = await query(
+    `
+      INSERT INTO users (full_name, email, password_hash, role, subscription_plan, is_active, is_verified, google_id)
+      VALUES ($1, $2, $3, 'user', 'free', true, true, $4)
+      RETURNING id, full_name, email, password_hash, role, is_verified, subscription_plan, is_active, google_id
+    `,
+    [fullName, email, placeholderHash, sub],
+  );
+
+  return finalizeGoogleSession(insertRes.rows[0]);
+}
+
+async function finalizeGoogleSession(row) {
+  if (row.is_active === false) {
+    const err = new Error('Account is inactive');
     err.statusCode = 403;
     throw err;
   }
