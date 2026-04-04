@@ -5,8 +5,10 @@ export function notFound(req, res, next) {
 export function errorHandler(err, req, res, next) {
   console.error(err);
   const status = err.statusCode || 500;
-  res.status(status).json({
+  const body = {
     message: err.message || 'Server error',
-  });
+  };
+  if (err.code) body.code = err.code;
+  res.status(status).json(body);
 }
 

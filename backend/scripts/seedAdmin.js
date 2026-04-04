@@ -7,12 +7,9 @@
  *   Password: admin123
  */
 
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+// Must run before `db.js`: ESM evaluates all imports before other code, so a
+// top-level dotenv.config() below imports would run too late and DB_* would be unset.
+import '../src/config/env.js';
 
 import bcrypt from 'bcryptjs';
 import { query } from '../src/config/db.js';

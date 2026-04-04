@@ -108,3 +108,119 @@ export async function getDashboardSummary(req, res, next) {
   }
 }
 
+/** Action-plan stepper metadata (client also uses GET /user/progress for current step). */
+export async function getDashboardActionPlan(req, res, next) {
+  try {
+    res.json({
+      activeTab: 'application_materials',
+      tag: 'Resume & Profile',
+      actionTitle: 'Create a new resume to get started',
+      actionBody:
+        "By creating a comprehensive master document now, you'll be able to quickly tailor your resume to any job.",
+      ctaLabel: 'Create New Base Resume',
+      bottomTitle: "You've Taken the First Step — Let's Go Further",
+      bottomSubtitle:
+        "You've already started your journey. Now explore all the AI-powered tools designed to help you land your next role.",
+      tabs: [
+        { id: 'application_materials', label: 'Application Materials', order: 0 },
+        { id: 'jobs', label: 'Jobs', order: 1 },
+        { id: 'networking', label: 'Networking', order: 2 },
+        { id: 'interviews', label: 'Interviews', order: 3 },
+      ],
+      hero: {
+        title: "You've Taken the First Step — Let's Go Further",
+        subtitle:
+          "You've already started your journey. Now explore all the AI-powered tools designed to help you land your job faster and stress less.",
+        ctaLabel: 'Explore All Features',
+        ctaPath: '/free-tools',
+      },
+      quickStats: {
+        sectionTitle: 'Quick Stats',
+        cards: [
+          {
+            id: 'job_tracker',
+            title: 'Job Tracker',
+            description:
+              'Start tracking your job applications and stay organized throughout your search.',
+            path: '/dashboard/applications',
+            visual: 'kanban',
+          },
+          {
+            id: 'networking',
+            title: 'Networking Tracker',
+            description: 'Keep tabs on your outreach and connections as you grow your network.',
+            path: '/profile-builder',
+            visual: 'contacts',
+          },
+        ],
+      },
+      upsell: {
+        label: 'Plans starting from',
+        crossedPrice: '$12.99',
+        price: '$8.99',
+        pricePeriod: '/ Week',
+        description:
+          'Supercharge your job search with Hirdlogic AI-powered tools built to get you hired faster.',
+        ctaLabel: 'UPGRADE NOW',
+        ctaPath: '/checkout',
+        features: [
+          'Unlimited AI resume analysis',
+          'Unlimited AI cover letter generations',
+          'AI LinkedIn post suggestions',
+          'Priority email support',
+          'And more!',
+        ],
+      },
+      promos: [
+        {
+          id: 'experts',
+          title: 'Human-crafted. ATS-optimized. Interview-ready!',
+          body: 'Get your resume professionally reviewed or rewritten with our guided tools.',
+          ctaLabel: 'Improve My Resume',
+          path: '/resume-maker',
+        },
+        {
+          id: 'extension',
+          title: 'Supercharge LinkedIn with Hirdlogic',
+          body: 'Optimize your profile and manage applications — right from your browser.',
+          ctaLabel: 'Install Now',
+          path: '/free-tools',
+        },
+      ],
+      resources: {
+        title: 'Resources',
+        viewAllLabel: 'View All Resources',
+        viewAllPath: '/',
+        items: [
+          {
+            id: 'r1',
+            title: 'How to tailor your resume to any job description',
+            description:
+              'Learn a repeatable framework to map your experience to what recruiters search for — without starting from scratch each time.',
+            readMorePath: '/free-tools',
+            accent: 'link',
+          },
+          {
+            id: 'r2',
+            title: 'AI and your job search: what to automate vs. what to own',
+            description:
+              'Use AI for speed on drafts and research, while keeping authenticity in your story and interviews.',
+            readMorePath: '/free-tools',
+            accent: 'spark',
+          },
+          {
+            id: 'r3',
+            title: 'Returning to work after a career break',
+            description:
+              'Address gaps with confidence: structure your resume narrative and prep for common interview questions.',
+            readMorePath: '/free-tools',
+            accent: 'doc',
+          },
+        ],
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+

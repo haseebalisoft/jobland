@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, Link, useLocation, useSearchParams, useParams } from 'react-router-dom';
 import {
     Download, Layout, User, Briefcase, GraduationCap,
     BrainCircuit, ChevronDown, ChevronRight, ChevronLeft, Loader2, Check,
@@ -13,108 +13,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import debounce from 'lodash.debounce';
 import { emptyProfile, normalizeProfile } from '../utils/cvProfile.js';
-
-function tokenizeForDiff(text) {
-    // Split into word-ish tokens; we will re-join with spaces when rendering.
-    return String(text || '').trim().split(/\s+/).filter(Boolean);
-}
-
-function computeInlineWordDiff(beforeText, afterText) {
-    const beforeTokens = tokenizeForDiff(beforeText);
-    const afterTokens = tokenizeForDiff(afterText);
-
-    const n = beforeTokens.length;
-    const m = afterTokens.length;
-
-    // Trivial cases
-    if (n === 0 && m === 0) return [];
-    if (n === 0) return afterTokens.map((t) => ({ type: 'added', token: t }));
-    if (m === 0) return beforeTokens.map((t) => ({ type: 'removed', token: t }));
-
-    // Safety fallback: avoid quadratic DP on very large texts.
-    const cellCount = (n + 1) * (m + 1);
-    if (cellCount > 120000) {
-        // Best-effort fallback: mark full removed + full added.
-        return [
-            ...beforeTokens.map((t) => ({ type: 'removed', token: t })),
-            ...afterTokens.map((t) => ({ type: 'added', token: t })),
-        ];
-    }
-
-    // LCS DP for word diff
-    const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
-    for (let i = 1; i <= n; i += 1) {
-        for (let j = 1; j <= m; j += 1) {
-            dp[i][j] =
-                beforeTokens[i - 1] === afterTokens[j - 1]
-                    ? dp[i - 1][j - 1] + 1
-                    : Math.max(dp[i - 1][j], dp[i][j - 1]);
-        }
-    }
-
-    // Backtrack
-    const itemsReversed = [];
-    let i = n;
-    let j = m;
-    while (i > 0 && j > 0) {
-        if (beforeTokens[i - 1] === afterTokens[j - 1]) {
-            itemsReversed.push({ type: 'equal', token: beforeTokens[i - 1] });
-            i -= 1;
-            j -= 1;
-        } else if (dp[i - 1][j] >= dp[i][j - 1]) {
-            itemsReversed.push({ type: 'removed', token: beforeTokens[i - 1] });
-            i -= 1;
-        } else {
-            itemsReversed.push({ type: 'added', token: afterTokens[j - 1] });
-            j -= 1;
-        }
-    }
-    while (i > 0) {
-        itemsReversed.push({ type: 'removed', token: beforeTokens[i - 1] });
-        i -= 1;
-    }
-    while (j > 0) {
-        itemsReversed.push({ type: 'added', token: afterTokens[j - 1] });
-        j -= 1;
-    }
-
-    return itemsReversed.reverse();
-}
-
-function InlineDiffText({ before, after, style = {} }) {
-    const items = computeInlineWordDiff(before, after);
-
-    const baseStyle = {
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-        lineHeight: 1.6,
-        ...style,
-    };
-
-    const tokenStyle = (type) => {
-        if (type === 'equal') return { background: 'transparent', color: '#0f172a' };
-        if (type === 'removed')
-            return { background: '#fee2e2', color: '#b91c1c', textDecoration: 'line-through' };
-        if (type === 'added')
-            return { background: '#dcfce7', color: '#14532d', textDecoration: 'none' };
-        return {};
-    };
-
-    return (
-        <span style={baseStyle}>
-            {items.map((it, idx) => (
-                <span key={`${idx}-${it.type}`} style={tokenStyle(it.type)}>
-                    {it.token}
-                    {idx < items.length - 1 ? ' ' : ''}
-                </span>
-            ))}
-        </span>
-    );
-}
+import { InlineDiffText } from '../components/resume-editor/inlineDiff.jsx';
+import ResumeEditorShell from '../components/resume-editor/ResumeEditorShell.jsx';
+import ResumeAiDiffPanel from '../components/resume-editor/ResumeAiDiffPanel.jsx';
 
 import './ResumeMaker.css';
-import UserSidebar from '../components/UserSidebar.jsx';
+import DashboardLayout from '../components/layout/DashboardLayout.jsx';
+import ResumeAllResumesHub from '../components/resume/ResumeAllResumesHub.jsx';
+import CreateResumeModal from '../components/resume/CreateResumeModal.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+
+const DEFAULT_SECTION_DRAG_ORDER = ['work', 'skills', 'projects', 'awards', 'education', 'certifications'];
 
 const theme = {
     primary: '#0d9488',
@@ -132,7 +41,10 @@ const theme = {
 const ResumeMaker = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const [searchParams] = useSearchParams();
+    const { resumeId: routeResumeId } = useParams();
     const prevPathnameRef = useRef(null);
+    const linkedInOAuthHandledRef = useRef(false);
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [downloading, setDownloading] = useState(false);
@@ -154,6 +66,19 @@ const ResumeMaker = () => {
     const [savedResumesLoading, setSavedResumesLoading] = useState(false);
     const [uploadingSavedCv, setUploadingSavedCv] = useState(false);
     const [deletingSavedId, setDeletingSavedId] = useState(null);
+    const [createModalOpen, setCreateModalOpen] = useState(false);
+    const [hubToast, setHubToast] = useState(null);
+
+    const [resumeDisplayName, setResumeDisplayName] = useState('Resume');
+    const [editorMainTab, setEditorMainTab] = useState('content');
+    const [expandedSectionId, setExpandedSectionId] = useState('personal');
+    const [dragOrder, setDragOrder] = useState(() => [...DEFAULT_SECTION_DRAG_ORDER]);
+    const [tailorModalOpen, setTailorModalOpen] = useState(false);
+    const [tailorJobTitle, setTailorJobTitle] = useState('');
+    const [tailorCompany, setTailorCompany] = useState('');
+    const [scorePanelOpen, setScorePanelOpen] = useState(false);
+    const [breadcrumbMenuOpen, setBreadcrumbMenuOpen] = useState(false);
+    const [styleSettingsOpen, setStyleSettingsOpen] = useState(true);
 
     // AI Tools State
     const [jd, setJd] = useState('');
@@ -163,9 +88,14 @@ const ResumeMaker = () => {
 
     // Customization Settings
     const [customization, setCustomization] = useState({
-        fontFamily: "'Inter', sans-serif",
+        fontFamily: "'Times New Roman', Times, serif",
         headingFont: "'Outfit', sans-serif",
         primaryColor: "#111827",
+        accentColor: "#111827",
+        paperSize: "a4",
+        fontSizePt: 11,
+        marginLR: 0.39,
+        marginTB: 0.39,
         lineHeight: 1.4,
         sectionGap: 24,
         showIcons: true,
@@ -176,6 +106,22 @@ const ResumeMaker = () => {
         sideMargin: 25,
         borderRadius: 4
     });
+
+    const customizationForApi = React.useMemo(
+        () => ({
+            ...customization,
+            primaryColor: customization.accentColor || customization.primaryColor,
+            pageMargin:
+                customization.marginTB != null
+                    ? Math.round(Number(customization.marginTB) * 72)
+                    : customization.pageMargin,
+            sideMargin:
+                customization.marginLR != null
+                    ? Math.round(Number(customization.marginLR) * 72)
+                    : customization.sideMargin,
+        }),
+        [customization],
+    );
 
     // AI diff highlights (before/after); status 'pending' until Keep / Discard
     const [aiChanges, setAiChanges] = useState([]);
@@ -217,7 +163,7 @@ const ResumeMaker = () => {
         try {
             const response = await api.post(
                 '/cv/preview',
-                { profile: currentProfile, customization },
+                { profile: currentProfile, customization: customizationForApi },
                 { responseType: 'blob' }
             );
             if (previewUrl) window.URL.revokeObjectURL(previewUrl);
@@ -233,7 +179,7 @@ const ResumeMaker = () => {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [routeResumeId]);
 
     useEffect(() => {
         if (!profile) return;
@@ -241,13 +187,50 @@ const ResumeMaker = () => {
         return () => clearTimeout(timer);
     }, [profile, selectedTemplate, customization]);
 
+    useEffect(() => {
+        if (searchParams.get('linkedinOAuth') !== 'success' || searchParams.get('edit') !== '1') return;
+        if (linkedInOAuthHandledRef.current) return;
+        linkedInOAuthHandledRef.current = true;
+        (async () => {
+            try {
+                const { data } = await api.post('/resumes/from-linkedin');
+                if (data?.resumeId) {
+                    navigate(`/dashboard/resume-builder/${data.resumeId}/edit`, { replace: true });
+                }
+            } catch (err) {
+                console.error(err);
+                const authUrl = err.response?.data?.authorizationUrl;
+                if (authUrl) {
+                    window.location.href = authUrl;
+                    return;
+                }
+                navigate('/resume-maker', { replace: true });
+            }
+        })();
+    }, [searchParams, navigate]);
+
     const fetchData = async () => {
         try {
             const [profileRes, templatesRes] = await Promise.all([
                 api.get('/cv/profile'),
                 api.get('/cv/templates')
             ]);
-            setProfile(normalizeProfile(profileRes.data));
+            let nextProfile = normalizeProfile(profileRes.data);
+            let displayTitle = `New Resume ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`;
+            if (routeResumeId) {
+                try {
+                    const r = await api.get(`/resumes/${routeResumeId}`);
+                    if (r.data?.name) displayTitle = r.data.name;
+                    const snap = r.data?.extractedData;
+                    if (snap && typeof snap === 'object' && snap.kind !== 'uploaded_pdf') {
+                        nextProfile = normalizeProfile(snap);
+                    }
+                } catch (e) {
+                    console.warn('Could not load saved resume for editor:', e);
+                }
+            }
+            setResumeDisplayName(displayTitle);
+            setProfile(nextProfile);
             setTemplates(templatesRes.data || []);
             setLoading(false);
         } catch (err) {
@@ -475,7 +458,7 @@ const ResumeMaker = () => {
         try {
             const response = await api.post(
                 '/cv/download',
-                { profile, customization },
+                { profile, customization: customizationForApi },
                 { responseType: 'blob' }
             );
             const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -526,13 +509,23 @@ const ResumeMaker = () => {
         prevPathnameRef.current = location.pathname;
     }, [location.pathname]);
 
-    const isResumesOnlyPage = location.pathname === '/resumes';
+    const isResumeBuilderEditPath = /^\/(dashboard\/)?resume-builder\/[^/]+\/edit$/.test(location.pathname);
+    const showResumeHub =
+        !isResumeBuilderEditPath &&
+        ((location.pathname === '/resume-maker' && searchParams.get('edit') !== '1') ||
+            location.pathname === '/resumes');
 
     useEffect(() => {
-        if (((activeTab === 'Saved resumes' || activeTab === 'Resumes') || isResumesOnlyPage) && profile) {
+        if (((activeTab === 'Saved resumes' || activeTab === 'Resumes') || location.pathname === '/resumes') && profile) {
             fetchSavedResumes();
         }
-    }, [activeTab, profile, isResumesOnlyPage]);
+    }, [activeTab, profile, location.pathname]);
+
+    useEffect(() => {
+        if (showResumeHub) {
+            fetchSavedResumes();
+        }
+    }, [showResumeHub]);
 
     const handleSaveFinalizedResume = async () => {
         if (!profile) return;
@@ -555,39 +548,26 @@ const ResumeMaker = () => {
     const handleUploadSavedCv = () => {
         const picker = document.createElement('input');
         picker.type = 'file';
-        picker.accept = 'application/pdf';
+        picker.accept = '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         picker.onchange = async () => {
             const file = picker.files?.[0];
             if (!file) return;
             setUploadingSavedCv(true);
             try {
                 const formData = new FormData();
-                formData.append('resume', file);
-                const normalizedName = (file.name || 'resume.pdf').replace(/\.pdf$/i, '').trim();
-                if (normalizedName) formData.append('title', normalizedName);
-                try {
-                    await api.post('/cv/saved/upload', formData, {
-                        headers: { 'Content-Type': 'multipart/form-data' },
-                    });
-                } catch (err) {
-                    if (err?.response?.status === 404) {
-                        await api.post('/cv/saved-resumes/upload', formData, {
-                            headers: { 'Content-Type': 'multipart/form-data' },
-                        });
-                    } else {
-                        throw err;
-                    }
-                }
-                window.alert('CV uploaded to your saved resumes.');
+                formData.append('file', file);
+                formData.append('name', (file.name || 'resume').replace(/\.(pdf|docx|doc)$/i, '') || 'Resume');
+                const res = await api.post('/resumes/upload', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
                 await fetchSavedResumes();
+                if (res.data?.resumeId) {
+                    navigate(`/dashboard/resume-builder/${res.data.resumeId}/edit`);
+                }
             } catch (err) {
                 console.error(err);
-                const msg = err.response?.data?.message || err.response?.data?.error || '';
-                if (err?.response?.status === 404 || msg === 'Route not found') {
-                    window.alert('Upload route is unavailable on the backend. Please restart backend server and try again.');
-                } else {
-                    window.alert(msg || 'Failed to upload CV');
-                }
+                const msg = err.response?.data?.message || err.response?.data?.error || err.message || '';
+                window.alert(msg || 'Failed to upload resume');
             } finally {
                 setUploadingSavedCv(false);
             }
@@ -672,6 +652,40 @@ const ResumeMaker = () => {
         debouncedSave(newProfile);
     };
 
+    const patchProfessional = (key, val) => {
+        const newProfile = { ...profile, professional: { ...profile.professional, [key]: val } };
+        setProfile(newProfile);
+        debouncedSave(newProfile);
+    };
+
+    const patchEducation = (education) => {
+        const newProfile = { ...profile, education };
+        setProfile(newProfile);
+        debouncedSave(newProfile);
+    };
+
+    useEffect(() => {
+        if (!routeResumeId) return;
+        try {
+            const raw = sessionStorage.getItem(`resume-section-order-${routeResumeId}`);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed) && parsed.length) setDragOrder(parsed);
+            }
+        } catch {
+            /* ignore */
+        }
+    }, [routeResumeId]);
+
+    useEffect(() => {
+        if (!routeResumeId) return;
+        try {
+            sessionStorage.setItem(`resume-section-order-${routeResumeId}`, JSON.stringify(dragOrder));
+        } catch {
+            /* ignore */
+        }
+    }, [dragOrder, routeResumeId]);
+
     if (loading) {
         return (
             <div className="rb-scope" style={{ justifyContent: 'center', alignItems: 'center' }}>
@@ -709,89 +723,188 @@ const ResumeMaker = () => {
         (profile.education?.length === 0 && (profile.professional?.workExperience?.length ?? 0) === 0)
     );
 
-    if (isResumesOnlyPage) {
-        return (
-            <div className="rb-scope" style={{ background: theme.bg }}>
-                <UserSidebar />
-                <div className="rb-main-content" style={{ overflowY: 'auto' }}>
-                    <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 24px 40px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-                            <div>
-                                <h1 style={{ margin: 0, color: theme.slate, fontSize: 28, fontWeight: 900 }}>Saved resumes</h1>
-                                <p style={{ margin: '8px 0 0', color: theme.textMuted, fontSize: 14 }}>
-                                    Upload and manage CV versions your BD can attach directly to applications.
-                                </p>
-                            </div>
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                <button type="button" className="rb-btn-primary" onClick={handleUploadSavedCv} disabled={uploadingSavedCv}>
-                                    {uploadingSavedCv ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}
-                                    {uploadingSavedCv ? 'Uploading...' : 'Upload Resume'}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => navigate('/resume-maker')}
-                                    style={{ padding: '10px 14px', borderRadius: 12, border: `1px solid ${theme.border}`, background: 'white', color: theme.slate, fontWeight: 700, cursor: 'pointer' }}
-                                >
-                                    Open Resume Maker
-                                </button>
-                            </div>
-                        </div>
+    const hubDisplayName = user?.name || '';
+    const hubInitials = hubDisplayName
+        .split(' ')
+        .filter(Boolean)
+        .map((p) => p[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase() || 'U';
 
-                        <div style={{ background: 'white', border: `1px solid ${theme.border}`, borderRadius: 16, overflow: 'hidden' }}>
-                            <div style={{ padding: '14px 16px', borderBottom: `1px solid ${theme.border}`, fontSize: 13, color: theme.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                Your saved CV list
-                            </div>
-                            {savedResumesLoading ? (
-                                <div style={{ padding: 20, color: theme.textMuted, fontSize: 14 }}>Loading saved resumes...</div>
-                            ) : savedResumes.length === 0 ? (
-                                <div style={{ padding: 20, color: theme.textMuted, fontSize: 14 }}>
-                                    No saved resumes yet. Upload a PDF or save a version from Resume Maker.
-                                </div>
-                            ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    {savedResumes.map((row) => (
-                                        <div key={row.id} style={{ padding: '14px 16px', borderTop: `1px solid ${theme.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                                            <div style={{ minWidth: 220 }}>
-                                                <div style={{ fontWeight: 800, color: theme.slate, fontSize: 15 }}>{row.title || 'Untitled resume'}</div>
-                                                <div style={{ marginTop: 4, fontSize: 12, color: theme.textMuted }}>
-                                                    {row.created_at ? new Date(row.created_at).toLocaleString() : 'Recently saved'}
-                                                </div>
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                                <span style={{ fontSize: 11, fontWeight: 700, color: '#0f766e', background: '#ecfeff', border: '1px solid #99f6e4', borderRadius: 999, padding: '4px 10px' }}>
-                                                    {row.profile_snapshot_json?.kind === 'uploaded_pdf' ? 'Uploaded PDF' : 'Builder version'}
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleOpenSavedResume(row.id)}
-                                                    style={{ padding: '6px 10px', borderRadius: 9, border: `1px solid ${theme.border}`, background: '#fff', color: theme.slate, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-                                                >
-                                                    Open
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDeleteSavedResume(row.id)}
-                                                    disabled={deletingSavedId === row.id}
-                                                    style={{ padding: '6px 10px', borderRadius: 9, border: '1px solid #fecaca', background: '#fff1f2', color: '#be123c', fontSize: 12, fontWeight: 700, cursor: deletingSavedId === row.id ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                                                >
-                                                    {deletingSavedId === row.id ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />}
-                                                    Remove
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+    if (showResumeHub) {
+        return (
+            <DashboardLayout userName={hubDisplayName} userInitials={hubInitials}>
+                <ResumeAllResumesHub
+                    savedResumes={savedResumes}
+                    loading={savedResumesLoading}
+                    uploading={uploadingSavedCv}
+                    deletingId={deletingSavedId}
+                    onCreateNew={() => setCreateModalOpen(true)}
+                    onUpload={handleUploadSavedCv}
+                    onOpenPdf={handleOpenSavedResume}
+                    onDelete={handleDeleteSavedResume}
+                />
+                <CreateResumeModal
+                    isOpen={createModalOpen}
+                    onClose={() => setCreateModalOpen(false)}
+                    onSuccess={async (data) => {
+                        if (data?.resumeId) {
+                            await fetchSavedResumes();
+                            navigate(`/dashboard/resume-builder/${data.resumeId}/edit`);
+                        }
+                    }}
+                    onToast={(msg, type) => {
+                        setHubToast({ msg, type });
+                        window.setTimeout(() => setHubToast(null), 4000);
+                    }}
+                />
+                {hubToast ? (
+                    <div
+                        role="status"
+                        style={{
+                            position: 'fixed',
+                            bottom: 28,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            zIndex: 100,
+                            padding: '12px 20px',
+                            borderRadius: 10,
+                            background: hubToast.type === 'error' ? '#fef2f2' : '#ecfdf5',
+                            color: hubToast.type === 'error' ? '#991b1b' : '#065f46',
+                            border: hubToast.type === 'error' ? '1px solid #fecaca' : '1px solid #a7f3d0',
+                            fontWeight: 600,
+                            fontSize: 14,
+                            boxShadow: '0 10px 25px rgba(15,23,42,0.12)',
+                        }}
+                    >
+                        {hubToast.msg}
                     </div>
+                ) : null}
+            </DashboardLayout>
+        );
+    }
+
+    if (isResumeBuilderEditPath && profile) {
+        const handleTailorModalSubmit = () => {
+            setTailorModalOpen(false);
+            handleAnalyzeJD();
+        };
+        return (
+            <DashboardLayout
+                userName={hubDisplayName}
+                userInitials={hubInitials}
+                hideSidebar
+                mainClassName="dl-main--editor-fill"
+            >
+                <div className="dl-editor-page-host-outer">
+                {isFreePlanUser && (
+                    <div
+                        style={{
+                            padding: '12px 24px',
+                            background: 'linear-gradient(90deg, rgba(245,158,11,0.18) 0%, rgba(249,115,22,0.16) 100%)',
+                            borderBottom: '1px solid rgba(245,158,11,0.35)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: 12,
+                        }}
+                    >
+                        <span style={{ fontSize: 14, color: '#7c2d12', fontWeight: 600 }}>
+                            Free plan: ATS tools and live preview are available. PDF download requires a paid plan.
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/free-tools?upgrade=1')}
+                            style={{
+                                padding: '8px 16px',
+                                borderRadius: 8,
+                                background: '#ea580c',
+                                color: 'white',
+                                fontWeight: 700,
+                                fontSize: 13,
+                                border: 'none',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            Upgrade to download
+                        </button>
+                    </div>
+                )}
+                <div className="dl-editor-page-host">
+                <ResumeEditorShell
+                    resumeId={routeResumeId}
+                    resumeTitle={resumeDisplayName}
+                    setResumeTitle={setResumeDisplayName}
+                    editorTab={editorMainTab}
+                    setEditorTab={setEditorMainTab}
+                    profile={profile}
+                    previewMode={previewMode}
+                    setPreviewMode={setPreviewMode}
+                    previewLoading={previewLoading}
+                    previewUrl={previewUrl}
+                    customization={customization}
+                    setCustomization={setCustomization}
+                    templates={templates}
+                    selectedTemplate={selectedTemplate}
+                    setSelectedTemplate={setSelectedTemplate}
+                    updateProfile={updateProfile}
+                    patchProfessional={patchProfessional}
+                    patchEducation={patchEducation}
+                    expandedSectionId={expandedSectionId}
+                    setExpandedSectionId={setExpandedSectionId}
+                    dragOrder={dragOrder}
+                    onDragOrderChange={setDragOrder}
+                    workExpIndex={workExpIndex}
+                    setWorkExpIndex={setWorkExpIndex}
+                    educationIndex={educationIndex}
+                    setEducationIndex={setEducationIndex}
+                    handleDownload={handleDownload}
+                    downloading={downloading}
+                    isFreePlanUser={isFreePlanUser}
+                    tailorOpen={tailorModalOpen}
+                    setTailorOpen={setTailorModalOpen}
+                    tailorJobTitle={tailorJobTitle}
+                    setTailorJobTitle={setTailorJobTitle}
+                    tailorCompany={tailorCompany}
+                    setTailorCompany={setTailorCompany}
+                    jd={jd}
+                    setJd={setJd}
+                    onTailorSubmit={handleTailorModalSubmit}
+                    tailorLoading={isAnalyzing}
+                    scorePanelOpen={scorePanelOpen}
+                    setScorePanelOpen={setScorePanelOpen}
+                    menuOpen={breadcrumbMenuOpen}
+                    setMenuOpen={setBreadcrumbMenuOpen}
+                    onBreadcrumbDuplicate={() => window.alert('Save a copy from All Resumes after editing.')}
+                    onBreadcrumbDelete={() => navigate('/resumes')}
+                    onBreadcrumbShare={() => navigator.clipboard?.writeText(window.location.href)}
+                    onBreadcrumbExport={handleDownload}
+                    centerDiffContent={
+                        <ResumeAiDiffPanel
+                            profile={profile}
+                            aiChanges={aiChanges}
+                            isPendingChange={isPendingChange}
+                            pendingOptimizedProfile={pendingOptimizedProfile}
+                            acceptAiChange={acceptAiChange}
+                            rejectAiChange={rejectAiChange}
+                            acceptAllPendingAiChanges={acceptAllPendingAiChanges}
+                            discardAllPendingAiChanges={discardAllPendingAiChanges}
+                        />
+                    }
+                    styleSettingsOpen={styleSettingsOpen}
+                    setStyleSettingsOpen={setStyleSettingsOpen}
+                />
                 </div>
-            </div>
+                </div>
+            </DashboardLayout>
         );
     }
 
     return (
-        <div className="rb-scope" style={{ background: theme.bg }}>
-            <UserSidebar />
+        <DashboardLayout userName={hubDisplayName} userInitials={hubInitials}>
+            <div className="rb-scope" style={{ background: theme.bg }}>
             <div className="rb-main-content">
                     {isFreePlanUser && (
                         <div
@@ -1664,6 +1777,7 @@ const ResumeMaker = () => {
             </div>
             </div>
         </div>
+        </DashboardLayout>
     );
 };
 

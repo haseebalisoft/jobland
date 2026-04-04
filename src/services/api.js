@@ -7,7 +7,7 @@ const ACCESS_TOKEN_STORAGE_KEY = 'hiredlogics_access_token';
  * If VITE_API_URL is http://localhost:5000 (path /), axios + /cv/... becomes /cv/... (404).
  * If you mount the API at a custom path (e.g. /v1), set VITE_API_URL to that full base — we won't append /api.
  */
-function getApiBaseUrl() {
+export function getApiBaseUrl() {
   const raw = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   const trimmed = String(raw).trim().replace(/\/+$/, '');
   try {
