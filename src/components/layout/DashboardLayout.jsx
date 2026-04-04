@@ -8,6 +8,8 @@ export default function DashboardLayout({
   children,
   userName = '',
   userInitials = 'U',
+  /** Slightly narrower sidebar (~190px) for Job Tracker layout */
+  narrowSidebar = false,
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -26,7 +28,7 @@ export default function DashboardLayout({
   }, [isNarrow]);
 
   return (
-    <div className="dl-root">
+    <div className={`dl-root${narrowSidebar ? ' dl-root--jt' : ''}`}>
       <DashboardNavbar
         displayName={userName}
         initials={userInitials}

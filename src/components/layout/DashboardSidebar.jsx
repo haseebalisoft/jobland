@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Home,
@@ -20,10 +20,19 @@ import {
 const navMain = [
   { to: '/dashboard', label: 'Home', icon: Home, end: true },
   { to: '/resume-maker', label: 'Resume Builder', icon: FileText },
-  { to: '/dashboard/applications', label: 'Job Tracker', icon: Briefcase },
-  { to: '/dashboard/help', label: 'Mock Interviews', icon: MonitorPlay },
+  { to: '/dashboard/job-tracker', label: 'Job Tracker', icon: Briefcase },
+  { to: '/dashboard/mock-interviews', label: 'Mock Interviews', icon: MonitorPlay },
   { to: '/dashboard', label: 'Negotiation Agent', icon: MessageCircle, beta: true, hash: '#negotiation' },
-  { key: 'appmat', label: 'Application Materials', icon: FolderOpen, children: [{ to: '/profile-builder', label: 'Profile builder' }, { to: '/upload_cv', label: 'Upload CV' }] },
+  {
+    key: 'appmat',
+    label: 'Application Materials',
+    icon: FolderOpen,
+    children: [
+      { to: '/dashboard/application-materials/documents', label: 'My Documents' },
+      { to: '/dashboard/application-materials/linkedin', label: 'LinkedIn' },
+      { to: '/dashboard/application-materials/cover-letters', label: 'Cover Letters' },
+    ],
+  },
   { key: 'net', label: 'Networking', icon: Users, children: [{ to: '/dashboard', label: 'Dashboard home' }] },
   { key: 'ai', label: 'AI Toolbox', icon: Sparkles, children: [{ to: '/free-tools', label: 'Free tools' }] },
 ];
@@ -43,6 +52,12 @@ export default function DashboardSidebar({ collapsed, onToggleCollapse }) {
   const location = useLocation();
   const path = location.pathname;
   const [expanded, setExpanded] = useState(() => ({}));
+
+  useEffect(() => {
+    if (path.startsWith('/dashboard/application-materials')) {
+      setExpanded((e) => ({ ...e, appmat: true }));
+    }
+  }, [path]);
 
   const toggle = (key) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
 
@@ -75,9 +90,15 @@ export default function DashboardSidebar({ collapsed, onToggleCollapse }) {
             );
           }
           const open = expanded[item.key];
+          const parentActive =
+            item.key === 'appmat' && path.startsWith('/dashboard/application-materials');
           return (
             <div key={item.key}>
-              <button type="button" className="dl-sidebar__link" onClick={() => toggle(item.key)}>
+              <button
+                type="button"
+                className={`dl-sidebar__link${parentActive ? ' active' : ''}`}
+                onClick={() => toggle(item.key)}
+              >
                 <item.icon size={20} />
                 <span className="dl-sidebar__label" style={{ flex: 1 }}>
                   {item.label}
@@ -86,11 +107,14 @@ export default function DashboardSidebar({ collapsed, onToggleCollapse }) {
               </button>
               {open && !collapsed && item.children && (
                 <div className="dl-sidebar__sub">
-                  {item.children.map((c) => (
-                    <Link key={c.to + c.label} to={c.to}>
-                      {c.label}
-                    </Link>
-                  ))}
+                  {item.children.map((c) => {
+                    const subActive = path === c.to || path.startsWith(`${c.to}/`);
+                    return (
+                      <Link key={c.to + c.label} to={c.to} className={subActive ? 'active' : ''}>
+                        {c.label}
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </div>

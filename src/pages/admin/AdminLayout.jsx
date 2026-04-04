@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, CreditCard, Users, Briefcase, Shield, FileText, LogOut, Lock, Menu, X } from 'lucide-react';
+import { LayoutDashboard, CreditCard, Users, Briefcase, Shield, FileText, LogOut, Lock, Menu, X, Mic } from 'lucide-react';
 import api from '../../services/api.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import '../AdminDashboard.css';
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/admin/leads', end: false, icon: Briefcase, label: 'Leads' },
   { to: '/admin/bds', end: false, icon: Shield, label: 'BDs' },
   { to: '/admin/subscriptions', end: false, icon: FileText, label: 'Subscriptions' },
+  { to: '/admin/mock-interviews', end: false, icon: Mic, label: 'Mock interviews' },
 ];
 
 export default function AdminLayout() {

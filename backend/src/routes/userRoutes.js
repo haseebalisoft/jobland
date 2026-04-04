@@ -9,6 +9,11 @@ import {
   putUserProgressStep,
   createResumeSession,
 } from '../controllers/userDashboardController.js';
+import {
+  getUserJobs,
+  postUserJob,
+  patchUserJobStatus,
+} from '../controllers/userJobController.js';
 
 const router = express.Router();
 
@@ -20,6 +25,10 @@ router.get('/progress', authMiddleware, getUserProgress);
 router.put('/progress/step', authMiddleware, putUserProgressStep);
 router.put('/progress/:itemId', authMiddleware, putUserProgressItem);
 router.post('/resume/create', authMiddleware, createResumeSession);
+
+router.get('/jobs', authMiddleware, getUserJobs);
+router.post('/jobs', authMiddleware, postUserJob);
+router.patch('/jobs/:id', authMiddleware, patchUserJobStatus);
 
 export default router;
 

@@ -21,6 +21,13 @@ import {
   resetPasswordController,
   resendVerificationController,
 } from '../controllers/authController.js';
+import {
+  getLinkedInStatus,
+  getLinkedInOAuthUrl,
+  linkedInCallback,
+  deleteLinkedIn,
+  postLinkedInSync,
+} from '../controllers/linkedinAuthController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import {
   loginRateLimiter,
@@ -246,6 +253,12 @@ router.post(
 );
 
 router.get('/me', authMiddleware, me);
+
+router.get('/linkedin/status', authMiddleware, getLinkedInStatus);
+router.get('/linkedin/oauth-url', authMiddleware, getLinkedInOAuthUrl);
+router.delete('/linkedin', authMiddleware, deleteLinkedIn);
+router.post('/linkedin/sync', authMiddleware, postLinkedInSync);
+router.get('/linkedin/callback', linkedInCallback);
 
 export default router;
 

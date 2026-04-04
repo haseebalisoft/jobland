@@ -16,6 +16,7 @@ import {
   updatePlanAdmin,
   setUserPlan,
 } from '../controllers/adminController.js';
+import mockInterviewAdminRoutes from './mockInterviewAdminRoutes.js';
 
 const router = express.Router();
 
@@ -35,6 +36,8 @@ router.get('/plans', getPlansAdmin);
 router.post('/plans', createPlanAdmin);
 router.put('/plans/:id', updatePlanAdmin);
 router.put('/users/:id/subscription-plan', setUserPlan);
+
+router.use('/mock-interviews', mockInterviewAdminRoutes);
 
 export default router;
 

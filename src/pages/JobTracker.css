@@ -1,0 +1,449 @@
+/* Job Tracker — matches Kanban reference (Hirdlogic) */
+
+.jt-page {
+  padding: 20px 24px 28px;
+  background: #f8fafc;
+  min-height: calc(100vh - 56px);
+  box-sizing: border-box;
+  font-family:
+    'Inter',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+}
+
+.jt-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.jt-toolbar h1 {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  flex: 0 0 auto;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.jt-toolbar__center {
+  flex: 1 1 220px;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.jt-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: min(480px, 100%);
+  padding: 11px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.jt-search svg {
+  flex-shrink: 0;
+  color: #9ca3af;
+}
+
+.jt-search input::placeholder {
+  color: #9ca3af;
+}
+
+.jt-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: #111827;
+}
+
+.jt-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.jt-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition:
+    background 150ms ease,
+    border-color 150ms ease;
+}
+
+.jt-btn-outline:hover {
+  background: #f9fafb;
+  border-color: #cbd5e1;
+}
+
+.jt-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.25);
+  transition: filter 150ms ease;
+}
+
+.jt-btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+.jt-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #6b7280;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition:
+    background 150ms ease,
+    border-color 150ms ease;
+}
+
+.jt-btn-icon:hover {
+  background: #f9fafb;
+  border-color: #cbd5e1;
+}
+
+.jt-board-wrap {
+  overflow-x: auto;
+  padding-bottom: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #bfdbfe #f1f5f9;
+}
+
+.jt-board-wrap::-webkit-scrollbar {
+  height: 6px;
+}
+
+.jt-board-wrap::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.jt-board-wrap::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.jt-board {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+  min-width: min-content;
+  padding-bottom: 4px;
+}
+
+.jt-col {
+  width: 260px;
+  flex: 0 0 260px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.jt-col__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.jt-col__name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.jt-col__badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  background: #e2e8f0;
+  padding: 4px 11px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.jt-col__body {
+  flex: 1;
+  margin-top: 0;
+  padding: 12px;
+  border-radius: 0;
+  border: none;
+  background-color: #f0f7ff;
+  background-image: radial-gradient(#93c5fd 1px, transparent 1px);
+  background-size: 20px 20px;
+  min-height: calc(100vh - 148px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.jt-card {
+  position: relative;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  padding: 14px 16px;
+  cursor: grab;
+  transition:
+    box-shadow 150ms ease,
+    border-color 150ms ease;
+}
+
+.jt-card:hover {
+  box-shadow: 0 4px 6px -1px rgb(15 23 42 / 0.08), 0 2px 4px -2px rgb(15 23 42 / 0.06);
+  border-color: #bfdbfe;
+}
+
+.jt-card__menu {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms ease, background 150ms ease;
+}
+
+.jt-card:hover .jt-card__menu {
+  opacity: 1;
+}
+
+.jt-card__menu:hover {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.jt-card__row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding-right: 22px;
+}
+
+.jt-card__icon-wrap {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.jt-card__icon-wrap svg {
+  color: #9ca3af;
+}
+
+.jt-card__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.jt-card__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.4;
+}
+
+.jt-card__company {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.35;
+}
+
+.jt-card__company svg {
+  flex-shrink: 0;
+  color: #9ca3af;
+}
+
+.jt-card__time {
+  align-self: flex-end;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.jt-card__interview-pill {
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4f46e5;
+  background: #eef2ff;
+  border: 1px solid rgba(129, 140, 248, 0.4);
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.jt-dropdown {
+  position: absolute;
+  top: 36px;
+  right: 8px;
+  min-width: 200px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+  z-index: 20;
+  padding: 6px;
+}
+
+.jt-dropdown button,
+.jt-dropdown a {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.jt-dropdown button:hover,
+.jt-dropdown a:hover {
+  background: #f3f4f6;
+}
+
+.jt-loading,
+.jt-empty-board {
+  padding: 48px 20px;
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+  background: #fff;
+  border: 1px dashed #e2e8f0;
+  border-radius: 12px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.jt-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.jt-modal {
+  background: #fff;
+  border-radius: 16px;
+  max-width: 560px;
+  width: 100%;
+  max-height: min(90vh, 720px);
+  overflow-y: auto;
+  padding: 22px 24px;
+  box-shadow: 0 25px 50px rgba(15, 23, 42, 0.2);
+}
+
+.jt-modal h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+@media (max-width: 900px) {
+  .jt-toolbar__center {
+    order: 3;
+    flex: 1 1 100%;
+    justify-content: stretch;
+  }
+
+  .jt-search {
+    max-width: none;
+  }
+
+  .jt-col {
+    width: 240px;
+    flex-basis: 240px;
+  }
+
+  .jt-col__body {
+    min-height: calc(100vh - 200px);
+  }
+}

@@ -26,6 +26,11 @@
   z-index: 50;
 }
 
+/* Job Tracker (and narrow-sidebar shell): deeper navy bar like reference */
+.dl-root--jt .dl-nav {
+  background: #001f3f;
+}
+
 .dl-nav__brand {
   display: flex;
   align-items: center;
@@ -56,7 +61,7 @@
   background: #2563eb;
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 999px;
   padding: 8px 14px;
   font-size: 13px;
   font-weight: 600;
@@ -161,6 +166,15 @@
   width: 260px;
 }
 
+/* Job Tracker: ~190px sidebar (screenshot) */
+.dl-root--jt .dl-sidebar-wrap:not(.collapsed) {
+  width: 190px;
+}
+
+.dl-root--jt .dl-sidebar:not(.collapsed) {
+  width: 190px;
+}
+
 .dl-sidebar {
   width: 260px;
   background: var(--sidebar-bg);
@@ -208,7 +222,18 @@
 .dl-sidebar__link.active {
   background: var(--sidebar-active);
   border-left-color: #2563eb;
-  color: #1e40af;
+  border-left-width: 3px;
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.dl-sidebar__link.active svg {
+  color: #2563eb;
+  opacity: 1;
+}
+
+.dl-sidebar__link:not(.active) {
+  color: #374151;
 }
 
 .dl-sidebar__link svg {
@@ -253,6 +278,12 @@
 .dl-sidebar__sub a:hover {
   color: var(--text);
   background: #f8fafc;
+}
+
+.dl-sidebar__sub a.active {
+  color: var(--text);
+  background: #eef2ff;
+  font-weight: 600;
 }
 
 .dl-sidebar__sep {

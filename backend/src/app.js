@@ -21,7 +21,11 @@ import applicationRoutes from './routes/applicationRoutes.js';
 import bdRoutes from './routes/bdRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import cvRoutes from './routes/cvRoutes.js';
+import resumeRoutes from './routes/resumeRoutes.js';
 import extensionRoutes from './routes/extensionRoutes.js';
+import mockInterviewRoutes from './routes/mockInterviewRoutes.js';
+import documentRoutes from './routes/documentRoutes.js';
+import coverLetterRoutes from './routes/coverLetterRoutes.js';
 import { notFound, errorHandler } from './middlewares/errorMiddleware.js';
 
 const app = express();
@@ -76,7 +80,11 @@ app.use('/api/applications', applicationRoutes);
 app.use('/api/bd', bdRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/cv', cvRoutes);
+app.use('/api/resumes', resumeRoutes);
 app.use('/api/extension', extensionRoutes);
+app.use('/api/mock-interviews', mockInterviewRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/cover-letters', coverLetterRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
 app.use(notFound);

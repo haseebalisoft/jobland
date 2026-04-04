@@ -110,7 +110,7 @@ async function groqChat(messages, options = {}) {
 /**
  * Single AI call: try Gemini first, then Groq. messages = [{ role, content }]. options: temperature, max_tokens, response_format (Groq) or responseMimeType (Gemini 'application/json').
  */
-async function aiChat(messages, options = {}) {
+export async function aiChat(messages, options = {}) {
   const systemMsg = messages.find((m) => m.role === 'system');
   const userMsg = messages.find((m) => m.role === 'user') || messages[messages.length - 1];
   const systemPrompt = systemMsg?.content || 'You are a helpful assistant.';
@@ -360,4 +360,57 @@ Include exactly five dimensions in "dimensions", one per id above, with matching
   );
 
   return parseAiJsonObject(content);
+}
+
+/**
+ * Generate a full builder-style resume profile JSON from a free-form user prompt (AI).
+ */
+export async function generateResumeProfileFromPrompt(userPrompt) {
+  const trimmed = String(userPrompt || '').trim().slice(0, 1000);
+  if (trimmed.length < 10) {
+    const err = new Error('Prompt is too short.');
+    err.statusCode = 400;
+    throw err;
+  }
+  const schema = `{
+  "personal": { "fullName": "", "email": "", "phone": "", "location": "" },
+  "professional": {
+    "currentTitle": "",
+    "summary": "",
+    "skills": [],
+    "workExperience": [{ "company": "", "role": "", "period": "", "description": "" }]
+  },
+  "education": [{ "degree": "", "institution": "", "year": "", "field_of_study": "", "period": "", "description": "" }],
+  "links": { "linkedin": "", "github": "", "portfolio": "" }
+}`;
+  const systemPrompt = `You are an expert resume writer for Hirdlogic. Given the user's instructions, produce a complete resume as JSON.
+Fill every section sensibly from the instructions; use concise placeholders only where unavoidable.
+Return ONLY valid JSON matching this shape (no markdown):
+${schema}`;
+
+  const content = await aiChat(
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: trimmed },
+    ],
+    { response_format: { type: 'json_object' }, temperature: 0.35, max_tokens: 8192 },
+  );
+  const parsed = parseAiJsonObject(content);
+  const empty = {
+    personal: { fullName: '', email: '', phone: '', location: '' },
+    professional: { currentTitle: '', summary: '', skills: [], workExperience: [] },
+    education: [],
+    links: { linkedin: '', github: '', portfolio: '' },
+  };
+  return {
+    personal: { ...empty.personal, ...parsed.personal },
+    professional: {
+      ...empty.professional,
+      ...parsed.professional,
+      skills: Array.isArray(parsed.professional?.skills) ? parsed.professional.skills : [],
+      workExperience: Array.isArray(parsed.professional?.workExperience) ? parsed.professional.workExperience : [],
+    },
+    education: Array.isArray(parsed.education) ? parsed.education : [],
+    links: { ...empty.links, ...parsed.links },
+  };
 }

@@ -428,6 +428,22 @@ export async function getSavedResumeById(savedResumeId) {
   return result.rows[0] || null;
 }
 
+/** Owner snapshot for resume editor (profile JSON stored with saved PDF). */
+export async function getSavedResumeSnapshotForUser(savedResumeId, userId) {
+  const result = await pool.query(
+    `
+      SELECT id, title, profile_snapshot_json
+      FROM saved_resumes
+      WHERE id = $1
+        AND user_id = $2
+        AND is_active = TRUE
+      LIMIT 1
+    `,
+    [savedResumeId, userId],
+  );
+  return result.rows[0] || null;
+}
+
 export async function getSavedResumeFileForActor(savedResumeId, actor) {
   const result = await pool.query(
     `
