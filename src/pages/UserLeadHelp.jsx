@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, Send } from 'lucide-react';
 import api from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import UserSidebar from '../components/UserSidebar.jsx';
+import DashboardLayout from '../components/layout/DashboardLayout.jsx';
 import './Dashboard.css';
 
 const theme = {
@@ -136,6 +136,20 @@ export default function UserLeadHelp() {
     if (!lead) return 'your BD';
     return 'your BD';
   }, [lead]);
+
+  const displayName = useMemo(() => user?.name || user?.full_name || '', [user?.name, user?.full_name]);
+  const userInitials = useMemo(() => {
+    const n = displayName || '';
+    return (
+      n
+        .split(' ')
+        .filter(Boolean)
+        .map((p) => p[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase() || 'U'
+    );
+  }, [displayName]);
 
   if (!user) return null;
 
@@ -282,9 +296,9 @@ export default function UserLeadHelp() {
     : 'First pick a lead, then choose a quick question. Our AI assistant will prepare a message for your BD.';
 
   return (
-    <div className="dashboard-layout" style={styles.layout}>
-      <UserSidebar />
-      <main style={styles.main}>
+    <DashboardLayout userName={displayName} userInitials={userInitials}>
+      <div style={{ ...styles.layout, minHeight: '100%' }}>
+        <main style={styles.main}>
         <header className="user-lead-help-top-header" style={styles.header}>
           <button
             type="button"
@@ -542,8 +556,9 @@ export default function UserLeadHelp() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    </DashboardLayout>
   );
 }
 

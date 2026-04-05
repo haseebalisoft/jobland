@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Building2, ExternalLink, Filter, MoreVertical, Search, X } from 'lucide-react'
+import { Building2, ExternalLink, Filter, MoreVertical, Plus, Search, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -21,8 +21,8 @@ const theme = {
   cyan: '#2563EB',
 }
 
+/** Kanban columns (BD “lead” rows without an application are grouped into Saved). */
 const JT_COLUMNS = [
-  { id: 'leads', label: 'Leads' },
   { id: 'saved', label: 'Saved' },
   { id: 'applied', label: 'Applied' },
   { id: 'interviewing', label: 'Interviewing' },
@@ -56,9 +56,9 @@ function normalizeUserJob(row) {
   }
 }
 
-/** BD lead: use application pipeline; no application row yet → Leads (not Saved). */
+/** BD lead: use application pipeline; no application row yet → Saved (same column as early-stage leads). */
 function columnKeyForLead(lead) {
-  if (!lead?.application_id) return 'leads'
+  if (!lead?.application_id) return 'saved'
   const s = String(lead.application_status || '').toLowerCase()
   if (s === 'applied') return 'applied'
   if (s === 'interview') return 'interviewing'
@@ -77,6 +77,15 @@ function columnKeyForBoardItem(item) {
     return 'saved'
   }
   return columnKeyForLead(item)
+}
+
+/** Purple “Assigned” ribbon — BD-sourced leads or explicit assignment flags from API. */
+function shouldShowAssignedBadge(lead) {
+  if (!lead) return false
+  if (lead.isAssigned === true) return true
+  if (lead.assignedBy != null && String(lead.assignedBy).trim() !== '') return true
+  if (lead.assigned_by != null && String(lead.assigned_by).trim() !== '') return true
+  return lead.source === 'bd'
 }
 
 function formatAddedAgo(iso) {
@@ -107,6 +116,7 @@ export default function DashboardApplications() {
   const [addJobOpen, setAddJobOpen] = useState(false)
   const [addJob, setAddJob] = useState({ title: '', company: '', job_url: '' })
   const [addJobSaving, setAddJobSaving] = useState(false)
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
 
   const fetchBoard = useCallback(() => {
     if (!user) return
@@ -134,8 +144,12 @@ export default function DashboardApplications() {
 
   useEffect(() => {
     const onDoc = (e) => {
-      if (e.target.closest?.('.jt-dropdown') || e.target.closest?.('.jt-card__menu')) return
-      setOpenMenuId(null)
+      if (!(e.target.closest?.('.jt-dropdown') || e.target.closest?.('.jt-card__menu'))) {
+        setOpenMenuId(null)
+      }
+      if (!e.target.closest?.('.jt-header-menu')) {
+        setHeaderMenuOpen(false)
+      }
     }
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
@@ -309,7 +323,6 @@ export default function DashboardApplications() {
 
   const grouped = useMemo(() => {
     const g = {
-      leads: [],
       saved: [],
       applied: [],
       interviewing: [],
@@ -357,12 +370,12 @@ export default function DashboardApplications() {
     <DashboardLayout userName={user.name || ''} userInitials={initials} narrowSidebar>
       <div className="jt-page">
         <header className="jt-toolbar" aria-label="Job search toolbar">
-          <h1>
+          <h1 className="jt-toolbar__title">
             My {year} Job Search
           </h1>
           <div className="jt-toolbar__center">
             <label className="jt-search">
-              <Search size={18} aria-hidden />
+              <Search className="jt-search__icon" size={16} aria-hidden />
               <input
                 type="search"
                 placeholder="Search"
@@ -377,21 +390,41 @@ export default function DashboardApplications() {
               <Filter size={18} aria-hidden />
               Filter
             </button>
-            <button type="button" className="jt-btn-primary" onClick={() => setAddJobOpen(true)}>
-              + Add Job
+            <button
+              type="button"
+              className="jt-btn-primary jt-btn-primary--add"
+              onClick={() => setAddJobOpen(true)}
+            >
+              <Plus size={16} strokeWidth={2.5} aria-hidden />
+              Add Job
             </button>
-            <button type="button" className="jt-btn-icon" aria-label="More options">
-              <MoreVertical size={18} />
-            </button>
+            <div className="jt-header-menu">
+              <button
+                type="button"
+                className="jt-btn-icon"
+                aria-label="More options"
+                aria-expanded={headerMenuOpen}
+                aria-haspopup="true"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setHeaderMenuOpen((o) => !o)
+                }}
+              >
+                <MoreVertical size={18} />
+              </button>
+              {headerMenuOpen && (
+                <div className="jt-header-dropdown" role="menu">
+                  <button type="button" role="menuitem" onClick={() => { setHeaderMenuOpen(false); fetchBoard() }}>
+                    Refresh board
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
         {leadsLoading ? (
           <div className="jt-loading">Loading your job board…</div>
-        ) : (leads.items || []).length === 0 && userJobs.length === 0 ? (
-          <div className="jt-empty-board">
-            No jobs yet. Add one with &quot;+ Add Job&quot;, or your BD can assign leads here.
-          </div>
         ) : (
           <div className="jt-board-wrap">
             <div className="jt-board">
@@ -400,18 +433,28 @@ export default function DashboardApplications() {
                 const count = list.length
                 const jobLabel = count === 1 ? 'Job' : 'Jobs'
                 return (
-                  <section key={col.id} className="jt-col" aria-label={col.label}>
+                  <section key={col.id} className={`jt-col jt-col--${col.id}`} aria-label={col.label}>
                     <div className="jt-col__head">
                       <span className="jt-col__name">{col.label}</span>
-                      <span className="jt-col__badge">
+                      <span className={`jt-col__badge jt-col__badge--${col.id}`}>
                         {count} {jobLabel}
                       </span>
                     </div>
                     <div className="jt-col__body">
+                      {list.length === 0 && (
+                        <p className="jt-col__empty">
+                          {col.id === 'saved'
+                            ? 'No jobs yet. Add one with “+ Add Job”, or your BD can assign leads here.'
+                            : 'No jobs in this stage yet.'}
+                        </p>
+                      )}
                       {list.map((lead) => {
                         const rowKey = boardRowKey(lead)
                         return (
-                        <article key={rowKey} className="jt-card">
+                        <article key={rowKey} className={`jt-card jt-card--${col.id}`}>
+                          {shouldShowAssignedBadge(lead) && (
+                            <span className="jt-card__assigned">Assigned</span>
+                          )}
                           <button
                             type="button"
                             className="jt-card__menu"
@@ -421,7 +464,7 @@ export default function DashboardApplications() {
                               setOpenMenuId((id) => (id === rowKey ? null : rowKey))
                             }}
                           >
-                            <MoreVertical size={16} />
+                            <MoreVertical size={14} strokeWidth={2.5} />
                           </button>
                           {openMenuId === rowKey && (
                             <div className="jt-dropdown">
@@ -499,22 +542,22 @@ export default function DashboardApplications() {
                             }}
                           >
                             <div className="jt-card__icon-wrap">
-                              <Building2 size={20} strokeWidth={1.75} aria-hidden />
+                              <Building2 size={18} strokeWidth={2} aria-hidden />
                             </div>
                             <div className="jt-card__main">
                               <div className="jt-card__title">{lead.job_title || 'Untitled role'}</div>
                               <div className="jt-card__company">
-                                <Building2 size={12} aria-hidden />
-                                {lead.company_name || '—'}
+                                <Building2 size={11} strokeWidth={2} aria-hidden />
+                                <span>{lead.company_name || '—'}</span>
                               </div>
-                              {lead.created_at && (
-                                <div className="jt-card__time">{formatAddedAgo(lead.created_at)}</div>
-                              )}
                               {lead.interview_mode && (
                                 <div className="jt-card__interview-pill">Interview scheduled</div>
                               )}
                             </div>
                           </div>
+                          {lead.created_at && (
+                            <div className="jt-card__time">{formatAddedAgo(lead.created_at)}</div>
+                          )}
                         </article>
                         )
                       })}

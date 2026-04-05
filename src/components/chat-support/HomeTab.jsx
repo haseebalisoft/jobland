@@ -1,4 +1,4 @@
-import { ChevronRight, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { HELP_ARTICLES } from './helpArticles.js';
 import { getSupportAvailabilityLine } from './chatUtils.js';
 import './chat-support.css';

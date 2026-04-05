@@ -132,7 +132,7 @@ export async function getDashboardActionPlan(req, res, next) {
         subtitle:
           "You've already started your journey. Now explore all the AI-powered tools designed to help you land your job faster and stress less.",
         ctaLabel: 'Explore All Features',
-        ctaPath: '/free-tools',
+        ctaPath: '/dashboard/score-resume',
       },
       quickStats: {
         sectionTitle: 'Quick Stats',
@@ -184,7 +184,7 @@ export async function getDashboardActionPlan(req, res, next) {
           title: 'Supercharge LinkedIn with Hirdlogic',
           body: 'Optimize your profile and manage applications — right from your browser.',
           ctaLabel: 'Install Now',
-          path: '/free-tools',
+          path: '/dashboard/score-resume',
         },
       ],
       resources: {
@@ -197,7 +197,7 @@ export async function getDashboardActionPlan(req, res, next) {
             title: 'How to tailor your resume to any job description',
             description:
               'Learn a repeatable framework to map your experience to what recruiters search for — without starting from scratch each time.',
-            readMorePath: '/free-tools',
+            readMorePath: '/dashboard/score-resume',
             accent: 'link',
           },
           {
@@ -205,7 +205,7 @@ export async function getDashboardActionPlan(req, res, next) {
             title: 'AI and your job search: what to automate vs. what to own',
             description:
               'Use AI for speed on drafts and research, while keeping authenticity in your story and interviews.',
-            readMorePath: '/free-tools',
+            readMorePath: '/dashboard/score-resume',
             accent: 'spark',
           },
           {
@@ -213,7 +213,7 @@ export async function getDashboardActionPlan(req, res, next) {
             title: 'Returning to work after a career break',
             description:
               'Address gaps with confidence: structure your resume narrative and prep for common interview questions.',
-            readMorePath: '/free-tools',
+            readMorePath: '/dashboard/score-resume',
             accent: 'doc',
           },
         ],

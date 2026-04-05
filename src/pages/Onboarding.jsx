@@ -1,15 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
-import { Upload, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserSidebar from '../components/UserSidebar.jsx';
+import DashboardLayout from '../components/layout/DashboardLayout.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
-const Onboarding = () => {
-    const [step, setStep] = useState(1);
+/** @param {{ dashboardMode?: boolean }} props — when true, uses new Hirdlogic dashboard shell (no legacy sidebar). */
+const Onboarding = ({ dashboardMode = false }) => {
     const [loading, setLoading] = useState(false);
     const [profileLoading, setProfileLoading] = useState(true);
     const navigate = useNavigate();
+    const { user } = useAuth();
+
+    const displayName = useMemo(() => user?.name || '', [user?.name]);
+    const initials = useMemo(() => {
+        const n = displayName || '';
+        return n
+            .split(' ')
+            .filter(Boolean)
+            .map((p) => p[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase() || 'U';
+    }, [displayName]);
 
     const [prefs, setPrefs] = useState({
         jobFunction: '',
@@ -189,7 +204,11 @@ const Onboarding = () => {
         setLoading(true);
         try {
             await api.post('/user/onboarding', prefs);
-            navigate('/upload_cv');
+            if (dashboardMode) {
+                navigate('/dashboard');
+            } else {
+                navigate('/upload_cv');
+            }
         } catch (err) {
             console.error(err);
         } finally {
@@ -197,33 +216,44 @@ const Onboarding = () => {
         }
     };
 
+    const loadingBlock = (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 240 }}>
+            <p style={{ color: '#64748b', fontSize: '15px' }}>Loading your preferences...</p>
+        </div>
+    );
+
     if (profileLoading) {
+        if (dashboardMode) {
+            return (
+                <DashboardLayout userName={displayName} userInitials={initials}>
+                    <div style={{ background: '#f8fafc', minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+                        {loadingBlock}
+                    </div>
+                </DashboardLayout>
+            );
+        }
         return (
             <div className="onboarding-page" style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
                 <UserSidebar />
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <p style={{ color: '#64748b', fontSize: '15px' }}>Loading your preferences...</p>
-                </div>
+                {loadingBlock}
             </div>
         );
     }
 
-    return (
-        <div className="onboarding-page" style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
-            <UserSidebar />
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
-            <main className="orion-onboarding-container" style={{ flex: 1, padding: '32px 24px' }}>
-                <AnimatePresence mode="wait">
-                    {step === 1 ? (
-                        <motion.div
-                            key="step1"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="orion-card"
-                        >
-                            <h1>Hi, I'm HiredLogics, your AI Copilot for job search.</h1>
-                            <p className="subheading">To get started, what type of role are you looking for?</p>
+    const step1Card = (
+        <motion.div
+            key="step1"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="orion-card"
+        >
+            <h1>{dashboardMode ? 'Job preferences' : "Hi, I'm HiredLogics, your AI Copilot for job search."}</h1>
+            <p className="subheading">
+                {dashboardMode
+                    ? 'Update your target roles, locations, and work authorization. Changes save to your profile.'
+                    : 'To get started, what type of role are you looking for?'}
+            </p>
 
                             <div style={{ marginBottom: '32px', position: 'relative' }}>
                                 <label className="orion-label">Job Functions <span>*</span></label>
@@ -489,106 +519,42 @@ const Onboarding = () => {
                                     onClick={handleNextStep1}
                                     disabled={!prefs.jobFunction || prefs.jobTypes.length === 0 || loading}
                                 >
-                                    {loading ? 'Saving...' : 'Next'}
+                                    {loading
+                                        ? 'Saving...'
+                                        : dashboardMode
+                                          ? 'Save preferences'
+                                          : 'Next'}
                                 </button>
                             </div>
 
-                            <div className="nav-dots">
-                                <div className="dot active"></div>
-                                <div className="dot"></div>
-                            </div>
-                        </motion.div>
-                    ) : (
-                        <motion.div
-                            key="step2"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="orion-card"
-                        >
-                            <h1>One last step, let's level up your search by uploading your resume.</h1>
-                            <p className="subheading">Data privacy is the top priority at Jobright.</p>
-
-                            <div style={{
-                                border: '2px dashed var(--border)',
-                                borderRadius: 'var(--radius-lg)',
-                                padding: '60px',
-                                textAlign: 'center',
-                                margin: '40px 0',
-                                background: '#F8FAFC'
-                            }}>
-                                <div style={{
-                                    width: '120px',
-                                    height: '120px',
-                                    background: 'white',
-                                    borderRadius: '50%',
-                                    margin: '0 auto 24px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-                                }}>
-                                    <Upload size={40} color={file ? 'var(--accent)' : 'var(--text-dim)'} />
+                            {!dashboardMode && (
+                                <div className="nav-dots">
+                                    <div className="dot active"></div>
                                 </div>
-
-                                <input
-                                    type="file"
-                                    id="cv-upload"
-                                    hidden
-                                    accept=".pdf"
-                                    onChange={handleFileUpload}
-                                />
-                                <button
-                                    className="logout-btn"
-                                    style={{ margin: '0 auto', display: 'block' }}
-                                    onClick={() => document.getElementById('cv-upload').click()}
-                                >
-                                    {file ? file.name : 'Upload Your Resume'}
-                                </button>
-                                <p style={{ marginTop: '16px', fontSize: '12px', color: 'var(--text-dim)' }}>
-                                    Files should be in PDF or Word format and must not exceed 10MB in size.
-                                </p>
-                            </div>
-
-                            {uploadStatus && (
-                                <p style={{ color: uploadStatus.includes('Failed') ? 'red' : 'var(--accent)', textAlign: 'center', marginBottom: '16px' }}>
-                                    {uploadStatus}
-                                </p>
                             )}
+        </motion.div>
+    );
 
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <button
-                                    style={{
-                                        background: 'transparent',
-                                        border: 'none',
-                                        color: 'var(--text-dim)',
-                                        fontSize: '14px',
-                                        fontWeight: '500',
-                                        cursor: 'pointer',
-                                        textDecoration: 'underline'
-                                    }}
-                                    onClick={() => navigate('/profile')}
-                                >
-                                    I don't have a CV / Create Manually
-                                </button>
-                                <button
-                                    className="btn-next"
-                                    onClick={startMatching}
-                                    disabled={!file || loading}
-                                >
-                                    {loading ? 'Processing...' : 'Start Matching'}
-                                </button>
-                            </div>
+    const mainInner = (
+        <main className="orion-onboarding-container" style={{ flex: 1, padding: '32px 24px' }}>
+            <AnimatePresence mode="wait">{step1Card}</AnimatePresence>
+        </main>
+    );
 
-                            <div className="nav-dots">
-                                <div className="dot"></div>
-                                <div className="dot active"></div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </main>
-            </div>
+    if (dashboardMode) {
+        return (
+            <DashboardLayout userName={displayName} userInitials={initials}>
+                <div style={{ background: '#f8fafc', minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+                    {mainInner}
+                </div>
+            </DashboardLayout>
+        );
+    }
+
+    return (
+        <div className="onboarding-page" style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
+            <UserSidebar />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>{mainInner}</div>
         </div>
     );
 };

@@ -1,23 +1,148 @@
 import { query } from '../config/db.js';
 import bcrypt from 'bcryptjs';
 
+/** Cached: whether `user_bd_assignments.bd_id` FK points at `bds` or `users`. */
+let cachedBdFkTarget = null;
+
+async function getUserBdAssignmentBdFkTarget() {
+  if (cachedBdFkTarget) return cachedBdFkTarget;
+  try {
+    const r = await query(
+      `SELECT ccu.table_name AS ref_table
+       FROM information_schema.table_constraints tc
+       JOIN information_schema.key_column_usage kcu
+         ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+       JOIN information_schema.constraint_column_usage ccu
+         ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+       WHERE tc.table_schema = 'public'
+         AND tc.table_name = 'user_bd_assignments'
+         AND tc.constraint_type = 'FOREIGN KEY'
+         AND kcu.column_name = 'bd_id'`,
+    );
+    const row = (r.rows || []).find((x) => x.ref_table === 'bds' || x.ref_table === 'users');
+    cachedBdFkTarget = row?.ref_table === 'bds' ? 'bds' : 'users';
+  } catch {
+    cachedBdFkTarget = 'users';
+  }
+  return cachedBdFkTarget;
+}
+
+async function bdsTableExists() {
+  const r = await query(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_name = 'bds'
+     ) AS e`,
+  );
+  return r.rows[0]?.e === true;
+}
+
+/** Resolve admin UI / API id (users.id or bds.id) to the PK we must store in `user_bd_assignments.bd_id`. */
+async function resolveBdIdsForAssignment(bdIds) {
+  const target = await getUserBdAssignmentBdFkTarget();
+  const input = Array.isArray(bdIds) ? bdIds.filter(Boolean) : [];
+  const resolved = [];
+  const invalid = [];
+  const seen = new Set();
+
+  for (const raw of input) {
+    const id = String(raw).trim();
+    if (!id) continue;
+
+    if (target === 'users') {
+      const r = await query(
+        `SELECT id FROM users WHERE id = $1::uuid AND role = 'bd' AND is_active = true`,
+        [id],
+      );
+      if (r.rows[0]) {
+        const pk = r.rows[0].id;
+        if (!seen.has(pk)) {
+          seen.add(pk);
+          resolved.push(pk);
+        }
+      } else {
+        invalid.push(id);
+      }
+      continue;
+    }
+
+    let pk = null;
+    const byPk = await query(`SELECT id FROM bds WHERE id = $1::uuid LIMIT 1`, [id]).catch(() => ({ rows: [] }));
+    if (byPk.rows?.[0]) pk = byPk.rows[0].id;
+
+    if (!pk) {
+      const byUser = await query(`SELECT id FROM bds WHERE user_id = $1::uuid LIMIT 1`, [id]).catch(() => ({
+        rows: [],
+      }));
+      if (byUser.rows?.[0]) pk = byUser.rows[0].id;
+    }
+
+    if (!pk) {
+      invalid.push(id);
+      continue;
+    }
+    if (!seen.has(pk)) {
+      seen.add(pk);
+      resolved.push(pk);
+    }
+  }
+
+  return { resolved, invalid, target };
+}
+
+function assignedBdsJsonSubquery(useBdsJoin) {
+  if (!useBdsJoin) {
+    return `COALESCE(
+      (SELECT json_agg(json_build_object('id', b.id, 'full_name', b.full_name, 'email', b.email))
+       FROM user_bd_assignments uba
+       JOIN users b ON b.id = uba.bd_id AND b.role = 'bd'
+       WHERE uba.user_id = u.id),
+      '[]'::json
+    )`;
+  }
+  return `COALESCE(
+    (SELECT json_agg(json_build_object('id', sub.id, 'full_name', sub.full_name, 'email', sub.email))
+     FROM (
+       SELECT DISTINCT COALESCE(u1.id, u2.id) AS id,
+              COALESCE(u1.full_name, u2.full_name) AS full_name,
+              COALESCE(u1.email, u2.email) AS email
+       FROM user_bd_assignments uba
+       LEFT JOIN users u1 ON u1.id = uba.bd_id AND u1.role = 'bd'
+       LEFT JOIN bds bd ON bd.id = uba.bd_id AND u1.id IS NULL
+       LEFT JOIN users u2 ON u2.id = COALESCE(bd.user_id, bd.id) AND u2.role = 'bd'
+       WHERE uba.user_id = u.id
+         AND COALESCE(u1.id, u2.id) IS NOT NULL
+     ) sub),
+    '[]'::json
+  )`;
+}
+
 export async function getUsers(req, res, next) {
   try {
-    const result = await query(
-      `
-      SELECT u.id, u.full_name AS name, u.email, u.subscription_plan, u.is_active, u.created_at,
-             COALESCE(
-               (SELECT json_agg(json_build_object('id', b.id, 'full_name', b.full_name, 'email', b.email))
-                FROM user_bd_assignments uba
-                JOIN users b ON b.id = uba.bd_id AND b.role = 'bd'
-                WHERE uba.user_id = u.id),
-               '[]'::json
-             ) AS assigned_bds
-      FROM users u
-      WHERE (u.role = 'user' OR u.role IS NULL)
-      ORDER BY u.created_at DESC
-      `,
-    );
+    const useBdsJoin = (await getUserBdAssignmentBdFkTarget()) === 'bds' && (await bdsTableExists());
+    const assignedSql = assignedBdsJsonSubquery(useBdsJoin);
+    let result;
+    try {
+      result = await query(
+        `
+        SELECT u.id, u.full_name AS name, u.email, u.subscription_plan, u.is_active, u.created_at,
+               ${assignedSql} AS assigned_bds
+        FROM users u
+        WHERE (u.role = 'user' OR u.role IS NULL)
+        ORDER BY u.created_at DESC
+        `,
+      );
+    } catch {
+      result = await query(
+        `
+        SELECT u.id, u.full_name AS name, u.email, u.subscription_plan, u.is_active, u.created_at,
+               ${assignedBdsJsonSubquery(false)} AS assigned_bds
+        FROM users u
+        WHERE (u.role = 'user' OR u.role IS NULL)
+        ORDER BY u.created_at DESC
+        `,
+      );
+    }
     const users = result.rows.map((row) => ({
       _id: row.id,
       id: row.id,
@@ -36,6 +161,29 @@ export async function getUsers(req, res, next) {
 
 export async function getBds(req, res, next) {
   try {
+    const fk = await getUserBdAssignmentBdFkTarget();
+    const hasBds = await bdsTableExists();
+    if (fk === 'bds' && hasBds) {
+      try {
+        const result = await query(`
+          SELECT b.id, u.full_name, u.email, u.is_active, u.created_at
+          FROM bds b
+          INNER JOIN users u ON u.id = COALESCE(b.user_id, b.id)
+          WHERE u.role = 'bd' AND u.is_active = true
+          ORDER BY u.full_name
+        `);
+        return res.json(result.rows);
+      } catch {
+        const result = await query(`
+          SELECT b.id, u.full_name, u.email, u.is_active, u.created_at
+          FROM bds b
+          INNER JOIN users u ON u.id = b.id
+          WHERE u.role = 'bd' AND u.is_active = true
+          ORDER BY u.full_name
+        `);
+        return res.json(result.rows);
+      }
+    }
     const result = await query(
       "SELECT id, full_name, email, is_active, created_at FROM users WHERE role = 'bd' AND is_active = true ORDER BY full_name",
     );
@@ -53,25 +201,46 @@ export async function assignBdToUser(req, res, next) {
     }
     const adminId = req.user.id;
 
-    await query('DELETE FROM user_bd_assignments WHERE user_id = $1', [user_id]);
-
-    if (Array.isArray(bd_ids) && bd_ids.length > 0) {
-      for (const bd_id of bd_ids) {
-        await query(
-          `INSERT INTO user_bd_assignments (user_id, bd_id, assigned_by) VALUES ($1, $2, $3)
-           ON CONFLICT (user_id, bd_id) DO NOTHING`,
-          [user_id, bd_id, adminId],
-        );
-      }
+    const { resolved, invalid, target } = await resolveBdIdsForAssignment(bd_ids);
+    if (invalid.length > 0) {
+      return res.status(400).json({
+        message:
+          target === 'bds'
+            ? 'One or more BD ids are invalid. Use a row from the BD list (bds table), or ensure a matching bds record exists for that BD user.'
+            : 'One or more BD ids are invalid. They must be active users with role BD.',
+        invalid_bd_ids: invalid,
+      });
     }
 
-    const updated = await query(
-      `SELECT u.id, u.full_name AS name, u.email,
-              COALESCE((SELECT json_agg(json_build_object('id', b.id, 'full_name', b.full_name, 'email', b.email))
-                        FROM user_bd_assignments uba JOIN users b ON b.id = uba.bd_id AND b.role = 'bd' WHERE uba.user_id = u.id), '[]'::json) AS assigned_bds
-       FROM users u WHERE u.id = $1`,
-      [user_id],
-    );
+    await query('DELETE FROM user_bd_assignments WHERE user_id = $1', [user_id]);
+
+    for (const bd_id of resolved) {
+      await query(
+        `INSERT INTO user_bd_assignments (user_id, bd_id, assigned_by) VALUES ($1, $2, $3)
+         ON CONFLICT (user_id, bd_id) DO NOTHING`,
+        [user_id, bd_id, adminId],
+      );
+    }
+
+    const useBdsJoin = (await getUserBdAssignmentBdFkTarget()) === 'bds' && (await bdsTableExists());
+    const assignedSql = assignedBdsJsonSubquery(useBdsJoin);
+
+    let updated;
+    try {
+      updated = await query(
+        `SELECT u.id, u.full_name AS name, u.email, ${assignedSql} AS assigned_bds
+         FROM users u WHERE u.id = $1`,
+        [user_id],
+      );
+    } catch {
+      updated = await query(
+        `SELECT u.id, u.full_name AS name, u.email,
+                COALESCE((SELECT json_agg(json_build_object('id', b.id, 'full_name', b.full_name, 'email', b.email))
+                          FROM user_bd_assignments uba JOIN users b ON b.id = uba.bd_id AND b.role = 'bd' WHERE uba.user_id = u.id), '[]'::json) AS assigned_bds
+         FROM users u WHERE u.id = $1`,
+        [user_id],
+      );
+    }
     const row = updated.rows[0];
     if (!row) {
       return res.status(404).json({ message: 'User not found' });
@@ -83,6 +252,13 @@ export async function assignBdToUser(req, res, next) {
       assigned_bds: Array.isArray(row.assigned_bds) ? row.assigned_bds : [],
     });
   } catch (err) {
+    if (err.code === '23503') {
+      return res.status(400).json({
+        message:
+          'Assignment failed: BD reference is not valid for this database (foreign key). Refresh the BD list and try again.',
+        code: err.code,
+      });
+    }
     next(err);
   }
 }

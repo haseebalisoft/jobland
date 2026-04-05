@@ -72,9 +72,18 @@ function App() {
           <Route path="/resume-maker" element={<PaidRoute><ResumeMaker /></PaidRoute>} />
           <Route path="/resumes" element={<PaidRoute><ResumeMaker /></PaidRoute>} />
           <Route path="/resume-builder/:resumeId/edit" element={<PaidRoute><ResumeMaker /></PaidRoute>} />
+          <Route path="/dashboard/resume-builder" element={<Navigate to="/resumes" replace />} />
           <Route path="/dashboard/resume-builder/:resumeId/edit" element={<PaidRoute><ResumeMaker /></PaidRoute>} />
           <Route
             path="/free-tools"
+            element={
+              <ProtectedRoute>
+                <FreeTierResumeTools />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/score-resume"
             element={
               <ProtectedRoute>
                 <FreeTierResumeTools />
@@ -123,6 +132,7 @@ function App() {
             <Route path="linkedin" element={<LinkedInPage />} />
             <Route path="cover-letters" element={<CoverLettersPage />} />
           </Route>
+          <Route path="/dashboard/job-preferences" element={<PaidRoute><Onboarding dashboardMode /></PaidRoute>} />
           <Route path="/dashboard/help" element={<PaidRoute><UserLeadHelp /></PaidRoute>} />
           <Route path="/dashboard/help/:leadId" element={<PaidRoute><UserLeadHelp /></PaidRoute>} />
           <Route path="/profile" element={<PaidRoute><ProfileBuilder /></PaidRoute>} />

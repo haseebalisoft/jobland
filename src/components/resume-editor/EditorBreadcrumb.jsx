@@ -43,7 +43,7 @@ export default function EditorBreadcrumb({
           <Home size={16} />
         </Link>
         <span className="re-breadcrumb__sep">›</span>
-        <Link to="/resumes" className="re-breadcrumb__link">
+        <Link to="/dashboard/resume-builder" className="re-breadcrumb__link">
           Base Resumes
         </Link>
         <span className="re-breadcrumb__sep">›</span>

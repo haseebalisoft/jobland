@@ -36,7 +36,12 @@ const navMain = [
       { to: '/dashboard/application-materials/cover-letters', label: 'Cover Letters' },
     ],
   },
-  { key: 'net', label: 'Networking', icon: Users, children: [{ to: '/dashboard', label: 'Dashboard home' }] },
+  {
+    key: 'net',
+    label: 'Networking',
+    icon: Users,
+    children: [],
+  },
   { to: '/dashboard/job-preferences', label: 'Job Preferences', icon: SlidersHorizontal },
   {
     key: 'ai',
@@ -52,9 +57,9 @@ const navMain = [
 ];
 
 const navBottom = [
-  { to: '/free-tools', label: 'Chrome Extension', icon: Puzzle },
+  { to: '/dashboard/score-resume', label: 'Chrome Extension', icon: Puzzle },
   { to: '/settings', label: 'Suggest a Feature', icon: Lightbulb },
-  { to: '/settings', label: 'Report a bug', icon: Bug },
+  { to: '/settings', label: 'Report a Bug', icon: Bug },
 ];
 
 function matchPath(pathname, to, end) {
@@ -118,6 +123,8 @@ export default function DashboardSidebar({ collapsed, onToggleCollapse }) {
           const open = expanded[item.key];
           const parentActive =
             (item.key === 'appmat' && path.startsWith('/dashboard/application-materials')) ||
+            (item.key === 'net' &&
+              item.children?.some((c) => path === c.to || path.startsWith(`${c.to}/`))) ||
             (item.key === 'ai' &&
               item.children?.some((c) => path === c.to || path.startsWith(`${c.to}/`)));
           return (
@@ -128,12 +135,12 @@ export default function DashboardSidebar({ collapsed, onToggleCollapse }) {
                 onClick={() => toggle(item.key)}
               >
                 <item.icon size={20} />
-                <span className="dl-sidebar__label" style={{ flex: 1 }}>
+                <span className="dl-sidebar__label dl-sidebar__label--grow">
                   {item.label}
                 </span>
                 <ChevronRight size={16} style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }} />
               </button>
-              {open && !collapsed && item.children && (
+              {open && !collapsed && item.children && item.children.length > 0 && (
                 <div className="dl-sidebar__sub">
                   {item.children.map((c) => {
                     const subActive = path === c.to || path.startsWith(`${c.to}/`);

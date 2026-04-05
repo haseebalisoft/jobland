@@ -22,6 +22,7 @@ import DashboardLayout from '../components/layout/DashboardLayout.jsx';
 import ResumeAllResumesHub from '../components/resume/ResumeAllResumesHub.jsx';
 import CreateResumeModal from '../components/resume/CreateResumeModal.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { isPaywallBlocking } from '../utils/subscription.js';
 
 const DEFAULT_SECTION_DRAG_ORDER = ['work', 'skills', 'projects', 'awards', 'education', 'certifications'];
 
@@ -133,13 +134,13 @@ const ResumeMaker = () => {
 
     const handleUpgradeRequired = (err) => {
         if (err?.response?.status === 403 && err?.response?.data?.code === 'UPGRADE_REQUIRED') {
-            navigate('/free-tools?upgrade=1');
+            navigate('/dashboard/score-resume?upgrade=1');
             return true;
         }
         return false;
     };
 
-    const isFreePlanUser = String(user?.subscription_plan || '').toLowerCase() === 'free';
+    const paywallBlocks = isPaywallBlocking(user);
 
     const saveProfile = async (updatedProfile) => {
         setSaveStatus('Saving...');
@@ -450,8 +451,8 @@ const ResumeMaker = () => {
     };
 
     const handleDownload = async () => {
-        if (isFreePlanUser) {
-            navigate('/free-tools?upgrade=1');
+        if (paywallBlocks) {
+            navigate('/dashboard/score-resume?upgrade=1');
             return;
         }
         setDownloading(true);
@@ -744,6 +745,7 @@ const ResumeMaker = () => {
                     onUpload={handleUploadSavedCv}
                     onOpenPdf={handleOpenSavedResume}
                     onDelete={handleDeleteSavedResume}
+                    editHref={(id) => `/dashboard/resume-builder/${id}/edit`}
                 />
                 <CreateResumeModal
                     isOpen={createModalOpen}
@@ -798,7 +800,7 @@ const ResumeMaker = () => {
                 mainClassName="dl-main--editor-fill"
             >
                 <div className="dl-editor-page-host-outer">
-                {isFreePlanUser && (
+                {paywallBlocks && (
                     <div
                         style={{
                             padding: '12px 24px',
@@ -816,7 +818,7 @@ const ResumeMaker = () => {
                         </span>
                         <button
                             type="button"
-                            onClick={() => navigate('/free-tools?upgrade=1')}
+                            onClick={() => navigate('/dashboard/score-resume?upgrade=1')}
                             style={{
                                 padding: '8px 16px',
                                 borderRadius: 8,
@@ -862,7 +864,7 @@ const ResumeMaker = () => {
                     setEducationIndex={setEducationIndex}
                     handleDownload={handleDownload}
                     downloading={downloading}
-                    isFreePlanUser={isFreePlanUser}
+                    isFreePlanUser={paywallBlocks}
                     tailorOpen={tailorModalOpen}
                     setTailorOpen={setTailorModalOpen}
                     tailorJobTitle={tailorJobTitle}
@@ -906,7 +908,7 @@ const ResumeMaker = () => {
         <DashboardLayout userName={hubDisplayName} userInitials={hubInitials}>
             <div className="rb-scope" style={{ background: theme.bg }}>
             <div className="rb-main-content">
-                    {isFreePlanUser && (
+                    {paywallBlocks && (
                         <div
                             style={{
                                 padding: '12px 24px',
@@ -924,7 +926,7 @@ const ResumeMaker = () => {
                             </span>
                             <button
                                 type="button"
-                                onClick={() => navigate('/free-tools?upgrade=1')}
+                                onClick={() => navigate('/dashboard/score-resume?upgrade=1')}
                                 style={{
                                     padding: '8px 16px',
                                     borderRadius: 8,
@@ -1734,9 +1736,9 @@ const ResumeMaker = () => {
                                     <option key={t.id} value={t.id}>{t.name}</option>
                                 ))}
                             </select>
-                            <button onClick={handleDownload} disabled={downloading || isFreePlanUser} className="rb-floating-download">
+                            <button onClick={handleDownload} disabled={downloading || paywallBlocks} className="rb-floating-download">
                                 {downloading ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
-                                {isFreePlanUser ? 'Upgrade to Download' : 'Download'}
+                                {paywallBlocks ? 'Upgrade to Download' : 'Download'}
                             </button>
                         </div>
                     </div>
@@ -1766,9 +1768,9 @@ const ResumeMaker = () => {
                     <Eye size={20} />
                     <span>Preview</span>
                 </button>
-                <button onClick={handleDownload} disabled={downloading || isFreePlanUser}>
+                <button onClick={handleDownload} disabled={downloading || paywallBlocks}>
                     {downloading ? <Loader2 className="animate-spin" size={20} /> : <Download size={20} />}
-                    <span>{isFreePlanUser ? 'Upgrade' : 'Download'}</span>
+                    <span>{paywallBlocks ? 'Upgrade' : 'Download'}</span>
                 </button>
                 <button onClick={handleSaveFinalizedResume} disabled={savingFinalized}>
                     {savingFinalized ? <Loader2 className="animate-spin" size={20} /> : <Check size={20} />}

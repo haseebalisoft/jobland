@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 
-export default function HeroExploreCard({ title = '', subtitle = '', ctaLabel = '', ctaPath = '/free-tools' }) {
+export default function HeroExploreCard({ title = '', subtitle = '', ctaLabel = '', ctaPath = '/dashboard/score-resume' }) {
   const navigate = useNavigate();
   return (
     <section
@@ -26,7 +26,7 @@ export default function HeroExploreCard({ title = '', subtitle = '', ctaLabel = 
         <p style={{ margin: '0 0 20px', fontSize: 15, lineHeight: 1.55, color: '#64748b' }}>{subtitle}</p>
         <button
           type="button"
-          onClick={() => navigate(ctaPath || '/free-tools')}
+          onClick={() => navigate(ctaPath || '/dashboard/score-resume')}
           style={{
             padding: '11px 20px',
             borderRadius: 10,

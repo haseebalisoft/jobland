@@ -4,6 +4,7 @@ import '../index.css'
 import './Auth.css'
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
+import { isPaywallBlocking } from '../utils/subscription.js'
 
 export default function Login() {
     const navigate = useNavigate();
@@ -29,9 +30,7 @@ export default function Login() {
                 // No active subscription: send logged-in users to account-bound billing flow.
                 navigate('/billing');
             } else {
-                const free =
-                    String(loggedInUser.subscription_plan || 'free').toLowerCase() === 'free';
-                navigate(free ? '/free-tools' : '/dashboard');
+                navigate(isPaywallBlocking(loggedInUser) ? '/dashboard/score-resume' : '/dashboard');
                 return;
             }
         } catch (err) {

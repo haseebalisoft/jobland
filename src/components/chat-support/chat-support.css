@@ -6,6 +6,8 @@
   z-index: 9999;
   width: 52px;
   height: 52px;
+  /* anchor for absolute badge */
+  isolation: isolate;
   border-radius: 50%;
   border: none;
   background: #2563eb;

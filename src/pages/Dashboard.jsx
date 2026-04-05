@@ -12,6 +12,7 @@ import QuickStatsSection from '../components/dashboard/QuickStatsSection.jsx';
 import UpsellPromoGrid from '../components/dashboard/UpsellPromoGrid.jsx';
 import ResourcesSection from '../components/dashboard/ResourcesSection.jsx';
 import { useDashboardHome } from '../hooks/useDashboardHome.js';
+import { isPaywallBypassEnabled } from '../utils/subscription.js';
 import './DashboardHome.css';
 
 function DashboardSkeleton() {
@@ -135,7 +136,7 @@ export default function Dashboard() {
                 ctaLabel={actionPlan.ctaLabel}
                 onCta={handleCreateResume}
               />
-              {plan?.plan === 'free' && (
+              {plan?.plan === 'free' && !isPaywallBypassEnabled() && (
                 <p style={{ marginTop: 12, fontSize: 13, color: '#64748b' }}>
                   Current plan: <strong>{plan.plan_name || 'Free'}</strong> — upgrade for full access.
                 </p>
@@ -163,7 +164,7 @@ export default function Dashboard() {
             <UpsellPromoGrid
               upsell={actionPlan.upsell}
               promos={actionPlan.promos || []}
-              showUpsell={plan?.plan === 'free'}
+              showUpsell={plan?.plan === 'free' && !isPaywallBypassEnabled()}
             />
           )}
 

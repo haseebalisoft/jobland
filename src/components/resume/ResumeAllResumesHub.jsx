@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { FileText, Search, Filter, Sparkles, Loader2, Trash2, Upload } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { FileText, Search, Filter, Sparkles, Loader2, Trash2, Upload, Pencil } from 'lucide-react';
 
 const pageBg = '#f8fafc';
 const cardBg = '#ffffff';
@@ -17,6 +18,7 @@ export default function ResumeAllResumesHub({
   onUpload,
   onOpenPdf,
   onDelete,
+  editHref,
 }) {
   const [q, setQ] = useState('');
   const [mainTab, setMainTab] = useState('base');
@@ -227,12 +229,35 @@ export default function ResumeAllResumesHub({
                   <div style={{ fontSize: 12, color: muted }}>
                     {row.created_at ? new Date(row.created_at).toLocaleString() : ''}
                   </div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                    {editHref ? (
+                      <Link
+                        to={editHref(row.id)}
+                        style={{
+                          flex: '1 1 100px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                          padding: '8px 12px',
+                          borderRadius: 8,
+                          border: `1px solid ${border}`,
+                          background: '#fff',
+                          color: text,
+                          fontWeight: 600,
+                          fontSize: 13,
+                          textDecoration: 'none',
+                        }}
+                      >
+                        <Pencil size={16} />
+                        Edit
+                      </Link>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => onOpenPdf(row.id)}
                       style={{
-                        flex: 1,
+                        flex: '1 1 100px',
                         padding: '8px 12px',
                         borderRadius: 8,
                         border: 'none',
@@ -243,7 +268,7 @@ export default function ResumeAllResumesHub({
                         cursor: 'pointer',
                       }}
                     >
-                      Open
+                      Open PDF
                     </button>
                     <button
                       type="button"

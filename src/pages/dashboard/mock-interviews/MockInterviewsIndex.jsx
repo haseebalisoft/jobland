@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Trophy } from 'lucide-react';
 import DashboardLayout from '../../../components/layout/DashboardLayout.jsx';
 import { useAuth } from '../../../context/AuthContext.jsx';
-import { isFreePlanUser } from '../../../utils/subscription.js';
+import { isPaywallBlocking } from '../../../utils/subscription.js';
 import CategoryTabs, { tabToCategoryFilter } from '../../../components/mock-interviews/CategoryTabs.jsx';
 import ScenarioCard from '../../../components/mock-interviews/ScenarioCard.jsx';
 import { useScenarios } from '../../../hooks/useScenarios.js';
@@ -16,7 +16,7 @@ export default function MockInterviewsIndex() {
   const [search, setSearch] = useState('');
   const category = useMemo(() => tabToCategoryFilter(tab), [tab]);
   const { scenarios, loading } = useScenarios({ category, search });
-  const isPremiumUser = user && !isFreePlanUser(user);
+  const isPremiumUser = user && !isPaywallBlocking(user);
 
   const initials =
     String(user?.name || '')

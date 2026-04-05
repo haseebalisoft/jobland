@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import DashboardLayout from '../components/layout/DashboardLayout.jsx';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Upload,
@@ -6,58 +7,68 @@ import {
   Zap,
   Loader2,
   Target,
-  Layers,
-  ListChecks,
   CheckCircle2,
   XCircle,
   TrendingUp,
   RefreshCw,
+  FileUp,
+  AlertTriangle,
 } from 'lucide-react';
-import UserSidebar from '../components/UserSidebar.jsx';
 import UpgradeFloatPanel from '../components/UpgradeFloatPanel.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../services/api.js';
 import { normalizeProfile, emptyProfile } from '../utils/cvProfile.js';
 import { computeProfileAccuracy } from '../utils/profileAccuracy.js';
-import { isFreePlanUser } from '../utils/subscription.js';
+import { isPaywallBlocking } from '../utils/subscription.js';
 import {
   canMatchJobDescription,
   hasSubstantiveResumeForJobMatch,
   hasUploadedResumePdf,
 } from '../utils/jobMatchEligibility.js';
-
-const shell = {
-  borderRadius: 16,
-  border: '1px solid #e2e8f0',
-  background: '#fff',
-  boxShadow: '0 1px 3px rgba(15,23,42,0.06)',
-  overflow: 'hidden',
-};
+import './FreeTierResumeTools.css';
 
 const tealAccent = '#0d9488';
 const tealMuted = '#0f766e';
 const tealSurface = '#f0fdfa';
 const tealBorder = '#99f6e4';
 
-/** Primary teal actions — matches “Get match score” / theme */
-const btnTealPrimary = {
-  border: 'none',
-  background: `linear-gradient(90deg, ${tealAccent}, #14b8a6)`,
-  color: 'white',
-  fontWeight: 800,
-  cursor: 'pointer',
-  boxShadow: '0 1px 3px rgba(13, 148, 136, 0.35)',
-};
-
-const btnOutlineTeal = {
-  border: `1px solid ${tealAccent}`,
-  background: '#fff',
-  color: tealMuted,
-  fontWeight: 700,
-  cursor: 'pointer',
-};
-
 const LAST_RESUME_FILENAME_KEY = 'hiredlogics_last_resume_pdf_name';
+
+function tierColorForScore(n) {
+  if (n == null || !Number.isFinite(Number(n))) return '#6b7280';
+  const v = Number(n);
+  if (v > 70) return '#16a34a';
+  if (v >= 50) return '#d97706';
+  return '#dc2626';
+}
+
+function AtsScoreRing({ score, color }) {
+  const pct = score == null ? 0 : Math.min(100, Math.max(0, Number(score)));
+  const r = 42;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - pct / 100);
+  return (
+    <svg width="100" height="100" viewBox="0 0 100 100" className="sr-score-ring-svg" aria-hidden>
+      <circle cx="50" cy="50" r={r} fill="none" stroke="#e5e7eb" strokeWidth="8" />
+      <circle
+        cx="50"
+        cy="50"
+        r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth="8"
+        strokeLinecap="round"
+        strokeDasharray={c}
+        strokeDashoffset={offset}
+        transform="rotate(-90 50 50)"
+        style={{ transition: 'stroke-dashoffset 0.9s ease' }}
+      />
+      <text x="50" y="55" textAnchor="middle" fontSize="20" fontWeight="800" fill={color}>
+        {score != null ? Math.round(pct) : '—'}
+      </text>
+    </svg>
+  );
+}
 
 function safeAtsScore(v) {
   const n = Number(v);
@@ -69,6 +80,18 @@ export default function FreeTierResumeTools() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
+
+  const displayName = useMemo(() => user?.name || '', [user?.name]);
+  const initials = useMemo(() => {
+    const n = displayName || '';
+    return n
+      .split(' ')
+      .filter(Boolean)
+      .map((p) => p[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || 'U';
+  }, [displayName]);
   const atsImproveSectionRef = useRef(null);
   const [activeTab, setActiveTab] = useState('scorer');
   const [profile, setProfile] = useState(null);
@@ -214,7 +237,7 @@ export default function FreeTierResumeTools() {
   };
 
   const handleImproveFromMatch = () => {
-    if (user && !isFreePlanUser(user)) {
+    if (user && !isPaywallBlocking(user)) {
       if (typeof window !== 'undefined' && jd.trim()) {
         window.sessionStorage.setItem('resume_maker_seed_jd', jd.trim());
       }
@@ -302,175 +325,170 @@ export default function FreeTierResumeTools() {
 
   const gap = analyzedData?.gapAnalysis;
 
+  const aggregatedHighlights = useMemo(() => {
+    const dims = atsAnalysis?.dimensions;
+    if (!Array.isArray(dims)) return [];
+    const seen = new Set();
+    const out = [];
+    dims.forEach((d) => {
+      (d?.highlights || []).forEach((h) => {
+        const t = String(h || '').trim();
+        if (t && !seen.has(t)) {
+          seen.add(t);
+          out.push(t);
+        }
+      });
+    });
+    return out;
+  }, [atsAnalysis]);
+
+  const aggregatedGapsList = useMemo(() => {
+    const dims = atsAnalysis?.dimensions;
+    if (!Array.isArray(dims)) return [];
+    const seen = new Set();
+    const out = [];
+    dims.forEach((d) => {
+      (d?.gaps || []).forEach((g) => {
+        const t = String(g || '').trim();
+        if (t && !seen.has(t)) {
+          seen.add(t);
+          out.push(t);
+        }
+      });
+    });
+    return out;
+  }, [atsAnalysis]);
+
   const stuffingStyles = {
     low: { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' },
     medium: { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
     high: { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
   };
 
-  const tabBtn = (id, label, Icon) => {
-    const on = activeTab === id;
-    return (
-      <button
-        type="button"
-        onClick={() => setActiveTab(id)}
-        style={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-          padding: '12px 10px',
-          fontSize: 14,
-          lineHeight: 1.25,
-          fontWeight: 700,
-          border: 'none',
-          cursor: 'pointer',
-          background: on ? tealSurface : 'transparent',
-          color: on ? tealMuted : '#64748b',
-          borderBottom: on ? `3px solid ${tealAccent}` : '3px solid transparent',
-          transition: 'background 0.15s, color 0.15s',
-        }}
-      >
-        <Icon size={20} style={{ color: on ? tealAccent : '#94a3b8' }} />
-        {label}
-      </button>
-    );
-  };
-
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
+    <DashboardLayout userName={displayName} userInitials={initials}>
+      <div className="sr-page">
       <UpgradeFloatPanel open={showUpgradePanel} onClose={closeUpgradePanel} />
-      <UserSidebar />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto', marginLeft: 0 }}>
+      <div className="sr-scroll">
         {loadingProfile ? (
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 48,
-              gap: 16,
-            }}
-          >
+          <div className="sr-loader-wrap">
             <Loader2 className="animate-spin" size={40} style={{ color: tealAccent }} aria-hidden />
             <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#64748b' }}>Loading Groq/API…</p>
           </div>
         ) : (
-        <main style={{ flex: 1, padding: '28px 24px 48px', maxWidth: 900, width: '100%', margin: '0 auto' }}>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', margin: '0 0 8px' }}>Resume &amp; job match</h1>
-          <p style={{ color: '#64748b', marginBottom: 24, fontSize: 15, lineHeight: 1.5 }}>
-            Upload a resume for an <strong>ATS-style analysis</strong> (keywords, impact, structure), or paste a job description to see
-            how your experience lines up.
-          </p>
+        <main className="sr-main">
+          <header className="sr-header">
+            <h1 className="sr-title">Resume &amp; job match</h1>
+            <p className="sr-subtitle">
+              Upload a resume for an <strong>ATS-style analysis</strong> (keywords, impact, structure), or paste a job description
+              to see how your experience lines up.
+            </p>
+          </header>
 
-          <div style={shell}>
-            <div
-              style={{
-                display: 'flex',
-                borderBottom: '1px solid #e2e8f0',
-                background: '#fafafa',
-              }}
-            >
-              {tabBtn('scorer', 'Upload resume', Upload)}
-              {tabBtn('matcher', 'Match resume to JD', Target)}
+          <div className="sr-card">
+            <div className="sr-tabs" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'scorer'}
+                className={`sr-tab${activeTab === 'scorer' ? ' sr-tab--active' : ''}`}
+                onClick={() => setActiveTab('scorer')}
+              >
+                <Upload size={18} strokeWidth={2} />
+                Upload resume
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'matcher'}
+                className={`sr-tab${activeTab === 'matcher' ? ' sr-tab--active' : ''}`}
+                onClick={() => setActiveTab('matcher')}
+              >
+                <Target size={18} strokeWidth={2} />
+                Match resume to JD
+              </button>
             </div>
 
-            <div style={{ padding: 24 }}>
+            <div className="sr-panel">
               {activeTab === 'scorer' && (
                 <>
-                  <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8, color: '#0f172a' }}>
-                    <Upload size={20} color={tealAccent} /> Upload resume (PDF)
-                  </h2>
-                  <p style={{ fontSize: 14, color: '#64748b', marginBottom: 16, lineHeight: 1.5 }}>
-                    <strong>Give yourself a stronger shot at interviews.</strong> Most employers screen resumes with software (ATS) before a human
-                    reads them. Upload your PDF and we&apos;ll analyze how well your resume reads for those systems and for real recruiters:
-                    keyword fit for your role, clear impact and numbers, and a structure that&apos;s easy to scan. You&apos;ll get concrete
-                    strengths, gaps, and next steps so you can optimize your resume and improve your odds of moving forward.
-                  </p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
-                    {(file?.name || lastUploadedResumeFileName) && (
-                      <span
-                        title={file?.name || lastUploadedResumeFileName}
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: '#0f172a',
-                          maxWidth: 'min(100%, 320px)',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          padding: '6px 10px',
-                          borderRadius: 8,
-                          background: '#f1f5f9',
-                          border: '1px solid #e2e8f0',
-                        }}
-                      >
-                        {file?.name ? (
-                          <>
-                            <span style={{ color: '#64748b', fontWeight: 600 }}>Selected: </span>
-                            {file.name}
-                          </>
-                        ) : (
-                          <>
-                            <span style={{ color: '#64748b', fontWeight: 600 }}>Last upload: </span>
-                            {lastUploadedResumeFileName}
-                          </>
-                        )}
-                      </span>
-                    )}
-                    <input
-                      type="file"
-                      accept=".pdf,application/pdf"
-                      disabled={parsing || atsLoading}
-                      onChange={(e) => {
-                        const nextFile = e.target.files?.[0] || null;
-                        setFile(nextFile);
-                        if (nextFile?.name) {
-                          setLastUploadedResumeFileName(nextFile.name);
-                          try {
-                            sessionStorage.setItem(LAST_RESUME_FILENAME_KEY, nextFile.name);
-                          } catch {
-                            /* ignore */
+                  <div className="sr-section-head">
+                    <Upload size={20} color={tealAccent} aria-hidden />
+                    <h2>Upload resume (PDF)</h2>
+                  </div>
+                  <div className="sr-desc-card">
+                    <span className="sr-desc-lead">Give yourself a stronger shot at interviews.</span>
+                    Most employers screen resumes with software (ATS) before a human reads them. Upload your PDF and we&apos;ll analyze how
+                    well your resume reads for those systems and for real recruiters: keyword fit for your role, clear impact and numbers,
+                    and a structure that&apos;s easy to scan. You&apos;ll get concrete strengths, gaps, and next steps so you can optimize
+                    your resume and improve your odds of moving forward.
+                  </div>
+                  <div className="sr-upload-row">
+                    <label className="sr-file-label">
+                      <input
+                        className="sr-file-input"
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        disabled={parsing || atsLoading}
+                        onChange={(e) => {
+                          const nextFile = e.target.files?.[0] || null;
+                          setFile(nextFile);
+                          if (nextFile?.name) {
+                            setLastUploadedResumeFileName(nextFile.name);
+                            try {
+                              sessionStorage.setItem(LAST_RESUME_FILENAME_KEY, nextFile.name);
+                            } catch {
+                              /* ignore */
+                            }
                           }
-                        }
-                        setParseError('');
-                      }}
-                    />
-                    <button type="button" className="btn-next" disabled={!file || parsing || atsLoading} onClick={handleParseUpload}>
+                          setParseError('');
+                        }}
+                      />
+                      <FileUp size={18} color="#9ca3af" aria-hidden />
+                      <span>
+                        {file?.name || lastUploadedResumeFileName || 'No file chosen'}
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      className="sr-btn-upload"
+                      disabled={!file || parsing || atsLoading}
+                      onClick={handleParseUpload}
+                    >
                       {parsing ? (
                         <>
-                          <Loader2 className="animate-spin" size={16} style={{ marginRight: 8 }} />
+                          <Loader2 className="animate-spin" size={16} aria-hidden />
                           Reading PDF…
                         </>
                       ) : (
-                        'Upload & analyze'
+                        <>
+                          <Zap size={16} aria-hidden />
+                          Upload &amp; analyze
+                        </>
                       )}
                     </button>
                     {!loadingProfile && profile && hasProfileBody(profile) && (
                       <button
                         type="button"
-                        className="logout-btn"
-                        style={{ fontSize: 13, fontWeight: 600 }}
+                        className="sr-btn-rerun"
                         disabled={atsLoading || parsing}
                         onClick={() => runAtsAnalysis(profile)}
                       >
+                        <RefreshCw size={14} aria-hidden />
                         {atsLoading ? 'Analyzing…' : 'Re-run ATS analysis'}
                       </button>
                     )}
                   </div>
                   {atsLoading && (
-                    <p style={{ color: tealMuted, fontSize: 14, marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="sr-loading-inline">
                       <Loader2 className="animate-spin" size={16} aria-hidden />
                       Running ATS analysis…
-                    </p>
+                    </div>
                   )}
-                  {parseError && <p style={{ color: '#dc2626', fontSize: 14, marginTop: 12 }}>{parseError}</p>}
+                  {parseError && <p className="sr-error">{parseError}</p>}
                   {atsError && (
-                    <div style={{ marginTop: 16, padding: 12, background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca' }}>
-                      <p style={{ color: '#991b1b', fontSize: 14, margin: 0 }}>{atsError}</p>
+                    <div className="sr-error-box">
+                      <p>{atsError}</p>
                       {!loadingProfile && profile && hasProfileBody(profile) && (
                         <p style={{ color: '#64748b', fontSize: 13, margin: '8px 0 0' }}>
                           Basic checklist fallback: {profileAccuracy.completionPercent}% — fields missing:{' '}
@@ -481,112 +499,155 @@ export default function FreeTierResumeTools() {
                   )}
 
                   {!loadingProfile && profile && hasProfileBody(profile) && atsAnalysis && (
-                    <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
-                      <div
-                        style={{
-                          padding: 20,
-                          background: tealSurface,
-                          borderRadius: 12,
-                          border: `1px solid ${tealBorder}`,
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-                          <div style={{ flex: 1, minWidth: 200 }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: tealMuted, textTransform: 'uppercase' }}>Overall ATS score</div>
-                            <div style={{ fontSize: 40, fontWeight: 900, color: tealAccent, lineHeight: 1.1 }}>
-                              {safeAtsScore(atsAnalysis.overallAtsScore) != null ? `${safeAtsScore(atsAnalysis.overallAtsScore)}%` : '—'}
+                    <div className="sr-ats-stack">
+                      {(() => {
+                        const overallScore = safeAtsScore(atsAnalysis.overallAtsScore);
+                        const overallColor = tierColorForScore(overallScore);
+                        return (
+                          <div className="sr-score-hero">
+                            <div className="sr-score-hero-inner">
+                              <div>
+                                <div className="sr-score-label">Your ATS Score</div>
+                                <div className="sr-score-big">
+                                  <span className="sr-score-num" style={{ color: overallColor }}>
+                                    {overallScore != null ? overallScore : '—'}
+                                  </span>
+                                  <span className="sr-score-denom">/100</span>
+                                </div>
+                              </div>
+                              <AtsScoreRing score={overallScore} color={overallColor} />
                             </div>
-                            <p style={{ fontSize: 14, color: '#334155', margin: '12px 0 0', lineHeight: 1.55 }}>
+                            <p className="sr-score-summary">
                               {atsAnalysis.executiveSummary || 'No summary returned — try Re-run ATS analysis.'}
                             </p>
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch', minWidth: 200 }}>
-                            <button
-                              type="button"
-                              onClick={scrollToAtsImproveSection}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 8,
-                                padding: '10px 14px',
-                                borderRadius: 10,
-                                fontSize: 14,
-                                ...btnTealPrimary,
-                              }}
-                            >
-                              <TrendingUp size={18} />
-                              Improve score
-                            </button>
-                            {user && !isFreePlanUser(user) && (
-                              <button
-                                type="button"
-                                onClick={() => navigate('/resume-maker')}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: 8,
-                                  padding: '10px 14px',
-                                  borderRadius: 10,
-                                  fontSize: 14,
-                                  ...btnOutlineTeal,
-                                }}
-                              >
-                                Open resume builder
+                            <div className="sr-improve-row">
+                              <button type="button" className="sr-btn-improve" onClick={scrollToAtsImproveSection}>
+                                <TrendingUp size={18} aria-hidden />
+                                Improve score
                               </button>
-                            )}
+                              {user && !isPaywallBlocking(user) && (
+                                <button type="button" className="sr-btn-outline-t" onClick={() => navigate('/resume-maker')}>
+                                  Open resume builder
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </div>
+                        );
+                      })()}
 
-                      <div ref={atsImproveSectionRef} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                       {Array.isArray(atsAnalysis.dimensions) && atsAnalysis.dimensions.length > 0 && (
-                        <div style={{ padding: 20, background: '#fff', borderRadius: 12, border: `1px solid ${tealBorder}` }}>
-                          <h3 style={{ fontSize: 14, fontWeight: 800, color: tealMuted, margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <Layers size={18} /> Dimension scores (weighted)
-                          </h3>
+                        <div ref={atsImproveSectionRef} className="sr-breakdown-grid">
                           {atsAnalysis.dimensions.map((d, idx) => {
                             if (!d || typeof d !== 'object') return null;
                             const pct = Math.min(100, Math.max(0, Number(d.score) || 0));
                             const w = d.weightPercent ?? '';
+                            const dimCol = tierColorForScore(pct);
+                            const bullets = [];
+                            const h = d.highlights || [];
+                            const g = d.gaps || [];
+                            if (h[0]) bullets.push(h[0]);
+                            if (h[1]) bullets.push(h[1]);
+                            if (bullets.length < 2 && g[0]) bullets.push(g[0]);
+                            if (bullets.length < 2 && g[1]) bullets.push(g[1]);
+                            const two = bullets.slice(0, 2);
                             return (
-                              <div key={d.id || d.label || `dim-${idx}`} style={{ marginBottom: 18 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6, gap: 8 }}>
-                                  <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{d.label}</span>
-                                  <span style={{ fontSize: 12, color: '#64748b' }}>
-                                    {w ? `${w}% weight · ` : ''}
+                              <div key={d.id || d.label || `dim-${idx}`} className="sr-dim-card">
+                                <div className="sr-dim-head">
+                                  <span className="sr-dim-title">{d.label}</span>
+                                  <span
+                                    className="sr-dim-badge"
+                                    style={{
+                                      background: `${dimCol}18`,
+                                      color: dimCol,
+                                      border: `1px solid ${dimCol}44`,
+                                    }}
+                                  >
                                     {pct}%
                                   </span>
                                 </div>
-                                <div style={{ height: 8, borderRadius: 4, background: '#e2e8f0', overflow: 'hidden' }}>
-                                  <div style={{ width: `${pct}%`, height: '100%', borderRadius: 4, background: `linear-gradient(90deg, ${tealAccent}, #2dd4bf)` }} />
+                                <div className="sr-mini-bar">
+                                  <div className="sr-mini-fill" style={{ width: `${pct}%`, background: dimCol }} />
                                 </div>
-                                {(d.highlights?.length > 0 || d.gaps?.length > 0) && (
-                                  <div style={{ marginTop: 8, fontSize: 13, color: '#475569', display: 'grid', gap: 6 }}>
-                                    {d.highlights?.length > 0 && (
-                                      <div>
-                                        <span style={{ fontWeight: 700, color: tealMuted }}>Strengths: </span>
-                                        {d.highlights.join(' · ')}
-                                      </div>
-                                    )}
-                                    {d.gaps?.length > 0 && (
-                                      <div>
-                                        <span style={{ fontWeight: 700, color: '#c2410c' }}>Gaps: </span>
-                                        {d.gaps.join(' · ')}
-                                      </div>
-                                    )}
-                                  </div>
+                                {two.length > 0 && (
+                                  <ul className="sr-dim-bullets">
+                                    {two.map((line, li) => (
+                                      <li key={li}>{line}</li>
+                                    ))}
+                                  </ul>
                                 )}
+                                {w ? (
+                                  <p style={{ margin: '8px 0 0', fontSize: 12, color: '#9ca3af' }}>{w}% weight</p>
+                                ) : null}
                               </div>
                             );
                           })}
                         </div>
                       )}
 
+                      {(aggregatedHighlights.length > 0 || aggregatedGapsList.length > 0) && (
+                        <div className="sr-sg-grid">
+                          <div className="sr-sg-col sr-sg-col--str">
+                            <h3>
+                              <CheckCircle2 size={18} strokeWidth={2.5} aria-hidden />
+                              Strengths
+                            </h3>
+                            <div className="sr-pill-list">
+                              {aggregatedHighlights.slice(0, 12).map((t, i) => (
+                                <div key={`str-${i}`} className="sr-pill sr-pill--str">
+                                  <CheckCircle2 size={16} color="#16a34a" aria-hidden />
+                                  <span>{t}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="sr-sg-col sr-sg-col--gap">
+                            <h3>
+                              <AlertTriangle size={18} strokeWidth={2.5} aria-hidden />
+                              Areas to Improve
+                            </h3>
+                            <div className="sr-pill-list">
+                              {aggregatedGapsList.slice(0, 12).map((t, i) => (
+                                <div key={`gap-${i}`} className="sr-pill sr-pill--gap">
+                                  <AlertTriangle size={16} color="#d97706" aria-hidden />
+                                  <span>{t}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {Array.isArray(atsAnalysis.recommendations) && atsAnalysis.recommendations.length > 0 && (
+                        <div className="sr-next" id="ats-recommendations">
+                          <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 800, color: '#111827' }}>Next steps</h3>
+                          <ul className="sr-next-list">
+                            {atsAnalysis.recommendations.map((rec, i) => {
+                              if (!rec) return null;
+                              const pr = String(rec.priority || 'medium').toLowerCase();
+                              return (
+                                <li key={i} className="sr-next-item">
+                                  <span className="sr-next-num">{i + 1}</span>
+                                  <div className="sr-next-text">
+                                    <strong>{rec.text || '(No text)'}</strong>
+                                    <span>
+                                      {pr === 'high' ? 'High priority' : pr === 'low' ? 'Lower priority' : 'Medium priority'}
+                                    </span>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                          <div className="sr-next-footer">
+                            <button type="button" className="sr-btn-report" onClick={() => window.print()}>
+                              Download full report
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       {atsAnalysis.keywordAnalysis && (
-                        <div style={{ padding: 20, background: '#fff', borderRadius: 12, border: `1px solid ${tealBorder}` }}>
-                          <h3 style={{ fontSize: 14, fontWeight: 800, color: tealMuted, margin: '0 0 12px' }}>Keyword analysis</h3>
+                        <div className="sr-extra">
+                          <h3>Keyword analysis</h3>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8, alignItems: 'center' }}>
                             <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>Stuffing risk:</span>
                             {(() => {
@@ -613,7 +674,7 @@ export default function FreeTierResumeTools() {
                           {atsAnalysis.keywordAnalysis.notes && (
                             <p style={{ fontSize: 13, color: '#475569', margin: '0 0 12px' }}>{atsAnalysis.keywordAnalysis.notes}</p>
                           )}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
+                          <div className="sr-extra-grid">
                             <div>
                               <div style={{ fontWeight: 700, color: tealMuted, marginBottom: 6 }}>Strong</div>
                               <ul style={{ margin: 0, paddingLeft: 18, color: '#334155' }}>
@@ -635,8 +696,8 @@ export default function FreeTierResumeTools() {
                       )}
 
                       {atsAnalysis.impactAnalysis && (
-                        <div style={{ padding: 20, background: '#fff', borderRadius: 12, border: `1px solid ${tealBorder}` }}>
-                          <h3 style={{ fontSize: 14, fontWeight: 800, color: tealMuted, margin: '0 0 8px' }}>Impact & metrics</h3>
+                        <div className="sr-extra">
+                          <h3>Impact & metrics</h3>
                           <p style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>
                             Score: <strong style={{ color: tealAccent }}>{Math.round(Number(atsAnalysis.impactAnalysis.score) || 0)}</strong>
                             {atsAnalysis.impactAnalysis.hasQuantifiedBullets ? ' · Includes quantified bullets' : ' · Few/no clear metrics'}
@@ -658,8 +719,8 @@ export default function FreeTierResumeTools() {
                       )}
 
                       {atsAnalysis.structureNotes && (
-                        <div style={{ padding: 20, background: '#fff', borderRadius: 12, border: `1px solid ${tealBorder}` }}>
-                          <h3 style={{ fontSize: 14, fontWeight: 800, color: tealMuted, margin: '0 0 8px' }}>Structure & ATS parsing</h3>
+                        <div className="sr-extra">
+                          <h3>Structure & ATS parsing</h3>
                           <p style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>
                             Score: <strong style={{ color: tealAccent }}>{Math.round(Number(atsAnalysis.structureNotes.score) || 0)}</strong>
                           </p>
@@ -677,29 +738,6 @@ export default function FreeTierResumeTools() {
                           )}
                         </div>
                       )}
-
-                      {Array.isArray(atsAnalysis.recommendations) && atsAnalysis.recommendations.length > 0 && (
-                        <div id="ats-recommendations" style={{ padding: 20, background: '#fff', borderRadius: 12, border: `1px solid ${tealBorder}` }}>
-                          <h3 style={{ fontSize: 14, fontWeight: 800, color: tealMuted, margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <ListChecks size={18} /> Recommendations
-                          </h3>
-                          <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', fontSize: 14, color: '#334155' }}>
-                            {atsAnalysis.recommendations.map((rec, i) => {
-                              if (!rec) return null;
-                              const pr = String(rec.priority || 'medium').toLowerCase();
-                              const col = pr === 'high' ? '#b91c1c' : pr === 'low' ? '#64748b' : '#b45309';
-                              return (
-                                <li key={i} style={{ marginBottom: 10, paddingLeft: 12, borderLeft: `3px solid ${col}` }}>
-                                  <span style={{ fontSize: 11, fontWeight: 800, color: col, textTransform: 'uppercase' }}>{pr}</span>
-                                  {' — '}
-                                  {rec.text || '(No text)'}
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </div>
-                      )}
-                      </div>
                     </div>
                   )}
                 </>
@@ -707,35 +745,25 @@ export default function FreeTierResumeTools() {
 
               {activeTab === 'matcher' && (
                 <>
-                  <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8, color: '#0f172a' }}>
-                    <Sparkles size={20} color={tealAccent} /> Paste a job posting
-                  </h2>
-                  <p style={{ fontSize: 14, color: '#64748b', marginBottom: 16, lineHeight: 1.5 }}>
-                    Paste a job description. We compare it to <strong>the resume text from your uploaded PDF</strong> (first tab).
+                  <div className="sr-section-head">
+                    <Sparkles size={20} color={tealAccent} aria-hidden />
+                    <h2>Paste a job posting</h2>
+                  </div>
+                  <p className="sr-matcher-sub">
+                    Paste a job description. We compare it to the <strong>resume text from your uploaded PDF</strong> (first tab).
                   </p>
                   {profile && (
-                    <div
-                      style={{
-                        marginBottom: 16,
-                        padding: '12px 14px',
-                        borderRadius: 10,
-                        background: tealSurface,
-                        border: `1px solid ${tealBorder}`,
-                      }}
-                    >
-                      <div style={{ fontSize: 11, fontWeight: 800, color: tealMuted, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                        Resume used for this match
-                      </div>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', marginTop: 6, lineHeight: 1.35 }}>
-                        {(profile.professional?.currentTitle || '').trim() || '—'}
-                        {!hasUploadedResumePdf(profile) && (
-                          <span style={{ fontSize: 13, fontWeight: 600, color: '#b45309', marginLeft: 8 }}>
-                            (upload a PDF on the first tab to match)
-                          </span>
+                    <div className="sr-resume-used">
+                      <div className="sr-resume-used-label">Resume used for this match</div>
+                      <div className="sr-resume-used-row">
+                        {!hasUploadedResumePdf(profile) ? (
+                          <>— (upload a PDF on the first tab to match)</>
+                        ) : (
+                          (profile.professional?.currentTitle || '').trim() || '—'
                         )}
                       </div>
                       {(profile.personal?.fullName || '').trim() ? (
-                        <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>{(profile.personal.fullName || '').trim()}</div>
+                        <div className="sr-resume-name">{(profile.personal.fullName || '').trim()}</div>
                       ) : null}
                       {profile.resumeUploadedAt ? (
                         <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>
@@ -755,126 +783,55 @@ export default function FreeTierResumeTools() {
                     </div>
                   )}
                   {syncingProfile && (
-                    <p
-                      style={{
-                        marginBottom: 12,
-                        fontSize: 13,
-                        color: tealMuted,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                      }}
-                    >
+                    <div className="sr-loading-inline" style={{ marginBottom: 12 }}>
                       <Loader2 className="animate-spin" size={16} aria-hidden />
                       Syncing saved resume from the server…
-                    </p>
+                    </div>
                   )}
                   {profile && !syncingProfile && !hasUploadedResumePdf(profile) && (
-                    <div
-                      style={{
-                        marginBottom: 16,
-                        padding: 14,
-                        borderRadius: 10,
-                        background: '#fffbeb',
-                        border: '1px solid #fde68a',
-                        fontSize: 14,
-                        color: '#92400e',
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      <strong>No resume PDF on record yet.</strong> On the first tab, use &quot;Upload &amp; analyze&quot; so we parse and
-                      save your file. Job match uses that saved parse — not profile text typed elsewhere alone.
-                      <div style={{ marginTop: 12 }}>
-                        <button
-                          type="button"
-                          disabled={syncingProfile}
-                          onClick={() => refreshProfile()}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            padding: '8px 12px',
-                            borderRadius: 8,
-                            fontSize: 13,
-                            fontWeight: 700,
-                            ...btnOutlineTeal,
-                          }}
-                        >
-                          <RefreshCw size={14} />
-                          Refresh status
-                        </button>
-                      </div>
+                    <div className="sr-warn-card">
+                      <p style={{ margin: 0 }}>
+                        <strong>No resume PDF on record yet.</strong> On the first tab, use &quot;Upload &amp; analyze&quot; so we parse and
+                        save your file. Job match uses that saved parse — not profile text typed elsewhere alone.
+                      </p>
+                      <button
+                        type="button"
+                        className="sr-btn-refresh"
+                        disabled={syncingProfile}
+                        onClick={() => refreshProfile()}
+                      >
+                        <RefreshCw size={14} aria-hidden />
+                        Refresh status
+                      </button>
                     </div>
                   )}
                   {profile && !syncingProfile && hasUploadedResumePdf(profile) && !hasSubstantiveResumeForJobMatch(profile) && (
-                    <div
-                      style={{
-                        marginBottom: 16,
-                        padding: 14,
-                        borderRadius: 10,
-                        background: '#fffbeb',
-                        border: '1px solid #fde68a',
-                        fontSize: 14,
-                        color: '#92400e',
-                        lineHeight: 1.5,
-                      }}
-                    >
+                    <div className="sr-thin-warn">
                       <strong>Parsed resume is too thin.</strong> Re-upload a clearer PDF or add roles and detail in Profile so there is
                       enough text to compare to the job description.
                     </div>
                   )}
                   <textarea
+                    className="sr-jd-input"
                     value={jd}
                     onChange={(e) => setJd(e.target.value)}
-                    placeholder="Paste the job description here…"
-                    style={{
-                      width: '100%',
-                      minHeight: 140,
-                      padding: 12,
-                      borderRadius: 10,
-                      border: `1px solid ${tealBorder}`,
-                      background: '#fff',
-                      color: '#0f172a',
-                      fontSize: 14,
-                      resize: 'vertical',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                    }}
+                    placeholder="Paste the job description here..."
                   />
                   <button
                     type="button"
+                    className="sr-btn-match"
                     onClick={handleAnalyzeJD}
                     disabled={isAnalyzing || syncingProfile || !canMatchJobDescription(profile || emptyProfile())}
-                    style={{
-                      marginTop: 14,
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      padding: '12px 16px',
-                      borderRadius: 10,
-                      cursor: isAnalyzing ? 'wait' : 'pointer',
-                      opacity: isAnalyzing ? 0.9 : 1,
-                      ...btnTealPrimary,
-                    }}
+                    style={{ cursor: isAnalyzing ? 'wait' : undefined }}
                   >
-                    {isAnalyzing ? <Loader2 className="animate-spin" size={18} /> : <Zap size={18} />}
+                    {isAnalyzing ? <Loader2 className="animate-spin" size={18} aria-hidden /> : <Zap size={18} aria-hidden />}
                     {isAnalyzing ? 'Analyzing…' : 'Get match score'}
                   </button>
                   {analyzeError && <p style={{ color: '#dc2626', marginTop: 12, fontSize: 14 }}>{analyzeError}</p>}
 
                   {gap && (
-                    <div
-                      style={{
-                        marginTop: 24,
-                        padding: 20,
-                        background: tealSurface,
-                        borderRadius: 12,
-                        border: `1px solid ${tealBorder}`,
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+                    <div className="sr-gap-hero">
+                      <div className="sr-gap-actions" style={{ marginBottom: 16, justifyContent: 'space-between', width: '100%' }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: tealMuted, textTransform: 'uppercase' }}>Job match score</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                           <span
@@ -890,20 +847,8 @@ export default function FreeTierResumeTools() {
                           >
                             {safeAtsScore(gap.alignmentScore) != null ? `${safeAtsScore(gap.alignmentScore)}%` : '—%'} match
                           </span>
-                          <button
-                            type="button"
-                            onClick={handleImproveFromMatch}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 8,
-                              padding: '8px 12px',
-                              borderRadius: 8,
-                              fontSize: 13,
-                              ...btnTealPrimary,
-                            }}
-                          >
-                            <TrendingUp size={15} />
+                          <button type="button" className="sr-btn-improve" onClick={handleImproveFromMatch}>
+                            <TrendingUp size={15} aria-hidden />
                             Improve match
                           </button>
                         </div>
@@ -1090,6 +1035,7 @@ export default function FreeTierResumeTools() {
         </main>
         )}
       </div>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
