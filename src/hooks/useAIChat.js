@@ -1,11 +1,9 @@
-import api from '../services/api.js';
-
-const STORAGE_KEY = 'hiredlogics_access_token';
+import api, { getAccessToken, getApiBaseUrl } from '../services/api.js';
 
 export async function streamInterviewMessage(sessionId, message, handlers = {}) {
   const { onChunk, onDone, onError } = handlers;
-  const token = typeof window !== 'undefined' ? window.sessionStorage.getItem(STORAGE_KEY) : null;
-  const base = api.defaults.baseURL || '';
+  const token = typeof window !== 'undefined' ? getAccessToken() : null;
+  const base = api.defaults.baseURL || getApiBaseUrl() || '';
   const url = `${base}/mock-interviews/sessions/${sessionId}/message`;
 
   const res = await fetch(url, {

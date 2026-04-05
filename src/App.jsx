@@ -116,6 +116,10 @@ function App() {
           <Route path="/dashboard/applications" element={<Navigate to="/dashboard/job-tracker" replace />} />
           <Route path="/dashboard/mock-interviews" element={<PaidRoute><MockInterviewsIndex /></PaidRoute>} />
           <Route path="/dashboard/mock-interviews/:scenarioId/setup" element={<PaidRoute><MockInterviewSetup /></PaidRoute>} />
+          <Route
+            path="/dashboard/mock-interviews/:scenarioId/session/:sessionId"
+            element={<PaidRoute><MockInterviewSession /></PaidRoute>}
+          />
           <Route path="/dashboard/mock-interviews/session/:sessionId" element={<PaidRoute><MockInterviewSession /></PaidRoute>} />
           <Route path="/dashboard/mock-interviews/session/:sessionId/report" element={<PaidRoute><MockInterviewReport /></PaidRoute>} />
           <Route path="/dashboard/mock-interviews/history" element={<PaidRoute><MockInterviewHistory /></PaidRoute>} />

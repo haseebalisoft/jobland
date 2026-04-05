@@ -6,6 +6,8 @@ import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger.js';
 
 import { config } from './config/env.js';
+import { googleLogin } from './controllers/authController.js';
+import { loginRateLimiter } from './middlewares/rateLimitMiddleware.js';
 import authRoutes from './routes/authRoutes.js';
 import planRoutes from './routes/planRoutes.js';
 import subscriptionRoutes from './routes/subscriptionRoutes.js';
@@ -35,6 +37,24 @@ const app = express();
 app.use('/api/webhooks', express.raw({ type: 'application/json' }));
 // Stripe webhooks: raw body (preferred path /api/stripe/webhook)
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }), stripeWebhookRoutes);
+
+function isAllowedCorsOrigin(origin) {
+  if (!origin) return true;
+  if (/^chrome-extension:\/\//i.test(origin)) return true;
+  const client = String(config.clientUrl || '').replace(/\/$/, '');
+  if (origin === client) return true;
+  try {
+    const o = new URL(origin);
+    const c = new URL(client);
+    if (o.protocol !== c.protocol) return false;
+    if (String(o.port || '') !== String(c.port || '')) return false;
+    const loopback = (h) => h === '127.0.0.1' || h === 'localhost' || h === '[::1]';
+    if (loopback(o.hostname) && loopback(c.hostname)) return true;
+  } catch {
+    return false;
+  }
+  return false;
+}
 
 app.use(
   cors({
@@ -66,6 +86,9 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // Swagger docs at /api/docs
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Google Sign-In: mounted on app first so POST /api/auth/google always resolves (GIS credential).
+app.post('/api/auth/google', loginRateLimiter, googleLogin);
 
 // API routes
 app.use('/api/auth', authRoutes);

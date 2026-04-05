@@ -47,6 +47,11 @@ export function setAccessToken(token) {
   }
 }
 
+/** Same JWT axios uses (including after silent refresh). Prefer this over reading sessionStorage directly. */
+export function getAccessToken() {
+  return accessToken;
+}
+
 api.interceptors.request.use((config) => {
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
@@ -67,11 +72,11 @@ api.interceptors.response.use(
       original._retry = true;
       try {
         const res = await api.post('/auth/refresh-token');
-        accessToken = res.data.accessToken;
+        setAccessToken(res.data.accessToken);
         original.headers.Authorization = `Bearer ${accessToken}`;
         return api(original);
       } catch (e) {
-        accessToken = null;
+        setAccessToken(null);
       }
     }
     return Promise.reject(error);

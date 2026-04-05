@@ -253,12 +253,21 @@ export async function endSession(userId, sessionId) {
     `UPDATE interview_sessions SET status = 'completed', ended_at = NOW(), updated_at = NOW() WHERE id = $1 AND user_id = $2 AND status = 'active' RETURNING id`,
     [sessionId, userId],
   );
-  if (res.rowCount === 0) {
-    const err = new Error('Session not found or already ended');
+  if (res.rowCount > 0) {
+    return { success: true };
+  }
+  const check = await query(`SELECT status FROM interview_sessions WHERE id = $1 AND user_id = $2`, [sessionId, userId]);
+  if (check.rowCount === 0) {
+    const err = new Error('Session not found');
     err.statusCode = 404;
     throw err;
   }
-  return { success: true };
+  if (check.rows[0].status === 'completed') {
+    return { success: true, alreadyEnded: true };
+  }
+  const err = new Error('Session cannot be ended');
+  err.statusCode = 400;
+  throw err;
 }
 
 export async function saveReport(userId, sessionId, reportData) {
@@ -273,6 +282,10 @@ export async function saveReport(userId, sessionId, reportData) {
   }
 
   const overall = Math.min(100, Math.max(0, parseInt(reportData.overallScore, 10) || 0));
+  const baseScores = reportData.scores && typeof reportData.scores === 'object' ? { ...reportData.scores } : {};
+  if (reportData.evaluation && typeof reportData.evaluation === 'object') {
+    baseScores._evaluation = reportData.evaluation;
+  }
   const existing = await query(`SELECT id FROM interview_reports WHERE session_id = $1`, [sessionId]);
   if (existing.rowCount > 0) {
     const upd = await query(
@@ -290,7 +303,7 @@ export async function saveReport(userId, sessionId, reportData) {
       [
         sessionId,
         overall,
-        JSON.stringify(reportData.scores || {}),
+        JSON.stringify(baseScores),
         JSON.stringify(reportData.strengths || []),
         JSON.stringify(reportData.improvements || []),
         JSON.stringify(reportData.betterAnswers || []),
@@ -312,7 +325,7 @@ export async function saveReport(userId, sessionId, reportData) {
       sessionId,
       userId,
       overall,
-      JSON.stringify(reportData.scores || {}),
+      JSON.stringify(baseScores),
       JSON.stringify(reportData.strengths || []),
       JSON.stringify(reportData.improvements || []),
       JSON.stringify(reportData.betterAnswers || []),
@@ -325,10 +338,23 @@ export async function saveReport(userId, sessionId, reportData) {
 
 // Need unique on session_id for ON CONFLICT - we have UNIQUE index on session_id
 
+function parseFocusAreas(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw || '[]');
+      return Array.isArray(p) ? p : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 export async function buildAndSaveReport(userId, sessionId) {
   const sRes = await query(
     `
-      SELECT s.id, s.conversation, s.scenario_id, sc.title AS scenario_title
+      SELECT s.id, s.conversation, s.scenario_id, sc.title AS scenario_title, sc.focus_areas
       FROM interview_sessions s
       JOIN interview_scenarios sc ON sc.id = s.scenario_id
       WHERE s.id = $1 AND s.user_id = $2
@@ -343,18 +369,60 @@ export async function buildAndSaveReport(userId, sessionId) {
   const s = sRes.rows[0];
   let conv = s.conversation;
   if (typeof conv === 'string') conv = JSON.parse(conv);
-  const lines = (conv || []).map((m) => `${m.role?.toUpperCase()}: ${m.content}`);
-  const transcript = lines.join('\n\n');
+  if (!Array.isArray(conv)) conv = [];
 
-  const report = await generateInterviewReportJson(transcript);
+  const focusAreas = parseFocusAreas(s.focus_areas);
+
+  const report = await generateInterviewReportJson({
+    scenarioTitle: s.scenario_title,
+    focusAreas,
+    conversation: conv,
+  });
+
+  const overallScore = Number(report.overallScore ?? report.overall_score ?? 0);
+  const sb = report.scoreBreakdown || report.score_breakdown || {};
+  const scores = {
+    technicalAccuracy: Number(sb.technicalAccuracy ?? sb.technical_accuracy ?? 0),
+    depthOfKnowledge: Number(sb.depthOfKnowledge ?? sb.depth_of_knowledge ?? 0),
+    clarity: Number(sb.clarity ?? 0),
+    relevance: Number(sb.relevance ?? 0),
+  };
+
+  const evaluation = {
+    overallScore,
+    answeredCorrectly: report.answeredCorrectly || report.answered_correctly || [],
+    answeredWrongOrWeak: report.answeredWrongOrWeak || report.answered_wrong_or_weak || [],
+    notCovered: report.notCovered || report.not_covered || [],
+    scoreBreakdown: {
+      technicalAccuracy: scores.technicalAccuracy,
+      depthOfKnowledge: scores.depthOfKnowledge,
+      clarity: scores.clarity,
+      relevance: scores.relevance,
+    },
+    strongPoints: report.strongPoints || report.strong_points || [],
+    weakPoints: report.weakPoints || report.weak_points || [],
+    correctAnswers: report.correctAnswers || report.correct_answers || [],
+    verdict: report.verdict || '',
+    verdictReason: report.verdictReason || report.verdict_reason || '',
+  };
+
+  const verdict = String(evaluation.verdict || '').trim();
+  const reason = String(evaluation.verdictReason || '').trim();
+  const recommendations = [verdict && `Verdict: ${verdict}`, reason].filter(Boolean).join('\n\n');
+
+  const scoresForDb = {
+    ...scores,
+    _evaluation: evaluation,
+  };
 
   const normalized = {
-    overallScore: report.overallScore ?? report.overall_score ?? 0,
-    scores: report.scores || {},
-    strengths: report.strengths || [],
-    improvements: report.improvements || [],
-    betterAnswers: report.betterAnswers || report.better_answers || [],
-    recommendations: report.recommendations || '',
+    overallScore,
+    scores: scoresForDb,
+    strengths: evaluation.strongPoints,
+    improvements: evaluation.weakPoints,
+    betterAnswers: evaluation.correctAnswers,
+    recommendations,
+    evaluation,
   };
 
   const { reportId } = await saveReport(userId, sessionId, normalized);

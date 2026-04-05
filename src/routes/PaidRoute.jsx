@@ -4,8 +4,13 @@ import { isPaywallBlocking } from '../utils/subscription.js';
 
 /** Paid subscribers only; free tier users are sent to Score Resume (new dashboard shell) */
 export default function PaidRoute({ children }) {
-  const { user, loading } = useAuth();
+  const auth = useAuth();
   const location = useLocation();
+
+  if (auth == null) {
+    return <div style={{ padding: 48, textAlign: 'center', color: '#64748b' }}>Loading…</div>;
+  }
+  const { user, loading } = auth;
 
   if (loading) return <div style={{ padding: 48, textAlign: 'center', color: '#64748b' }}>Loading…</div>;
   if (!user) return <Navigate to="/login" replace />;
