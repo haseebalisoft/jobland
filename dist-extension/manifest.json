@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Hirdlogic - LinkedIn Optimizer",
+  "version": "1.0.0",
+  "description": "Optimize your LinkedIn profile and track jobs with Hirdlogic",
+  "icons": {
+    "16": "assets/icon16.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": "assets/icon48.png"
+  },
+  "permissions": ["activeTab", "storage", "scripting", "cookies"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*", "https://www.linkedin.com/*", "https://linkedin.com/*", "https://www.indeed.com/*", "https://*.indeed.com/*", "https://*.lever.co/*", "https://*.greenhouse.io/*", "https://boards.greenhouse.io/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/*", "https://linkedin.com/*", "https://www.indeed.com/*", "https://*.indeed.com/*", "https://*.lever.co/*", "https://*.greenhouse.io/*", "https://boards.greenhouse.io/*"],
+      "js": ["api-constants.js", "content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://localhost:5173/*", "http://127.0.0.1:5173/*"],
+      "js": ["dashboard-bridge.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": { "service_worker": "background.js" },
+  "web_accessible_resources": [
+    {
+      "resources": ["sidebar/*", "assets/*"],
+      "matches": ["https://www.linkedin.com/*", "https://linkedin.com/*", "https://www.indeed.com/*", "https://*.indeed.com/*", "https://*.lever.co/*", "https://*.greenhouse.io/*"]
+    }
+  ]
+}

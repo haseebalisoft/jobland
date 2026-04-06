@@ -1,0 +1,95 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  width: 380px;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif;
+  font-size: 14px;
+  color: #0f172a;
+  background: #fff;
+}
+.ph {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #0f172a;
+  color: #fff;
+  padding: 14px 16px;
+}
+.ph-title {
+  font-weight: 700;
+  font-size: 16px;
+}
+.pm {
+  padding: 16px;
+}
+.block {
+  margin-bottom: 20px;
+}
+.block h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+.block ol {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  color: #475569;
+  line-height: 1.45;
+}
+.btn {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #2563eb;
+  color: #fff;
+}
+.btn-full {
+  width: 100%;
+}
+.btn-secondary {
+  background: #1d4ed8;
+  margin-bottom: 8px;
+}
+.btn-ghost {
+  background: #f1f5f9;
+  color: #0f172a;
+  margin-top: 8px;
+}
+.muted {
+  color: #64748b;
+  margin-top: 0;
+}
+h1 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+.fine {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 12px;
+}
+.hidden {
+  display: none !important;
+}
+.adv {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+.adv label {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 4px;
+  margin-top: 8px;
+}
+.adv input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  font: inherit;
+}

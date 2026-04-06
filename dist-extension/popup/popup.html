@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hirdlogic</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="ph">
+      <img id="logo" src="../assets/icon48.png" width="28" height="28" alt="" />
+      <span class="ph-title">Hirdlogic</span>
+    </header>
+
+    <main class="pm">
+      <section id="view-out">
+        <h1>Sign in to Hirdlogic</h1>
+        <p class="muted">Connect your Hirdlogic account to get started</p>
+        <button type="button" class="btn btn-full" id="btn-signin">Sign In</button>
+        <p class="fine">Tip: log in on the Hirdlogic site — your session syncs to this extension.</p>
+      </section>
+
+      <section id="view-in" class="hidden">
+        <div class="block">
+          <h2>LinkedIn Optimization</h2>
+          <ol>
+            <li>Go to your personal LinkedIn Profile page.</li>
+            <li>Look for the floating Hirdlogic icon on the right side.</li>
+            <li>Click the floating icon to open the optimization panel.</li>
+          </ol>
+          <button type="button" class="btn btn-full" id="btn-profile">Open LinkedIn Profile</button>
+        </div>
+        <div class="block">
+          <h2>Job Tracker</h2>
+          <ol>
+            <li>Go to any job listing page (LinkedIn, Indeed, Lever, Greenhouse, etc.)</li>
+            <li>Hover or click the floating Hirdlogic icon on the right side.</li>
+            <li>Save the job to your tracker and view more options.</li>
+          </ol>
+          <button type="button" class="btn btn-full btn-secondary" id="btn-sidebar">Open Sidebar</button>
+          <button type="button" class="btn btn-full" id="btn-tracker">View Job Tracker</button>
+        </div>
+        <div class="adv">
+          <label>API base (optional)</label>
+          <input type="text" id="api-base" placeholder="http://localhost:5000/api" />
+          <label>App origin (optional)</label>
+          <input type="text" id="app-origin" placeholder="http://localhost:5173" />
+          <button type="button" class="btn btn-full btn-ghost" id="btn-save-adv">Save connection settings</button>
+        </div>
+      </section>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import api, { setAccessToken } from '../services/api.js';
+import api, { setAccessToken, getAccessToken } from '../services/api.js';
 
 const AuthContext = createContext(null);
 
@@ -27,6 +27,19 @@ export function AuthProvider({ children }) {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.dispatchEvent(
+        new CustomEvent('hirdlogic-extension-auth', {
+          detail: { token: getAccessToken() || null, user: user || null },
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [user]);
 
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });

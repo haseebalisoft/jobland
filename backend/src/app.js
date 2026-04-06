@@ -29,6 +29,7 @@ import mockInterviewRoutes from './routes/mockInterviewRoutes.js';
 import documentRoutes from './routes/documentRoutes.js';
 import coverLetterRoutes from './routes/coverLetterRoutes.js';
 import supportChatRoutes from './routes/supportChatRoutes.js';
+import linkedinExtensionRoutes from './routes/linkedinExtensionRoutes.js';
 import { notFound, errorHandler } from './middlewares/errorMiddleware.js';
 
 const app = express();
@@ -110,6 +111,7 @@ app.use('/api/mock-interviews', mockInterviewRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/cover-letters', coverLetterRoutes);
 app.use('/api/support-chat', supportChatRoutes);
+app.use('/api/linkedin', linkedinExtensionRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
 app.use(notFound);

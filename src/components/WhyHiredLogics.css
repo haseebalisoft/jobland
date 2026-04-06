@@ -134,7 +134,6 @@
         font-size: 30px;
     }
 }
-
 @media (max-width: 480px) {
     .why-stats {
         grid-template-columns: repeat(2, 1fr);
