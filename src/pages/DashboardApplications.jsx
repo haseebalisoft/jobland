@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Building2, ExternalLink, Filter, MoreVertical, Plus, Search, X } from 'lucide-react'
+import { Building2, ExternalLink, Filter, MoreVertical, Search, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -113,9 +113,6 @@ export default function DashboardApplications() {
   const [searchQuery, setSearchQuery] = useState('')
   const [openMenuId, setOpenMenuId] = useState(null)
   const [detailLead, setDetailLead] = useState(null)
-  const [addJobOpen, setAddJobOpen] = useState(false)
-  const [addJob, setAddJob] = useState({ title: '', company: '', job_url: '' })
-  const [addJobSaving, setAddJobSaving] = useState(false)
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false)
 
   const fetchBoard = useCallback(() => {
@@ -279,31 +276,6 @@ export default function DashboardApplications() {
     }
   }
 
-  const handleAddUserJob = async (e) => {
-    e.preventDefault()
-    const title = addJob.title.trim()
-    const company = addJob.company.trim()
-    if (!title || !company) {
-      window.alert('Title and company are required.')
-      return
-    }
-    setAddJobSaving(true)
-    try {
-      await api.post('/user/jobs', {
-        title,
-        company,
-        job_url: addJob.job_url.trim() || undefined,
-      })
-      setAddJobOpen(false)
-      setAddJob({ title: '', company: '', job_url: '' })
-      fetchBoard()
-    } catch (err) {
-      window.alert(err.response?.data?.message || 'Could not add job.')
-    } finally {
-      setAddJobSaving(false)
-    }
-  }
-
   const boardItems = useMemo(() => {
     const bd = (leads.items || []).map((l) => ({ ...l, source: 'bd' }))
     const uj = (userJobs || []).map(normalizeUserJob)
@@ -390,14 +362,6 @@ export default function DashboardApplications() {
               <Filter size={18} aria-hidden />
               Filter
             </button>
-            <button
-              type="button"
-              className="jt-btn-primary jt-btn-primary--add"
-              onClick={() => setAddJobOpen(true)}
-            >
-              <Plus size={16} strokeWidth={2.5} aria-hidden />
-              Add Job
-            </button>
             <div className="jt-header-menu">
               <button
                 type="button"
@@ -444,7 +408,7 @@ export default function DashboardApplications() {
                       {list.length === 0 && (
                         <p className="jt-col__empty">
                           {col.id === 'saved'
-                            ? 'No jobs yet. Add one with “+ Add Job”, or your BD can assign leads here.'
+                            ? 'No jobs yet. Your BD can assign leads here.'
                             : 'No jobs in this stage yet.'}
                         </p>
                       )}
@@ -569,125 +533,6 @@ export default function DashboardApplications() {
           </div>
         )}
       </div>
-
-      {addJobOpen && (
-        <div
-          className="jt-modal-overlay"
-          role="presentation"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setAddJobOpen(false)
-          }}
-        >
-          <div className="jt-modal" role="dialog" aria-modal="true" aria-labelledby="jt-add-job-title">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-              <h3 id="jt-add-job-title" style={{ margin: 0 }}>
-                Add job
-              </h3>
-              <button
-                type="button"
-                onClick={() => setAddJobOpen(false)}
-                style={{
-                  border: 'none',
-                  background: '#f3f4f6',
-                  borderRadius: 8,
-                  padding: 6,
-                  cursor: 'pointer',
-                  color: '#64748b',
-                }}
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <p style={{ margin: '8px 0 16px', color: theme.textMuted, fontSize: 13 }}>
-              Saves to your board in the Saved column. You can move it as you progress.
-            </p>
-            <form onSubmit={handleAddUserJob} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, fontWeight: 600, color: theme.text }}>
-                Job title
-                <input
-                  value={addJob.title}
-                  onChange={(e) => setAddJob((p) => ({ ...p, title: e.target.value }))}
-                  required
-                  autoComplete="off"
-                  style={{
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 10,
-                    padding: '10px 12px',
-                    fontSize: 14,
-                  }}
-                />
-              </label>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, fontWeight: 600, color: theme.text }}>
-                Company
-                <input
-                  value={addJob.company}
-                  onChange={(e) => setAddJob((p) => ({ ...p, company: e.target.value }))}
-                  required
-                  autoComplete="organization"
-                  style={{
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 10,
-                    padding: '10px 12px',
-                    fontSize: 14,
-                  }}
-                />
-              </label>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, fontWeight: 600, color: theme.text }}>
-                Job URL (optional)
-                <input
-                  value={addJob.job_url}
-                  onChange={(e) => setAddJob((p) => ({ ...p, job_url: e.target.value }))}
-                  type="url"
-                  placeholder="https://"
-                  autoComplete="off"
-                  style={{
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 10,
-                    padding: '10px 12px',
-                    fontSize: 14,
-                  }}
-                />
-              </label>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => setAddJobOpen(false)}
-                  style={{
-                    border: `1px solid ${theme.border}`,
-                    background: '#fff',
-                    color: theme.text,
-                    borderRadius: 10,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    padding: '10px 16px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={addJobSaving}
-                  style={{
-                    border: 'none',
-                    background: theme.blue,
-                    color: '#fff',
-                    borderRadius: 10,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    padding: '10px 16px',
-                    cursor: addJobSaving ? 'wait' : 'pointer',
-                    opacity: addJobSaving ? 0.75 : 1,
-                  }}
-                >
-                  {addJobSaving ? 'Saving…' : 'Save job'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {detailLead && (
         <div

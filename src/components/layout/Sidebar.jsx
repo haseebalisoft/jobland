@@ -1,0 +1,116 @@
+import { Link, useLocation } from 'react-router-dom';
+import {
+  Home,
+  FileText,
+  Briefcase,
+  MonitorPlay,
+  Target,
+  MessageCircle,
+  FolderOpen,
+  Users,
+  Sparkles,
+  SlidersHorizontal,
+  Puzzle,
+  Lightbulb,
+  Bug,
+  PanelLeftClose,
+  PanelLeft,
+} from 'lucide-react';
+import { useDashboardStats } from '../../hooks/useDashboardStats.js';
+
+const sections = [
+  {
+    label: 'MAIN',
+    items: [
+      { to: '/dashboard', label: 'Home', icon: Home, end: true },
+      { to: '/resume-maker', label: 'Resume Builder', icon: FileText },
+      { to: '/dashboard/job-tracker', label: 'Job Tracker', icon: Briefcase, badge: 'jobs' },
+      { to: '/dashboard/mock-interviews', label: 'Mock Interviews', icon: MonitorPlay },
+      { to: '/dashboard/score-resume', label: 'Score Resume', icon: Target },
+    ],
+  },
+  {
+    label: 'TOOLS',
+    items: [
+      //{ to: '/dashboard', hash: '#negotiation', label: 'Negotiation Agent', icon: MessageCircle, beta: true },
+      { to: '/dashboard/application-materials/documents', label: 'Application Materials', icon: FolderOpen },
+    //   { to: '/profile-builder', label: 'Networking', icon: Users },
+    //   { to: '/dashboard/help', label: 'AI Toolbox', icon: Sparkles },
+      { to: '/dashboard/job-preferences', label: 'Job Preferences', icon: SlidersHorizontal },
+    ],
+  },
+  {
+    label: 'SUPPORT',
+    items: [
+      { to: '/dashboard/score-resume', label: 'Chrome Extension', icon: Puzzle },
+    //   { to: '/settings', label: 'Suggest a Feature', icon: Lightbulb },
+    //   { to: '/settings', label: 'Report a Bug', icon: Bug },
+    ],
+  },
+];
+
+function isActive(path, item, hash) {
+  if (item.hash) return path === item.to && hash === item.hash;
+  if (item.end) return path === item.to;
+  return path === item.to || path.startsWith(`${item.to}/`);
+}
+
+export default function Sidebar({ collapsed, onToggleCollapse }) {
+  const location = useLocation();
+  const { stats } = useDashboardStats();
+  const displayBadge = stats?.totalLeads || 0;
+
+  return (
+    <aside className={`dl-sidebar${collapsed ? ' collapsed' : ''}`}>
+      <div className="dl-sidebar__accent" />
+      <div className="dl-sidebar__logo">
+        <div className="dl-sidebar__logo-mark">H</div>
+        {!collapsed && (
+          <div>
+            <div className="dl-sidebar__brand">Hirdlogic</div>
+            <div className="dl-sidebar__subbrand">Career Intelligence</div>
+          </div>
+        )}
+      </div>
+
+      <div className="dl-sidebar__scroll">
+        {sections.map((section) => (
+          <div key={section.label}>
+            {!collapsed && <div className="dl-sidebar__section">{section.label}</div>}
+            {section.items.map((item) => {
+              const active = isActive(location.pathname, item, location.hash);
+              const to = `${item.to}${item.hash || ''}`;
+              return (
+                <Link key={`${section.label}-${item.label}`} to={to} className={`dl-sidebar__link${active ? ' active' : ''}`}>
+                  <item.icon size={18} />
+                  <span className="dl-sidebar__label">{item.label}</span>
+                  {item.beta && !collapsed && <span className="dl-sidebar__beta">Beta</span>}
+                  {item.badge === 'jobs' && !collapsed && <span className="dl-sidebar__count">{displayBadge}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      <Link to="/settings" className="dl-sidebar__user-card">
+        <div className="dl-sidebar__user-avatar">U</div>
+        {!collapsed && (
+          <div>
+            <div className="dl-sidebar__user-name">Your Profile</div>
+            <div className="dl-sidebar__user-plan">Premium Plan</div>
+          </div>
+        )}
+      </Link>
+
+      <button
+        type="button"
+        className="dl-sidebar__collapse"
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        onClick={onToggleCollapse}
+      >
+        {collapsed ? <PanelLeft size={18} /> : <PanelLeftClose size={18} />}
+      </button>
+    </aside>
+  );
+}

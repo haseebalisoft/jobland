@@ -97,3 +97,30 @@ export async function updateUserJobStatus(userId, jobId, status) {
 
   return res.rows[0];
 }
+
+export async function getUserJobCounts(userId) {
+  const res = await query(
+    `
+      SELECT status, COUNT(*)::int AS count
+      FROM user_jobs
+      WHERE user_id = $1
+      GROUP BY status
+    `,
+    [userId],
+  ).catch((e) => (e?.code === '42P01' ? { rows: [] } : Promise.reject(e)));
+
+  const out = {
+    saved: 0,
+    applied: 0,
+    interviewing: 0,
+    offer: 0,
+    rejected: 0,
+  };
+
+  (res.rows || []).forEach((row) => {
+    if (Object.prototype.hasOwnProperty.call(out, row.status)) {
+      out[row.status] = Number(row.count || 0);
+    }
+  });
+  return out;
+}

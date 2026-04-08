@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import DashboardNavbar from './DashboardNavbar.jsx';
-import DashboardSidebar from './DashboardSidebar.jsx';
+import Navbar from './Navbar.jsx';
+import Sidebar from './Sidebar.jsx';
 import './DashboardLayout.css';
 
 export default function DashboardLayout({
@@ -32,7 +32,7 @@ export default function DashboardLayout({
 
   return (
     <div className={`dl-root${narrowSidebar ? ' dl-root--jt' : ''}${hideSidebar ? ' dl-root--editor' : ''}`}>
-      <DashboardNavbar
+      <Navbar
         displayName={userName}
         initials={userInitials}
         onMenuClick={!hideSidebar && isNarrow ? () => setMobileOpen((v) => !v) : undefined}
@@ -42,7 +42,7 @@ export default function DashboardLayout({
         <div
           className={`dl-sidebar-wrap${collapsed ? ' collapsed' : ''}${isNarrow && !mobileOpen ? ' mobile-hidden' : ''}`}
         >
-          <DashboardSidebar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} />
+          <Sidebar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} />
         </div>
         )}
         {isNarrow && mobileOpen && !hideSidebar && (

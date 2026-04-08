@@ -30,6 +30,8 @@ import documentRoutes from './routes/documentRoutes.js';
 import coverLetterRoutes from './routes/coverLetterRoutes.js';
 import supportChatRoutes from './routes/supportChatRoutes.js';
 import linkedinExtensionRoutes from './routes/linkedinExtensionRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
+import jobsRoutes from './routes/jobsRoutes.js';
 import { notFound, errorHandler } from './middlewares/errorMiddleware.js';
 
 const app = express();
@@ -112,6 +114,8 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/cover-letters', coverLetterRoutes);
 app.use('/api/support-chat', supportChatRoutes);
 app.use('/api/linkedin', linkedinExtensionRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/jobs', jobsRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
 app.use(notFound);

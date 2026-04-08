@@ -224,3 +224,118 @@ export async function getDashboardActionPlan(req, res, next) {
   }
 }
 
+function makeSparkline(seed, len = 10, floor = 1) {
+  const out = [];
+  for (let i = 0; i < len; i += 1) {
+    const wobble = Math.floor(((seed + i * 7) % 6) + floor);
+    out.push(Math.max(0, wobble));
+  }
+  return out;
+}
+
+export async function getDashboardStats(req, res, next) {
+  try {
+    const userId = req.user.id;
+
+    const [jobsCountsRes, appsCountsRes, weeklyAppsRes] = await Promise.all([
+      query(
+        `
+          SELECT status, COUNT(*)::int AS count
+          FROM user_jobs
+          WHERE user_id = $1
+          GROUP BY status
+        `,
+        [userId],
+      ).catch((e) => (e?.code === '42P01' ? { rows: [] } : Promise.reject(e))),
+      query(
+        `
+          SELECT current_status, COUNT(*)::int AS count
+          FROM applications
+          WHERE user_id = $1
+          GROUP BY current_status
+        `,
+        [userId],
+      ).catch((e) => (e?.code === '42P01' ? { rows: [] } : Promise.reject(e))),
+      query(
+        `
+          SELECT current_status, COUNT(*)::int AS count
+          FROM applications
+          WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '7 days'
+          GROUP BY current_status
+        `,
+        [userId],
+      ).catch((e) => (e?.code === '42P01' ? { rows: [] } : Promise.reject(e))),
+    ]);
+
+    const jobsCounts = Object.fromEntries((jobsCountsRes.rows || []).map((r) => [r.status, Number(r.count || 0)]));
+    const appCounts = Object.fromEntries((appsCountsRes.rows || []).map((r) => [r.current_status, Number(r.count || 0)]));
+    const weeklyAppCounts = Object.fromEntries((weeklyAppsRes.rows || []).map((r) => [r.current_status, Number(r.count || 0)]));
+
+    const totalLeads = (jobsCounts.saved || 0) + Object.values(appCounts).reduce((n, v) => n + Number(v || 0), 0);
+    const totalApplied = Object.values(appCounts).reduce((n, v) => n + Number(v || 0), 0);
+    const interviewsDone = (appCounts.interview || 0) + (appCounts.interviewing || 0);
+    const pendingResponse = (appCounts.applied || 0) + (appCounts.withdrawn || 0);
+
+    res.json({
+      totalLeads,
+      totalApplied,
+      interviewsDone,
+      pendingResponse,
+      weeklyChanges: {
+        leads: (jobsCounts.saved || 0) + Object.values(weeklyAppCounts).reduce((n, v) => n + Number(v || 0), 0),
+        applied: Object.values(weeklyAppCounts).reduce((n, v) => n + Number(v || 0), 0),
+        interviews: (weeklyAppCounts.interview || 0) + (weeklyAppCounts.interviewing || 0),
+        pending: (weeklyAppCounts.applied || 0) + (weeklyAppCounts.withdrawn || 0),
+      },
+      sparklines: {
+        leads: makeSparkline(totalLeads + 3),
+        applied: makeSparkline(totalApplied + 5),
+        interviews: makeSparkline(interviewsDone + 2, 10, 0),
+        pending: makeSparkline(pendingResponse + 4, 10, 0),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getDashboardTasks(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const jobsRes = await query(
+      `
+        SELECT id, title, company, status, created_at
+        FROM user_jobs
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT 6
+      `,
+      [userId],
+    ).catch((e) => (e?.code === '42P01' ? { rows: [] } : Promise.reject(e)));
+
+    const tasks = (jobsRes.rows || []).slice(0, 5).map((j, idx) => ({
+      id: j.id || `job-${idx}`,
+      text: j.status === 'saved' ? `Submit application for ${j.title}` : `Follow up on ${j.title}`,
+      done: j.status !== 'saved',
+      sub: j.company ? `Role at ${j.company}` : 'Job tracker item',
+      doneAt: j.status !== 'saved' ? new Date().toISOString() : null,
+    }));
+
+    res.json({
+      tasks: tasks.length
+        ? tasks
+        : [
+            {
+              id: 't-onboard',
+              text: 'Complete your job preferences',
+              done: false,
+              sub: 'Tailor your dashboard recommendations',
+              doneAt: null,
+            },
+          ],
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+

@@ -97,6 +97,128 @@ function parsePeriod(period) {
   return { start_date, end_date, is_current: !!present };
 }
 
+/** Matches 001_initial: user_bd_assignments.bd_id → users(id). Some DBs use bds(id) instead. */
+let cachedUbaBdFkTarget = null;
+/** profiles.bd_id may reference users(id) or bds(id) depending on migrations / manual changes. */
+let cachedProfilesBdFkTarget = null;
+
+async function getUserBdAssignmentBdFkTarget(client) {
+  if (cachedUbaBdFkTarget) return cachedUbaBdFkTarget;
+  try {
+    const r = await client.query(
+      `SELECT ccu.table_name AS ref_table
+       FROM information_schema.table_constraints tc
+       JOIN information_schema.key_column_usage kcu
+         ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+       JOIN information_schema.constraint_column_usage ccu
+         ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+       WHERE tc.table_schema = 'public'
+         AND tc.table_name = 'user_bd_assignments'
+         AND tc.constraint_type = 'FOREIGN KEY'
+         AND kcu.column_name = 'bd_id'`,
+    );
+    const row = (r.rows || []).find((x) => x.ref_table === 'bds' || x.ref_table === 'users');
+    cachedUbaBdFkTarget = row?.ref_table === 'bds' ? 'bds' : 'users';
+  } catch {
+    cachedUbaBdFkTarget = 'users';
+  }
+  return cachedUbaBdFkTarget;
+}
+
+async function getProfilesBdFkTarget(client) {
+  if (cachedProfilesBdFkTarget) return cachedProfilesBdFkTarget;
+  try {
+    const r = await client.query(
+      `SELECT ccu.table_name AS ref_table
+       FROM information_schema.table_constraints tc
+       JOIN information_schema.key_column_usage kcu
+         ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+       JOIN information_schema.constraint_column_usage ccu
+         ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+       WHERE tc.table_schema = 'public'
+         AND tc.table_name = 'profiles'
+         AND tc.constraint_type = 'FOREIGN KEY'
+         AND kcu.column_name = 'bd_id'`,
+    );
+    const row = (r.rows || []).find((x) => x.ref_table === 'bds' || x.ref_table === 'users');
+    cachedProfilesBdFkTarget = row?.ref_table === 'bds' ? 'bds' : 'users';
+  } catch {
+    cachedProfilesBdFkTarget = 'users';
+  }
+  return cachedProfilesBdFkTarget;
+}
+
+async function bdsPkForBdUser(client, bdUserId) {
+  const r = await client.query(`SELECT id FROM bds WHERE user_id = $1::uuid LIMIT 1`, [bdUserId]).catch(() => ({ rows: [] }));
+  if (r.rows[0]?.id) return r.rows[0].id;
+  const r2 = await client.query(`SELECT id FROM bds WHERE id = $1::uuid LIMIT 1`, [bdUserId]).catch(() => ({ rows: [] }));
+  return r2.rows[0]?.id || null;
+}
+
+async function bdUserIdFromUbaBdId(client, ubaBdId, ubaTarget) {
+  if (!ubaBdId) return null;
+  if (ubaTarget === 'users') return ubaBdId;
+  const r = await client.query(`SELECT user_id FROM bds WHERE id = $1::uuid LIMIT 1`, [ubaBdId]).catch(() => ({ rows: [] }));
+  const uid = r.rows[0]?.user_id;
+  if (!uid) return null;
+  const chk = await client.query(`SELECT id FROM users WHERE id = $1::uuid AND role = 'bd' AND is_active = TRUE`, [uid]);
+  return chk.rows[0]?.id || null;
+}
+
+/**
+ * Resolves IDs for a new profile row + optional user_bd_assignments insert.
+ * 001_initial: profiles.bd_id → users; user_bd_assignments.bd_id → users; assigned_by → users.
+ * If your DB references public.bds for either column, values are mapped accordingly.
+ * assigned_by is always a real users.id (never a bds PK).
+ */
+async function resolveBdContextForProfileInsert(client, userId) {
+  const ubaTarget = await getUserBdAssignmentBdFkTarget(client);
+  const profileTarget = await getProfilesBdFkTarget(client);
+
+  const assignedBdRes = await client.query(
+    `SELECT bd_id FROM user_bd_assignments WHERE user_id = $1 ORDER BY created_at ASC LIMIT 1`,
+    [userId],
+  );
+
+  let bdUserId = await bdUserIdFromUbaBdId(client, assignedBdRes.rows[0]?.bd_id, ubaTarget);
+
+  if (!bdUserId) {
+    const fallbackBdRes = await client.query(
+      `SELECT id FROM users WHERE role = 'bd' AND is_active = TRUE ORDER BY created_at ASC LIMIT 1`,
+    );
+    bdUserId = fallbackBdRes.rows[0]?.id || null;
+  }
+
+  if (!bdUserId) return null;
+
+  let ubaBdId = bdUserId;
+  if (ubaTarget === 'bds') {
+    ubaBdId = await bdsPkForBdUser(client, bdUserId);
+    if (!ubaBdId) {
+      const anyBds = await client.query(`SELECT id FROM bds ORDER BY id ASC LIMIT 1`).catch(() => ({ rows: [] }));
+      ubaBdId = anyBds.rows[0]?.id || null;
+    }
+  }
+
+  let profileBdId = bdUserId;
+  if (profileTarget === 'bds') {
+    profileBdId = await bdsPkForBdUser(client, bdUserId);
+    if (!profileBdId) {
+      const anyBds = await client.query(`SELECT id FROM bds ORDER BY id ASC LIMIT 1`).catch(() => ({ rows: [] }));
+      profileBdId = anyBds.rows[0]?.id || null;
+    }
+  }
+
+  if (!ubaBdId || !profileBdId) return null;
+
+  return {
+    bdUserId,
+    ubaBdId,
+    profileBdId,
+    assignedByUserId: bdUserId,
+  };
+}
+
 /**
  * Get resume profile for the builder (user + profile + education + work_experience).
  */
@@ -194,25 +316,42 @@ export async function saveResumeProfile(userId, builderProfile, options = {}) {
         );
       }
     } else {
+      const ctx = await resolveBdContextForProfileInsert(client, userId);
+
+      if (!ctx) {
+        const err = new Error('Cannot create profile: no BD user available for assignment');
+        err.statusCode = 503;
+        throw err;
+      }
+
+      await client.query(
+        `
+        INSERT INTO user_bd_assignments (user_id, bd_id, assigned_by)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (user_id, bd_id) DO NOTHING
+        `,
+        [userId, ctx.ubaBdId, ctx.assignedByUserId],
+      );
+
       const insertRes = markResumeParsed
         ? await client.query(
             `
-            INSERT INTO profiles (user_id, title, summary, phone, location, resume_skills,
+            INSERT INTO profiles (user_id, bd_id, title, summary, phone, location, resume_skills,
                                   linkedin_url, portfolio_url, github_url, resume_full_name, is_active,
                                   resume_uploaded_at, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, NOW(), NOW(), NOW())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE, NOW(), NOW(), NOW())
             RETURNING id
             `,
-            [userId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url, resume_full_name]
+            [userId, ctx.profileBdId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url, resume_full_name]
           )
         : await client.query(
             `
-            INSERT INTO profiles (user_id, title, summary, phone, location, resume_skills,
+            INSERT INTO profiles (user_id, bd_id, title, summary, phone, location, resume_skills,
                                   linkedin_url, portfolio_url, github_url, resume_full_name, is_active, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, NOW(), NOW())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE, NOW(), NOW())
             RETURNING id
             `,
-            [userId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url, resume_full_name]
+            [userId, ctx.profileBdId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url, resume_full_name]
           );
       profileId = insertRes.rows[0].id;
     }

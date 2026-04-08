@@ -8,6 +8,7 @@ import {
   putUserProgressItem,
   putUserProgressStep,
   createResumeSession,
+  getUserProfileScore,
 } from '../controllers/userDashboardController.js';
 import {
   getUserJobs,
@@ -25,6 +26,7 @@ router.get('/progress', authMiddleware, getUserProgress);
 router.put('/progress/step', authMiddleware, putUserProgressStep);
 router.put('/progress/:itemId', authMiddleware, putUserProgressItem);
 router.post('/resume/create', authMiddleware, createResumeSession);
+router.get('/profile-score', authMiddleware, getUserProfileScore);
 
 router.get('/jobs', authMiddleware, getUserJobs);
 router.post('/jobs', authMiddleware, postUserJob);

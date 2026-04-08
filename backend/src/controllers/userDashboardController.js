@@ -260,3 +260,32 @@ export async function createResumeSession(req, res, next) {
     next(err);
   }
 }
+
+export async function getUserProfileScore(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const [profile, savedN, jobsRes, appsRes] = await Promise.all([
+      loadProfileRow(userId),
+      countSavedResumes(userId),
+      query(`SELECT COUNT(*)::int AS n FROM user_jobs WHERE user_id = $1`, [userId]).catch((e) =>
+        e?.code === '42P01' ? { rows: [{ n: 0 }] } : Promise.reject(e),
+      ),
+      query(`SELECT COUNT(*)::int AS n FROM applications WHERE user_id = $1`, [userId]).catch((e) =>
+        e?.code === '42P01' ? { rows: [{ n: 0 }] } : Promise.reject(e),
+      ),
+    ]);
+
+    const breakdown = {
+      profile: profile ? 30 : 0,
+      resume: savedN > 0 || profile?.resume_uploaded_at ? 25 : 0,
+      linkedin: profile?.linkedin_url ? 15 : 0,
+      jobs: Number(jobsRes.rows?.[0]?.n || 0) > 0 ? 15 : 0,
+      applications: Number(appsRes.rows?.[0]?.n || 0) > 0 ? 15 : 0,
+    };
+    const score = Math.min(100, Object.values(breakdown).reduce((n, v) => n + Number(v), 0));
+
+    res.json({ score, breakdown });
+  } catch (err) {
+    next(err);
+  }
+}
