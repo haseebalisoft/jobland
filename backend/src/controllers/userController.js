@@ -1,4 +1,5 @@
 import { query } from '../config/db.js';
+import { resolveProfileBdIdForUser } from '../services/cvService.js';
 
 export async function saveOnboarding(req, res, next) {
   try {
@@ -71,19 +72,15 @@ export async function saveOnboarding(req, res, next) {
         ? levelToYears[experienceLevel]
         : null;
 
-    // Find BD assigned to this user, if any. BD assignment is optional at onboarding time.
-    const bdRes = await query(
-      `
-        SELECT bd_id
-        FROM user_bd_assignments
-        WHERE user_id = $1
-        ORDER BY created_at ASC
-        LIMIT 1
-      `,
-      [userId],
-    );
-
-    const bdId = bdRes.rows[0]?.bd_id || null;
+    // profiles.bd_id may reference users(id) or bds(id); never use users.id when FK points at bds.
+    const bdId = await resolveProfileBdIdForUser(userId);
+    if (!bdId) {
+      return res.status(503).json({
+        message:
+          'No BD could be assigned to your profile. Ensure at least one active user with role "bd" exists and a matching row in the bds table (linked by user_id).',
+        code: 'NO_BD_FOR_PROFILE',
+      });
+    }
 
     const allJobFunctions =
       Array.isArray(jobFunctions) && jobFunctions.length > 0
@@ -200,4 +197,3 @@ export async function saveOnboarding(req, res, next) {
     return next(err);
   }
 }
-

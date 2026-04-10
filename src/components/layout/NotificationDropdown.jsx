@@ -78,9 +78,9 @@ export default function NotificationDropdown({
           <button type="button" className="dl-notif-item dl-notif-item--highlight" onClick={() => { openSupportChat(); onClose(); }}>
             <MessageCircle size={18} className="dl-notif-item__icon" />
             <div className="dl-notif-item__text">
-              <div className="dl-notif-item__title">Support</div>
+              <div className="dl-notif-item__title">BD messages</div>
               <div className="dl-notif-item__sub">
-                {supportUnread} unread message{supportUnread === 1 ? '' : 's'} — tap to open chat
+                {supportUnread} lead{supportUnread === 1 ? '' : 's'} with a reply from your BD — open Help chat
               </div>
             </div>
           </button>
@@ -136,7 +136,7 @@ export default function NotificationDropdown({
           Dashboard
         </Link>
         <button type="button" className="dl-notif-foot-link dl-notif-foot-link--btn" onClick={() => { openSupportChat(); onClose(); }}>
-          Support chat
+          Help &amp; BD chat
         </button>
       </div>
     </div>

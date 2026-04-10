@@ -17,7 +17,7 @@ export default function HomeTab({ firstName, onOpenMessages }) {
 
       <button type="button" className="cs-card" onClick={onOpenMessages}>
         <div className="cs-card__text">
-          <div className="cs-card__title">Send us a message</div>
+          <div className="cs-card__title">Message your BD</div>
           <div className="cs-card__sub">{availability}</div>
         </div>
         <span className="cs-card__arrow" aria-hidden>

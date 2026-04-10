@@ -21,7 +21,7 @@ export default function ResumeAllResumesHub({
   editHref,
 }) {
   const [q, setQ] = useState('');
-  const [mainTab, setMainTab] = useState('base');
+  const [mainTab, setMainTab] = useState('tailored');
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();

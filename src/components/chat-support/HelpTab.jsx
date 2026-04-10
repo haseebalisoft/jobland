@@ -33,7 +33,7 @@ export default function HelpTab({ search, onSearchChange, onChatWithUs, onViewAl
       </button>
       <div className="cs-help__contact">
         <button type="button" className="cs-help__link-btn" onClick={onChatWithUs}>
-          Chat with us
+          Message your BD
         </button>
         <a className="cs-help__link-btn cs-help__link-btn--ghost" href="mailto:support@hirdlogic.com">
           Send email

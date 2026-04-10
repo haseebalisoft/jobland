@@ -1,13 +1,5 @@
 export function getSupportAvailabilityLine() {
-  const day = new Date().getDay();
-  if (day === 0 || day === 6) {
-    return "We'll be back online on Monday";
-  }
-  const h = new Date().getHours();
-  if (h < 9 || h >= 17) {
-    return 'Our team is offline — we typically reply on the next business day.';
-  }
-  return "We're online now — we usually reply within an hour.";
+  return 'Pick a lead and chat directly with your BD about that role.';
 }
 
 export function formatRelativeTime(iso) {

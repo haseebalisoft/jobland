@@ -31,7 +31,8 @@ const UploadCv = () => {
           'Content-Type': 'multipart/form-data',
         },
       });
-      navigate('/dashboard');
+      // Parsed data is saved to profile; open resume editor (not hub) so user can edit immediately.
+      navigate('/resume-maker?edit=1', { replace: true });
     } catch (err) {
       setUploadStatus('Failed to process. Please try again.');
       console.error(err.response?.data || err);

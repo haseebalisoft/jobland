@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import api from '../services/api.js';
+import { fetchBdReplyAttentionCount } from '../utils/leadHelpUnread.js';
 
 export function useUnreadCount(enabled) {
   const [count, setCount] = useState(0);
@@ -7,8 +7,8 @@ export function useUnreadCount(enabled) {
   const refresh = useCallback(async () => {
     if (!enabled) return;
     try {
-      const { data } = await api.get('/support-chat/unread-count');
-      setCount(typeof data?.count === 'number' ? data.count : 0);
+      const n = await fetchBdReplyAttentionCount();
+      setCount(typeof n === 'number' ? n : 0);
     } catch {
       setCount(0);
     }
@@ -20,7 +20,7 @@ export function useUnreadCount(enabled) {
 
   useEffect(() => {
     if (!enabled) return undefined;
-    const t = setInterval(refresh, 30000);
+    const t = setInterval(refresh, 45000);
     return () => clearInterval(t);
   }, [enabled, refresh]);
 

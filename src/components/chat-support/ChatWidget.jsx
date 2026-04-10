@@ -38,7 +38,7 @@ export default function ChatWidget() {
         className={`cs-fab${open ? ' cs-fab--open' : ''}`}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        aria-label={open ? 'Close support chat' : 'Open support chat'}
+        aria-label={open ? 'Close help chat' : 'Open help and BD chat'}
       >
         {count > 0 && <span className="cs-fab__badge">{count > 9 ? '9+' : count}</span>}
         {open ? <ChevronDown size={24} /> : <MessageCircle size={24} />}

@@ -1,69 +1,60 @@
 import { useCallback, useEffect, useState } from 'react';
 import { X, Home, MessageCircle, HelpCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api.js';
 import { firstNameFromUser } from './chatUtils.js';
 import HomeTab from './HomeTab.jsx';
 import MessagesTab from './MessagesTab.jsx';
 import HelpTab from './HelpTab.jsx';
-import ConversationView from './ConversationView.jsx';
+import BdLeadConversationView from './BdLeadConversationView.jsx';
 import './chat-support.css';
 
 export default function ChatPanel({ open, user, onClose, unreadCount, refreshUnread }) {
+  const navigate = useNavigate();
   const [tab, setTab] = useState('home');
   const [view, setView] = useState('main');
-  const [conversations, setConversations] = useState([]);
-  const [activeThread, setActiveThread] = useState(null);
+  const [leads, setLeads] = useState([]);
+  const [leadsLoading, setLeadsLoading] = useState(false);
+  const [activeLead, setActiveLead] = useState(null);
   const [helpSearch, setHelpSearch] = useState('');
   const [panelIn, setPanelIn] = useState(false);
 
-  const loadConversations = useCallback(async () => {
+  const loadLeads = useCallback(async () => {
+    setLeadsLoading(true);
     try {
-      const { data } = await api.get('/support-chat/conversations');
-      setConversations(data.conversations || []);
+      const { data } = await api.get('/leads/user', { params: { range: 'all', limit: 100 } });
+      setLeads(Array.isArray(data.items) ? data.items : []);
     } catch {
-      setConversations([]);
+      setLeads([]);
+    } finally {
+      setLeadsLoading(false);
     }
   }, []);
 
   useEffect(() => {
     if (open) {
-      loadConversations();
+      loadLeads();
       refreshUnread?.();
       requestAnimationFrame(() => setPanelIn(true));
     } else {
       setPanelIn(false);
       setView('main');
-      setActiveThread(null);
+      setActiveLead(null);
     }
-  }, [open, loadConversations, refreshUnread]);
+  }, [open, loadLeads, refreshUnread]);
 
-  const startNewConversation = async () => {
+  const openLeadThread = async (lead) => {
+    if (!lead?.id) return;
     try {
-      const { data } = await api.post('/support-chat/conversations');
-      const id = data.conversationId;
-      const raw = data.conversation?.messages || [];
-      setActiveThread({ id, messages: raw });
+      const { data } = await api.get(`/leads/${lead.id}/messages`);
+      setActiveLead({
+        id: lead.id,
+        job_title: lead.job_title,
+        company_name: lead.company_name,
+        messages: Array.isArray(data.messages) ? data.messages : [],
+      });
       setView('thread');
-      await loadConversations();
       refreshUnread?.();
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const openFromHomeCard = async () => {
-    setTab('messages');
-    await startNewConversation();
-  };
-
-  const openThread = async (c) => {
-    try {
-      const { data } = await api.get(`/support-chat/conversations/${c.id}`);
-      setActiveThread({ id: c.id, messages: data.messages || [] });
-      setView('thread');
-      await api.patch(`/support-chat/conversations/${c.id}/read`);
-      refreshUnread?.();
-      loadConversations();
     } catch (e) {
       console.error(e);
     }
@@ -71,9 +62,13 @@ export default function ChatPanel({ open, user, onClose, unreadCount, refreshUnr
 
   const backFromThread = () => {
     setView('main');
-    setActiveThread(null);
-    loadConversations();
+    setActiveLead(null);
+    loadLeads();
     refreshUnread?.();
+  };
+
+  const openMessagesFromHome = () => {
+    setTab('messages');
   };
 
   const fn = firstNameFromUser(user);
@@ -81,40 +76,42 @@ export default function ChatPanel({ open, user, onClose, unreadCount, refreshUnr
   if (!open) return null;
 
   return (
-    <div className={`cs-panel ${panelIn ? 'cs-panel--in' : ''}`} role="dialog" aria-label="Support chat">
+    <div className={`cs-panel ${panelIn ? 'cs-panel--in' : ''}`} role="dialog" aria-label="Help and BD chat">
       <button type="button" className="cs-panel__close" onClick={onClose} aria-label="Close">
         <X size={20} />
       </button>
 
       <div className="cs-panel__body">
-        {view === 'thread' && activeThread ? (
-          <ConversationView
-            conversationId={activeThread.id}
-            initialMessages={activeThread.messages}
+        {view === 'thread' && activeLead ? (
+          <BdLeadConversationView
+            leadId={activeLead.id}
+            jobTitle={activeLead.job_title}
+            companyName={activeLead.company_name}
+            userId={user?.id}
+            initialMessages={activeLead.messages}
             onBack={backFromThread}
             onRefreshUnread={refreshUnread}
           />
         ) : (
           <>
             <div className="cs-panel__tab-screen">
-              {tab === 'home' && (
-                <HomeTab firstName={fn} onOpenMessages={openFromHomeCard} />
-              )}
+              {tab === 'home' && <HomeTab firstName={fn} onOpenMessages={openMessagesFromHome} />}
               {tab === 'messages' && (
                 <MessagesTab
-                  conversations={conversations}
-                  onSelect={openThread}
-                  onNewConversation={startNewConversation}
+                  leads={leads}
+                  loading={leadsLoading}
+                  onSelectLead={openLeadThread}
+                  onOpenFullHelp={() => {
+                    onClose();
+                    navigate('/dashboard/help');
+                  }}
                 />
               )}
               {tab === 'help' && (
                 <HelpTab
                   search={helpSearch}
                   onSearchChange={setHelpSearch}
-                  onChatWithUs={() => {
-                    setTab('messages');
-                    startNewConversation();
-                  }}
+                  onChatWithUs={() => setTab('messages')}
                   onViewAll={() => {
                     window.open('https://hirdlogic.com/help', '_blank', 'noopener,noreferrer');
                   }}
@@ -122,7 +119,7 @@ export default function ChatPanel({ open, user, onClose, unreadCount, refreshUnr
               )}
             </div>
 
-            <nav className="cs-tabs" aria-label="Support sections">
+            <nav className="cs-tabs" aria-label="Help sections">
               <button
                 type="button"
                 className={`cs-tab${tab === 'home' ? ' cs-tab--active' : ''}`}

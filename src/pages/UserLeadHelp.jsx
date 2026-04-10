@@ -224,17 +224,7 @@ export default function UserLeadHelp() {
         _optimistic: true,
       };
 
-      const botAck = {
-        id: `bot-${Date.now()}`,
-        job_assignment_id: selectedLeadId,
-        sender_id: 'bot',
-        sender_role: 'bot',
-        message:
-          'Our AI assistant has shared this with the team. They will reach back to you soon.',
-        created_at: now,
-      };
-
-      setMessages((prev) => [...prev, optimistic, botAck]);
+      setMessages((prev) => [...prev, optimistic]);
       const res = await api.post(`/leads/${selectedLeadId}/messages`, { message: composed });
       setMessages((prev) =>
         prev.map((m) => (m.id === optimistic.id ? res.data : m)),
@@ -292,8 +282,8 @@ export default function UserLeadHelp() {
     : 'Help with your leads';
 
   const headerSubtitle = lead
-    ? 'Choose a quick question and our AI assistant will collect details and send them to your BD.'
-    : 'First pick a lead, then choose a quick question. Our AI assistant will prepare a message for your BD.';
+    ? 'Choose a quick question to send structured details to your BD, or use freeform chat below.'
+    : 'Pick a lead, then send a quick request or a freeform message — your BD will see it in their portal.';
 
   return (
     <DashboardLayout userName={displayName} userInitials={userInitials}>
@@ -369,7 +359,7 @@ export default function UserLeadHelp() {
               {!selectedLeadId ? (
                 <div className="user-lead-help-chat-card" style={styles.chatCard}>
                   <p style={{ color: theme.textMuted, fontSize: 14, margin: 0 }}>
-                    Select a lead from the list first. Our AI assistant will then guide you through a few quick questions and send the summary to your BD.
+                    Select a lead from the list first. You can send a quick request or message your BD directly about that opportunity.
                   </p>
                 </div>
               ) : loading ? (

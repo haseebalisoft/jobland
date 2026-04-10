@@ -220,6 +220,19 @@ async function resolveBdContextForProfileInsert(client, userId) {
 }
 
 /**
+ * UUID to store in profiles.bd_id (FK may target public.users or public.bds — resolved via information_schema).
+ */
+export async function resolveProfileBdIdForUser(userId) {
+  const client = await pool.connect();
+  try {
+    const ctx = await resolveBdContextForProfileInsert(client, userId);
+    return ctx?.profileBdId ?? null;
+  } finally {
+    client.release();
+  }
+}
+
+/**
  * Get resume profile for the builder (user + profile + education + work_experience).
  */
 export async function getResumeProfile(userId) {

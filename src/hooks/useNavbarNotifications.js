@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '../services/api.js';
+import { fetchBdReplyAttentionCount } from '../utils/leadHelpUnread.js';
 
 const DISMISSED_TASKS_KEY = 'hirdlogic:notif-dismissed-tasks';
 
@@ -20,7 +21,7 @@ function dismissTaskIds(ids) {
 }
 
 /**
- * Loads data for the dashboard notification bell: support unread + conversations + open tasks.
+ * Navbar bell: BD reply attention on leads + open tasks (no AI support-chat).
  */
 export function useNavbarNotifications(enabled) {
   const [state, setState] = useState({
@@ -37,13 +38,8 @@ export function useNavbarNotifications(enabled) {
       return;
     }
     try {
-      const [unreadRes, convRes, tasksRes] = await Promise.all([
-        api.get('/support-chat/unread-count'),
-        api.get('/support-chat/conversations'),
-        api.get('/dashboard/tasks'),
-      ]);
-      const supportUnread = typeof unreadRes.data?.count === 'number' ? unreadRes.data.count : 0;
-      const conversations = Array.isArray(convRes.data?.conversations) ? convRes.data.conversations : [];
+      const [bdCount, tasksRes] = await Promise.all([fetchBdReplyAttentionCount(), api.get('/dashboard/tasks')]);
+      const supportUnread = typeof bdCount === 'number' ? bdCount : 0;
       const allTasks = Array.isArray(tasksRes.data?.tasks) ? tasksRes.data.tasks : [];
       const dismissed = new Set(getDismissedTaskIds());
       const pendingTasks = allTasks
@@ -53,7 +49,7 @@ export function useNavbarNotifications(enabled) {
         ...s,
         loading: false,
         supportUnread,
-        conversations: conversations.slice(0, 6),
+        conversations: [],
         pendingTasks,
       }));
     } catch {
@@ -73,7 +69,6 @@ export function useNavbarNotifications(enabled) {
       return { ...s, clearing: true };
     });
     try {
-      await api.patch('/support-chat/conversations/read-all');
       window.dispatchEvent(new CustomEvent('hirdlogic:refresh-unread'));
       await load();
     } catch (e) {
