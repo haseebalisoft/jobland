@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MessageCircle, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useUnreadCount } from '../../hooks/useUnreadCount.js';
@@ -9,6 +9,18 @@ export default function ChatWidget() {
   const { user, loading } = useAuth();
   const [open, setOpen] = useState(false);
   const { count, refresh } = useUnreadCount(!loading && !!user);
+
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener('hirdlogic:open-support-chat', onOpen);
+    return () => window.removeEventListener('hirdlogic:open-support-chat', onOpen);
+  }, []);
+
+  useEffect(() => {
+    const onRefreshUnread = () => refresh();
+    window.addEventListener('hirdlogic:refresh-unread', onRefreshUnread);
+    return () => window.removeEventListener('hirdlogic:refresh-unread', onRefreshUnread);
+  }, [refresh]);
 
   if (loading || !user) return null;
 

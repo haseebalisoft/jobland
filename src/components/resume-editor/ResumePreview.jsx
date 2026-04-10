@@ -25,6 +25,7 @@ export default function ResumePreview({ profile, design, paperSize: _paperSize =
     .join('\n');
   const skills = profile.professional?.skills || [];
   const skillsText = skills.length ? skills.join(', ') : '';
+  const accent = design?.accentColor || design?.primaryColor || '#7c3aed';
 
   return (
     <div className="re-paper-wrap">
@@ -37,6 +38,7 @@ export default function ResumePreview({ profile, design, paperSize: _paperSize =
           lineHeight: lh,
           color: '#0f172a',
           minHeight: 400,
+          '--paper-accent': accent,
         }}
       >
         <h1 className="re-paper__name" style={{ fontFamily: font }}>

@@ -68,7 +68,10 @@ async function geminiJson(systemPrompt, userPrompt) {
   return JSON.parse(text);
 }
 
-async function groqJson(systemPrompt, userPrompt) {
+const GROQ_MODEL_PRIMARY = 'llama-3.3-70b-versatile';
+const GROQ_MODEL_FALLBACK = 'llama-3.1-8b-instant';
+
+async function groqJson(systemPrompt, userPrompt, model = GROQ_MODEL_PRIMARY) {
   const key = getGroqKey();
   if (!key) return null;
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -78,7 +81,7 @@ async function groqJson(systemPrompt, userPrompt) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -101,12 +104,15 @@ const EMPTY_PROFILE = {
   links: { linkedin: '', github: '', portfolio: '' },
 };
 
+const MAX_CV_CHARS = 100000;
+
 export async function parseCVWithAI(text) {
   if (!text || text.trim().length < 20) {
     throw new Error('Too little text extracted from the CV.');
   }
+  const clipped = text.length > MAX_CV_CHARS ? text.slice(0, MAX_CV_CHARS) : text;
   const template = fs.readFileSync(PROMPT_PATH, 'utf8');
-  const userPrompt = template.replace('{{cv_text}}', text);
+  const userPrompt = template.replace('{{cv_text}}', clipped);
   const systemPrompt = 'You are a CV parsing assistant. Extract data into the requested JSON format. Return ONLY valid JSON.';
 
   let parsed = null;
@@ -122,14 +128,27 @@ export async function parseCVWithAI(text) {
 
   if (!parsed && getGroqKey()) {
     try {
-      parsed = await groqJson(systemPrompt, userPrompt);
+      parsed = await groqJson(systemPrompt, userPrompt, GROQ_MODEL_PRIMARY);
     } catch (e) {
-      console.error('[CV Parse] Groq failed:', e.message);
+      console.error('[CV Parse] Groq (primary) failed:', e.message);
+    }
+  }
+
+  if (!parsed && getGroqKey()) {
+    try {
+      console.log('[CV Parse] Trying Groq fallback model…');
+      parsed = await groqJson(systemPrompt, userPrompt, GROQ_MODEL_FALLBACK);
+    } catch (e) {
+      console.error('[CV Parse] Groq (fallback) failed:', e.message);
     }
   }
 
   if (!parsed) {
-    return { ...EMPTY_PROFILE };
+    const err = new Error(
+      'Resume could not be parsed by AI. Set GROQ_API_KEY (and optionally GEMINI_API_KEY) in the server .env, then try again.',
+    );
+    err.statusCode = 503;
+    throw err;
   }
 
   return {

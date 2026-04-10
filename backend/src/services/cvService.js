@@ -318,42 +318,61 @@ export async function saveResumeProfile(userId, builderProfile, options = {}) {
     } else {
       const ctx = await resolveBdContextForProfileInsert(client, userId);
 
-      if (!ctx) {
-        const err = new Error('Cannot create profile: no BD user available for assignment');
-        err.statusCode = 503;
-        throw err;
+      if (ctx) {
+        await client.query(
+          `
+          INSERT INTO user_bd_assignments (user_id, bd_id, assigned_by)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (user_id, bd_id) DO NOTHING
+          `,
+          [userId, ctx.ubaBdId, ctx.assignedByUserId],
+        );
+
+        const insertRes = markResumeParsed
+          ? await client.query(
+              `
+              INSERT INTO profiles (user_id, bd_id, title, summary, phone, location, resume_skills,
+                                    linkedin_url, portfolio_url, github_url, resume_full_name, is_active,
+                                    resume_uploaded_at, created_at, updated_at)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE, NOW(), NOW(), NOW())
+              RETURNING id
+              `,
+              [userId, ctx.profileBdId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url, resume_full_name],
+            )
+          : await client.query(
+              `
+              INSERT INTO profiles (user_id, bd_id, title, summary, phone, location, resume_skills,
+                                    linkedin_url, portfolio_url, github_url, resume_full_name, is_active, created_at, updated_at)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE, NOW(), NOW())
+              RETURNING id
+              `,
+              [userId, ctx.profileBdId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url, resume_full_name],
+            );
+        profileId = insertRes.rows[0].id;
+      } else {
+        // No BD in the system / none assigned: still create the profile so CV parse can complete (ATS data only).
+        const insertRes = markResumeParsed
+          ? await client.query(
+              `
+              INSERT INTO profiles (user_id, bd_id, title, summary, phone, location, resume_skills,
+                                    linkedin_url, portfolio_url, github_url, resume_full_name, is_active,
+                                    resume_uploaded_at, created_at, updated_at)
+              VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, NOW(), NOW(), NOW())
+              RETURNING id
+              `,
+              [userId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url, resume_full_name],
+            )
+          : await client.query(
+              `
+              INSERT INTO profiles (user_id, bd_id, title, summary, phone, location, resume_skills,
+                                    linkedin_url, portfolio_url, github_url, resume_full_name, is_active, created_at, updated_at)
+              VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, NOW(), NOW())
+              RETURNING id
+              `,
+              [userId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url, resume_full_name],
+            );
+        profileId = insertRes.rows[0].id;
       }
-
-      await client.query(
-        `
-        INSERT INTO user_bd_assignments (user_id, bd_id, assigned_by)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (user_id, bd_id) DO NOTHING
-        `,
-        [userId, ctx.ubaBdId, ctx.assignedByUserId],
-      );
-
-      const insertRes = markResumeParsed
-        ? await client.query(
-            `
-            INSERT INTO profiles (user_id, bd_id, title, summary, phone, location, resume_skills,
-                                  linkedin_url, portfolio_url, github_url, resume_full_name, is_active,
-                                  resume_uploaded_at, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE, NOW(), NOW(), NOW())
-            RETURNING id
-            `,
-            [userId, ctx.profileBdId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url, resume_full_name]
-          )
-        : await client.query(
-            `
-            INSERT INTO profiles (user_id, bd_id, title, summary, phone, location, resume_skills,
-                                  linkedin_url, portfolio_url, github_url, resume_full_name, is_active, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE, NOW(), NOW())
-            RETURNING id
-            `,
-            [userId, ctx.profileBdId, title, summary, phone, location, resume_skills, linkedin_url, portfolio_url, github_url, resume_full_name]
-          );
-      profileId = insertRes.rows[0].id;
     }
 
     await client.query('DELETE FROM profile_education WHERE profile_id = $1', [profileId]);

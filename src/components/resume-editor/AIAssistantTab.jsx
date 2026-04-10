@@ -130,7 +130,7 @@ export default function AIAssistantTab({ profile, resumeId }) {
           <li>Tailor your resume to a specific role or job description.</li>
           <li>Fix grammar, tone, and highlight measurable outcomes.</li>
         </ul>
-        <p style={{ margin: '12px 0 0', fontStyle: 'italic', color: '#2563eb', fontSize: 13 }}>
+        <p className="re-ai-tip" style={{ margin: '12px 0 0', fontStyle: 'italic', fontSize: 13 }}>
           Try: &quot;Rewrite this bullet to be concise and metrics-driven:&quot;
         </p>
       </div>

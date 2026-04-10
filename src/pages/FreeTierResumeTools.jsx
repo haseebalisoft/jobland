@@ -33,6 +33,7 @@ const tealSurface = '#f0fdfa';
 const tealBorder = '#99f6e4';
 
 const LAST_RESUME_FILENAME_KEY = 'hiredlogics_last_resume_pdf_name';
+const LAST_RESUME_EXTRACTED_TEXT_KEY = 'hiredlogics_last_resume_extracted_text';
 
 function tierColorForScore(n) {
   if (n == null || !Number.isFinite(Number(n))) return '#6b7280';
@@ -102,6 +103,8 @@ export default function FreeTierResumeTools() {
   const [lastUploadedResumeFileName, setLastUploadedResumeFileName] = useState('');
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState('');
+  /** Full PDF text from last successful /cv/parse — sent to ATS so scoring uses the document, not only structured JSON. */
+  const [extractedResumeText, setExtractedResumeText] = useState('');
 
   const [jd, setJd] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -122,16 +125,22 @@ export default function FreeTierResumeTools() {
     }, { replace: true });
   };
 
-  const runAtsAnalysis = async (p) => {
+  const runAtsAnalysis = async (p, rawTextOverride) => {
     setAtsLoading(true);
     setAtsError('');
+    const raw =
+      typeof rawTextOverride === 'string' && rawTextOverride.trim().length >= 200
+        ? rawTextOverride.trim()
+        : extractedResumeText.trim();
+    const body =
+      raw.length >= 200 ? { profile: p, rawResumeText: raw.slice(0, 120000) } : { profile: p };
     try {
       let data;
       try {
-        ({ data } = await api.post('/cv/ats-analysis', { profile: p }));
+        ({ data } = await api.post('/cv/ats-analysis', body));
       } catch (first) {
         if (first.response?.status === 404) {
-          ({ data } = await api.post('/cv/atsanalysis', { profile: p }));
+          ({ data } = await api.post('/cv/atsanalysis', body));
         } else {
           throw first;
         }
@@ -186,6 +195,8 @@ export default function FreeTierResumeTools() {
     try {
       const stored = sessionStorage.getItem(LAST_RESUME_FILENAME_KEY);
       if (stored && stored.trim()) setLastUploadedResumeFileName(stored.trim());
+      const extracted = sessionStorage.getItem(LAST_RESUME_EXTRACTED_TEXT_KEY);
+      if (extracted && extracted.trim().length >= 200) setExtractedResumeText(extracted.trim());
     } catch {
       /* ignore */
     }
@@ -205,9 +216,17 @@ export default function FreeTierResumeTools() {
     const formData = new FormData();
     formData.append('resume', file);
     try {
-      await api.post('/cv/parse', formData, {
+      const parseRes = await api.post('/cv/parse', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+      const extracted =
+        typeof parseRes.data?.extractedText === 'string' ? parseRes.data.extractedText : '';
+      setExtractedResumeText(extracted);
+      try {
+        if (extracted) sessionStorage.setItem(LAST_RESUME_EXTRACTED_TEXT_KEY, extracted);
+      } catch {
+        /* ignore */
+      }
       const fresh = await api.get('/cv/profile');
       const normalized = normalizeProfile(fresh.data);
       setProfile(normalized);
@@ -218,12 +237,15 @@ export default function FreeTierResumeTools() {
         /* ignore */
       }
       setFile(null);
-      await runAtsAnalysis(normalized);
+      await runAtsAnalysis(normalized, extracted);
     } catch (err) {
       const code = err.response?.data?.code;
       const msg =
         err.response?.data?.message ||
         err.response?.data?.error ||
+        (code === 'AI_PARSE_UNAVAILABLE'
+          ? 'AI could not parse this resume right now. Check API keys on the server or try again shortly.'
+          : null) ||
         (code === 'RATE_LIMIT' ? 'AI service is busy. Try again in a minute.' : null) ||
         'Could not read or parse this PDF. Try another file or check that the PDF has selectable text.';
       setParseError(msg);
@@ -267,15 +289,9 @@ export default function FreeTierResumeTools() {
       return;
     }
     const p = profile || emptyProfile();
-    if (!hasUploadedResumePdf(p)) {
-      setAnalyzeError(
-        'Upload a resume PDF on the “Upload resume” tab first. Matching uses the text we extract from that file — not a blank or manually-only profile.'
-      );
-      return;
-    }
     if (!hasSubstantiveResumeForJobMatch(p)) {
       setAnalyzeError(
-        'Your parsed resume is too thin to compare. Re-upload a clearer PDF or add roles and bullets in Profile.'
+        'Add enough resume content to compare (work experience, summary, or skills in Profile / resume builder), or upload a PDF on the Upload tab.'
       );
       return;
     }
@@ -286,11 +302,11 @@ export default function FreeTierResumeTools() {
     const runMatch = async () => {
       let gapAnalysis;
       try {
-        const res = await api.post('/cv/job-match', { jd });
+        const res = await api.post('/cv/job-match', { jd, profile: p });
         gapAnalysis = res.data.gapAnalysis;
       } catch (firstErr) {
         if (firstErr.response?.status === 404) {
-          const res = await api.post('/cv/optimize-full-resume', { jd });
+          const res = await api.post('/cv/optimize-full-resume', { jd, profile: p });
           gapAnalysis = res.data.gapAnalysis;
         } else {
           throw firstErr;
@@ -750,16 +766,18 @@ export default function FreeTierResumeTools() {
                     <h2>Paste a job posting</h2>
                   </div>
                   <p className="sr-matcher-sub">
-                    Paste a job description. We compare it to the <strong>resume text from your uploaded PDF</strong> (first tab).
+                    Paste a job description. We compare it to your <strong>current resume profile</strong> (from the resume builder, Profile, or a PDF upload on the first tab).
                   </p>
                   {profile && (
                     <div className="sr-resume-used">
                       <div className="sr-resume-used-label">Resume used for this match</div>
                       <div className="sr-resume-used-row">
-                        {!hasUploadedResumePdf(profile) ? (
-                          <>— (upload a PDF on the first tab to match)</>
+                        {hasSubstantiveResumeForJobMatch(profile) || hasUploadedResumePdf(profile) ? (
+                          (profile.professional?.currentTitle || '').trim() ||
+                            (profile.personal?.fullName || '').trim() ||
+                            '—'
                         ) : (
-                          (profile.professional?.currentTitle || '').trim() || '—'
+                          <>— (add experience / summary in Profile, or upload a PDF)</>
                         )}
                       </div>
                       {(profile.personal?.fullName || '').trim() ? (
@@ -788,11 +806,11 @@ export default function FreeTierResumeTools() {
                       Syncing saved resume from the server…
                     </div>
                   )}
-                  {profile && !syncingProfile && !hasUploadedResumePdf(profile) && (
+                  {profile && !syncingProfile && !hasUploadedResumePdf(profile) && !hasSubstantiveResumeForJobMatch(profile) && (
                     <div className="sr-warn-card">
                       <p style={{ margin: 0 }}>
-                        <strong>No resume PDF on record yet.</strong> On the first tab, use &quot;Upload &amp; analyze&quot; so we parse and
-                        save your file. Job match uses that saved parse — not profile text typed elsewhere alone.
+                        <strong>Not enough resume text to compare yet.</strong> Add roles and detail in Profile (or the resume builder), or on
+                        the first tab use &quot;Upload &amp; analyze&quot; so we parse and save your file.
                       </p>
                       <button
                         type="button"

@@ -138,12 +138,12 @@ export default function UserSidebar() {
           {free ? (
             <>
               {lockedLink('/dashboard', <LayoutDashboard size={20} />, 'Overview')}
-              {lockedLink('/profile', <User size={20} />, 'Profile')}
-              {lockedLink('/onboarding', <Target size={20} />, 'Job Preferences')}
+              {lockedLink('/dashboard/profile', <User size={20} />, 'Profile')}
+              {lockedLink('/dashboard/job-preferences', <Target size={20} />, 'Job Preferences')}
               {lockedLink('/resume-maker', <FileText size={20} />, 'Resume Maker')}
               {lockedLink('/resumes', <Layers size={20} />, 'Resumes')}
               {lockedLink('/dashboard/help', <MessageCircle size={20} />, 'Help')}
-              {lockedLink('/settings', <Settings size={20} />, 'Settings')}
+              {lockedLink('/dashboard/settings', <Settings size={20} />, 'Settings')}
             </>
           ) : (
             <>
@@ -155,15 +155,15 @@ export default function UserSidebar() {
                 <LayoutDashboard size={20} /> Overview
               </Link>
               <Link
-                to="/profile"
-                className={`user-sidebar__link ${isActive('/profile') ? 'user-sidebar__link--active' : ''}`}
+                to="/dashboard/profile"
+                className={`user-sidebar__link ${path === '/profile' || path === '/dashboard/profile' ? 'user-sidebar__link--active' : ''}`}
                 onClick={close}
               >
                 <User size={20} /> Profile
               </Link>
               <Link
-                to="/onboarding"
-                className={`user-sidebar__link ${isActive('/onboarding') ? 'user-sidebar__link--active' : ''}`}
+                to="/dashboard/job-preferences"
+                className={`user-sidebar__link ${path === '/onboarding' || path === '/dashboard/job-preferences' ? 'user-sidebar__link--active' : ''}`}
                 onClick={close}
               >
                 <Target size={20} /> Job Preferences
@@ -190,8 +190,8 @@ export default function UserSidebar() {
                 <MessageCircle size={20} /> Help
               </Link>
               <Link
-                to="/settings"
-                className={`user-sidebar__link ${isActive('/settings') ? 'user-sidebar__link--active' : ''}`}
+                to="/dashboard/settings"
+                className={`user-sidebar__link ${path === '/settings' || path === '/dashboard/settings' ? 'user-sidebar__link--active' : ''}`}
                 onClick={close}
               >
                 <Settings size={20} /> Settings

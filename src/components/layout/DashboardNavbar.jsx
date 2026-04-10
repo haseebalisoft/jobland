@@ -56,10 +56,10 @@ export default function DashboardNavbar({
           </button>
           {open && (
             <div className="dl-nav__dropdown">
-              <Link to="/settings" style={{ display: 'block', padding: '10px 12px', textDecoration: 'none', color: 'inherit', borderRadius: 6 }} onClick={() => setOpen(false)}>
+              <Link to="/dashboard/settings" style={{ display: 'block', padding: '10px 12px', textDecoration: 'none', color: 'inherit', borderRadius: 6 }} onClick={() => setOpen(false)}>
                 Settings
               </Link>
-              <Link to="/billing" style={{ display: 'block', padding: '10px 12px', textDecoration: 'none', color: 'inherit', borderRadius: 6 }} onClick={() => setOpen(false)}>
+              <Link to="/dashboard/billing" style={{ display: 'block', padding: '10px 12px', textDecoration: 'none', color: 'inherit', borderRadius: 6 }} onClick={() => setOpen(false)}>
                 Billing
               </Link>
             </div>

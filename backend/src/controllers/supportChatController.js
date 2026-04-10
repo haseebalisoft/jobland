@@ -8,6 +8,7 @@ import {
   getUserProfileForChat,
   listConversations,
   markConversationRead,
+  markAllConversationsRead,
   messagesToGroqHistory,
 } from '../services/supportChatService.js';
 
@@ -109,6 +110,16 @@ export async function getUnreadCount(req, res, next) {
 export async function patchConversationRead(req, res, next) {
   try {
     await markConversationRead(req.user.id, req.params.id);
+    const count = await getTotalUnread(req.user.id);
+    res.json({ ok: true, unreadTotal: count });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function patchAllConversationsRead(req, res, next) {
+  try {
+    await markAllConversationsRead(req.user.id);
     const count = await getTotalUnread(req.user.id);
     res.json({ ok: true, unreadTotal: count });
   } catch (e) {

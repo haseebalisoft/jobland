@@ -1,0 +1,220 @@
+/* Billing & subscriptions — Hirdlogic luxury */
+
+.hl-bill-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 36px 24px 64px;
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg);
+  min-height: calc(100vh - 62px);
+}
+
+.hl-bill-hero {
+  margin-bottom: 28px;
+}
+
+.hl-bill-title {
+  font-weight: 800;
+  font-size: 28px;
+  color: var(--text);
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+}
+
+.hl-bill-lead {
+  font-size: 14px;
+  color: var(--text-gray);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.hl-bill-lead strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.hl-bill-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.hl-bill-card {
+  background: #fff;
+  border-radius: 16px;
+  border: 1.5px solid var(--border);
+  box-shadow: var(--shadow);
+  padding: 24px 28px;
+  margin-bottom: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.hl-bill-card--current {
+  border-color: rgba(124, 58, 237, 0.35);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.08), var(--shadow);
+}
+
+.hl-bill-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.hl-bill-card__name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.hl-bill-card__icon {
+  color: var(--purple);
+  flex-shrink: 0;
+}
+
+.hl-bill-card__price-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.hl-bill-card__amount {
+  font-weight: 900;
+  font-size: 36px;
+  color: var(--text);
+  letter-spacing: -0.03em;
+}
+
+.hl-bill-card__period {
+  font-size: 16px;
+  color: var(--text-gray);
+  font-weight: 400;
+}
+
+.hl-bill-card__features {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+}
+
+.hl-bill-card__features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.hl-bill-card__check {
+  color: var(--green);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.hl-bill-card__cta {
+  width: 100%;
+  text-align: center;
+  border-radius: 10px;
+  padding: 14px;
+  font-weight: 700;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.15s, box-shadow 0.2s, border-color 0.15s, background 0.15s;
+}
+
+.hl-bill-card__cta--current {
+  background: var(--green-pale);
+  border: 1px solid rgba(5, 150, 105, 0.2);
+  color: var(--green);
+  cursor: default;
+}
+
+.hl-bill-card__cta--upgrade {
+  background: linear-gradient(135deg, var(--purple), var(--green));
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.3);
+}
+
+.hl-bill-card__cta--upgrade:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.38);
+}
+
+.hl-bill-card__cta--upgrade:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.hl-bill-card__cta--outline {
+  background: #fff;
+  border: 1.5px solid var(--border);
+  color: var(--text);
+}
+
+.hl-bill-card__cta--outline:hover:not(:disabled) {
+  border-color: var(--purple);
+  color: var(--purple);
+  background: var(--purple-pale);
+}
+
+.hl-bill-current-pill {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 50px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--green-pale);
+  border: 1px solid rgba(5, 150, 105, 0.2);
+  color: var(--green);
+}
+
+.hl-bill-back {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 50px;
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.hl-bill-back:hover {
+  border-color: var(--purple);
+  color: var(--purple);
+}
+
+.hl-bill-error {
+  color: #b91c1c;
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+.hl-bill-loading {
+  color: var(--text-gray);
+  font-size: 14px;
+}
+
+@media (max-width: 640px) {
+  .hl-bill-page {
+    padding: 24px 16px 48px;
+  }
+
+  .hl-bill-card__amount {
+    font-size: 30px;
+  }
+}

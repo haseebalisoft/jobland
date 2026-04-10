@@ -3,12 +3,12 @@ import { ChevronUp } from 'lucide-react';
 import { FONT_OPTIONS, paperToPx } from './editorUtils.js';
 
 const SWATCHES = [
-  { hex: '#000000' },
-  { hex: '#2563eb' },
   { hex: '#7c3aed' },
+  { hex: '#059669' },
+  { hex: '#2563eb' },
+  { hex: '#000000' },
   { hex: '#ec4899' },
   { hex: '#f59e0b' },
-  { hex: '#10b981' },
   { hex: '#dc2626' },
 ];
 

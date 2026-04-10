@@ -36,7 +36,7 @@ export function hasUploadedResumePdf(profile) {
   return !Number.isNaN(d.getTime());
 }
 
-/** Job match is allowed only after PDF upload + enough text to compare. */
+/** Job match / tailor when the profile has enough text (editor, Profile, or parsed PDF). */
 export function canMatchJobDescription(profile) {
-  return hasUploadedResumePdf(profile) && hasSubstantiveResumeForJobMatch(profile);
+  return hasSubstantiveResumeForJobMatch(profile);
 }

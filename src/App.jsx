@@ -109,6 +109,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/dashboard/billing"
+            element={
+              <ProtectedRoute>
+                <Billing />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/success" element={<CheckoutSuccess />} />
           <Route path="/checkout-success" element={<CheckoutSuccess />} />
           <Route path="/dashboard" element={<PaidRoute><Dashboard /></PaidRoute>} />
@@ -140,7 +148,9 @@ function App() {
           <Route path="/dashboard/help" element={<PaidRoute><UserLeadHelp /></PaidRoute>} />
           <Route path="/dashboard/help/:leadId" element={<PaidRoute><UserLeadHelp /></PaidRoute>} />
           <Route path="/profile" element={<PaidRoute><ProfileBuilder /></PaidRoute>} />
+          <Route path="/dashboard/profile" element={<PaidRoute><ProfileBuilder /></PaidRoute>} />
           <Route path="/settings" element={<PaidRoute><Settings /></PaidRoute>} />
+          <Route path="/dashboard/settings" element={<PaidRoute><Settings /></PaidRoute>} />
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
             <Route index element={<AdminDashboardOverview />} />
             <Route path="plans" element={<AdminPlans />} />

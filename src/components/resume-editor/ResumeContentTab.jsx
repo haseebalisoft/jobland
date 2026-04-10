@@ -95,7 +95,6 @@ export default function ResumeContentTab({
             <EditorField label="Email" value={profile.personal?.email} onChange={(v) => updateProfile('personal', 'email', v)} />
             <EditorField label="Phone" value={profile.personal?.phone} onChange={(v) => updateProfile('personal', 'phone', v)} />
           </div>
-          <EditorField label="Location" value={profile.personal?.location} onChange={(v) => updateProfile('personal', 'location', v)} />
         </div>
       )}
 
@@ -136,7 +135,7 @@ export default function ResumeContentTab({
                 >
                   <p style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>
                     Keep in sync with Profile.{' '}
-                    <Link to="/profile" style={{ color: '#2563eb', fontWeight: 600 }}>
+                    <Link to="/profile" className="re-inline-link">
                       Manage in Profile
                     </Link>
                   </p>
@@ -312,7 +311,7 @@ export default function ResumeContentTab({
               return (
                 <SortableRow key="education" id="education" title="Education" expanded={expandedId === 'education'} onToggle={() => toggle('education')} hasHandle>
                   <p style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>
-                    <Link to="/profile" style={{ color: '#2563eb', fontWeight: 600 }}>
+                    <Link to="/profile" className="re-inline-link">
                       Manage in Profile
                     </Link>
                   </p>

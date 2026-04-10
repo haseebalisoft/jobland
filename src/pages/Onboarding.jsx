@@ -205,7 +205,7 @@ const Onboarding = ({ dashboardMode = false }) => {
         try {
             await api.post('/user/onboarding', prefs);
             if (dashboardMode) {
-                navigate('/dashboard');
+                navigate('/resume-maker');
             } else {
                 navigate('/upload_cv');
             }
@@ -517,7 +517,7 @@ const Onboarding = ({ dashboardMode = false }) => {
                                 <button
                                     className="btn-next"
                                     onClick={handleNextStep1}
-                                    disabled={!prefs.jobFunction || prefs.jobTypes.length === 0 || loading}
+                                    disabled={prefs.jobFunctions.length === 0 || prefs.jobTypes.length === 0 || loading}
                                 >
                                     {loading
                                         ? 'Saving...'
@@ -536,7 +536,7 @@ const Onboarding = ({ dashboardMode = false }) => {
     );
 
     const mainInner = (
-        <main className="orion-onboarding-container" style={{ flex: 1, padding: '32px 24px' }}>
+        <main className="orion-onboarding-container" style={{ flex: 1, padding: '32px 24px', overflowX: 'hidden' }}>
             <AnimatePresence mode="wait">{step1Card}</AnimatePresence>
         </main>
     );
@@ -544,7 +544,7 @@ const Onboarding = ({ dashboardMode = false }) => {
     if (dashboardMode) {
         return (
             <DashboardLayout userName={displayName} userInitials={initials}>
-                <div style={{ background: '#f8fafc', minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ background: '#f8fafc', minHeight: '100%', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
                     {mainInner}
                 </div>
             </DashboardLayout>

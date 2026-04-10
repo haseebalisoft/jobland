@@ -97,24 +97,40 @@ export async function optimizeExperienceHandler(req, res, next) {
 
 export async function optimizeFullResumeHandler(req, res, next) {
   try {
-    const { jd } = req.body || {};
+    const { jd, profile: bodyProfile } = req.body || {};
     if (!jd || !String(jd).trim()) {
       return res.status(400).json({ error: 'Job description (jd) is required' });
     }
     const userId = req.user.id;
-    const profile = await getResumeProfile(userId);
-    if (!hasResumePdfOnRecord(profile)) {
-      return res.status(400).json({
-        error: 'Upload a resume PDF first (ATS & match → Upload resume). Job match uses your parsed resume only.',
-        code: 'RESUME_NOT_UPLOADED',
-      });
+    const serverProfile = await getResumeProfile(userId);
+
+    /** Resume builder sends the in-editor profile; free-tier / extension may omit it and rely on server + PDF. */
+    let profile;
+    if (bodyProfile && typeof bodyProfile === 'object') {
+      if (!profileHasSubstanceForJobMatch(bodyProfile)) {
+        return res.status(400).json({
+          error:
+            'Your resume is too thin to tailor. Add work experience, a summary, or skills in the editor (or upload a PDF on ATS & match).',
+          code: 'PROFILE_TOO_THIN',
+        });
+      }
+      profile = bodyProfile;
+    } else {
+      if (!hasResumePdfOnRecord(serverProfile)) {
+        return res.status(400).json({
+          error: 'Upload a resume PDF first (ATS & match → Upload resume). Job match uses your parsed resume only.',
+          code: 'RESUME_NOT_UPLOADED',
+        });
+      }
+      if (!profileHasSubstanceForJobMatch(serverProfile)) {
+        return res.status(400).json({
+          error: 'Your saved resume is too thin to compare. Re-upload a clearer PDF or add experience in Profile.',
+          code: 'PROFILE_TOO_THIN',
+        });
+      }
+      profile = serverProfile;
     }
-    if (!profileHasSubstanceForJobMatch(profile)) {
-      return res.status(400).json({
-        error: 'Your saved resume is too thin to compare. Re-upload a clearer PDF or add experience in Profile.',
-        code: 'PROFILE_TOO_THIN',
-      });
-    }
+
     const result = await jdAlignedResume(profile, jd);
     res.json(result);
   } catch (err) {
@@ -126,11 +142,13 @@ export async function optimizeFullResumeHandler(req, res, next) {
 /** Deep ATS analysis (Groq/Gemini) — keywords, impact, structure; see docs/ATS_SCORING_CRITERIA.md */
 export async function atsDeepAnalysisHandler(req, res, next) {
   try {
-    const { profile } = req.body || {};
+    const { profile, rawResumeText } = req.body || {};
     if (!profile || typeof profile !== 'object') {
       return res.status(400).json({ error: 'Profile is required' });
     }
-    const analysis = await analyzeAtsDeepResume(profile);
+    const analysis = await analyzeAtsDeepResume(profile, {
+      rawResumeText: typeof rawResumeText === 'string' ? rawResumeText : undefined,
+    });
     res.json(analysis);
   } catch (err) {
     console.error('ATS deep analysis error:', err);
@@ -144,24 +162,39 @@ export async function atsDeepAnalysisHandler(req, res, next) {
 /** Gap analysis only (no optimized profile) — for free-tier job match UI. */
 export async function jobMatchOnlyHandler(req, res, next) {
   try {
-    const { jd } = req.body || {};
+    const { jd, profile: bodyProfile } = req.body || {};
     if (!jd || !String(jd).trim()) {
       return res.status(400).json({ error: 'Job description (jd) is required' });
     }
     const userId = req.user.id;
-    const profile = await getResumeProfile(userId);
-    if (!hasResumePdfOnRecord(profile)) {
-      return res.status(400).json({
-        error: 'Upload a resume PDF first (ATS & match → Upload resume). Job match uses your parsed resume only.',
-        code: 'RESUME_NOT_UPLOADED',
-      });
+    const serverProfile = await getResumeProfile(userId);
+
+    let profile;
+    if (bodyProfile && typeof bodyProfile === 'object') {
+      if (!profileHasSubstanceForJobMatch(bodyProfile)) {
+        return res.status(400).json({
+          error:
+            'Your resume is too thin to compare. Add work experience, a summary, or skills (or upload a PDF on ATS & match).',
+          code: 'PROFILE_TOO_THIN',
+        });
+      }
+      profile = bodyProfile;
+    } else {
+      if (!hasResumePdfOnRecord(serverProfile)) {
+        return res.status(400).json({
+          error: 'Upload a resume PDF first (ATS & match → Upload resume). Job match uses your parsed resume only.',
+          code: 'RESUME_NOT_UPLOADED',
+        });
+      }
+      if (!profileHasSubstanceForJobMatch(serverProfile)) {
+        return res.status(400).json({
+          error: 'Your saved resume is too thin to compare. Re-upload a clearer PDF or add experience in Profile.',
+          code: 'PROFILE_TOO_THIN',
+        });
+      }
+      profile = serverProfile;
     }
-    if (!profileHasSubstanceForJobMatch(profile)) {
-      return res.status(400).json({
-        error: 'Your saved resume is too thin to compare. Re-upload a clearer PDF or add experience in Profile.',
-        code: 'PROFILE_TOO_THIN',
-      });
-    }
+
     const gapAnalysis = await analyzeJdResumeGap(profile, jd);
     res.json({ gapAnalysis });
   } catch (err) {
@@ -246,9 +279,18 @@ export async function parseCv(req, res, next) {
     await saveResumeProfile(userId, profileData, { markResumeParsed: true });
 
     const saved = await getResumeProfile(userId);
-    res.json(saved);
+    res.json({
+      ...saved,
+      extractedText: text.slice(0, 120000),
+    });
   } catch (err) {
     console.error('CV parse error:', err);
+    if (err.statusCode === 503) {
+      return res.status(503).json({
+        error: err.message || 'AI parsing is unavailable.',
+        code: 'AI_PARSE_UNAVAILABLE',
+      });
+    }
     if (err.message && (err.message.includes('rate limit') || err.message.includes('GROQ'))) {
       return res.status(429).json({
         error: 'AI service limit reached. Try again later or add GROQ_API_KEY.',

@@ -3,7 +3,7 @@ import { useNavigate, Link, useLocation, useSearchParams, useParams } from 'reac
 import {
     Download, Layout, User, Briefcase, GraduationCap,
     BrainCircuit, ChevronDown, ChevronRight, ChevronLeft, Loader2, Check,
-    Mail, Phone, MapPin, Camera, Pencil, MoreVertical,
+    Mail, Phone, Camera, Pencil, MoreVertical,
     RotateCcw, RotateCw, Type, Palette, MoveVertical,
     Grid, Sparkles, Trash2, Globe, Github, Linkedin,
     Award, Settings, Share2, Layers, Zap, Eye, Sliders, ExternalLink,
@@ -368,14 +368,29 @@ const ResumeMaker = () => {
         }
     };
 
+    const buildJdForOptimizeApi = () => {
+        const body = (jd || '').trim();
+        const title = (tailorJobTitle || '').trim();
+        const company = (tailorCompany || '').trim();
+        if (!title && !company) return body;
+        return [title && `Job title: ${title}`, company && `Company: ${company}`, body].filter(Boolean).join('\n\n');
+    };
+
     const handleAnalyzeJD = async () => {
-        if (!jd) return alert("Please paste a Job Description first.");
+        const jdPayload = buildJdForOptimizeApi();
+        if (!jdPayload.trim()) return alert("Please paste a Job Description first.");
         setIsAnalyzing(true);
         setSaveStatus('Optimizing Full Resume...');
         try {
-            const res = await api.post('/cv/optimize-full-resume', { profile, jd });
+            const res = await api.post('/cv/optimize-full-resume', { profile, jd: jdPayload });
             setAnalyzedData(res.data);
             setSaveStatus('Optimization Ready ✓');
+            if (res.data?.optimizedProfile) {
+                handlePrepareFullOptimizationReview(res.data);
+            }
+            if (/^\/(dashboard\/)?resume-builder\/[^/]+\/edit$/.test(location.pathname)) {
+                setEditorMainTab('ai');
+            }
         } catch (err) {
             console.error('Full Optimization Error:', err);
             alert(err.response?.data?.error || "Analysis failed. Check GROQ_API_KEY in backend.");
@@ -384,10 +399,11 @@ const ResumeMaker = () => {
         }
     };
 
-    const handlePrepareFullOptimizationReview = () => {
-        if (!analyzedData || !analyzedData.optimizedProfile) return;
+    const handlePrepareFullOptimizationReview = (dataOverride) => {
+        const source = dataOverride ?? analyzedData;
+        if (!source || !source.optimizedProfile) return;
 
-        const newProfile = analyzedData.optimizedProfile;
+        const newProfile = source.optimizedProfile;
         const batchId = Date.now();
 
         try {
@@ -995,7 +1011,6 @@ const ResumeMaker = () => {
                                             <EditorField label="Email" value={profile.personal.email} onChange={v => updateProfile('personal', 'email', v)} />
                                             <EditorField label="Phone" value={profile.personal.phone} onChange={v => updateProfile('personal', 'phone', v)} />
                                         </div>
-                                        <EditorField label="Location" value={profile.personal.location} onChange={v => updateProfile('personal', 'location', v)} />
                                         <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginTop: '8px', marginBottom: '4px' }}>Links</div>
                                         <EditorField label="LinkedIn" value={profile.links?.linkedin || ''} onChange={v => updateProfile('links', 'linkedin', v)} />
                                         <EditorField label="GitHub" value={profile.links?.github || ''} onChange={v => updateProfile('links', 'github', v)} />
@@ -1532,7 +1547,7 @@ const ResumeMaker = () => {
                                             {profile.professional?.currentTitle || ''}
                                         </div>
                                         <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
-                                            {[profile.personal?.email, profile.personal?.phone, profile.personal?.location].filter(Boolean).join(' · ')}
+                                            {[profile.personal?.email, profile.personal?.phone].filter(Boolean).join(' · ')}
                                         </div>
                                     </div>
 

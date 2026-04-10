@@ -293,7 +293,12 @@ function parseAiJsonObject(content) {
  * Deep ATS-oriented resume analysis (Groq/Gemini via aiChat).
  * Criteria align with backend/docs/ATS_SCORING_CRITERIA.md
  */
-export async function analyzeAtsDeepResume(profile) {
+export async function analyzeAtsDeepResume(profile, options = {}) {
+  const rawResumeText =
+    typeof options.rawResumeText === 'string' && options.rawResumeText.trim().length >= 200
+      ? options.rawResumeText.trim().slice(0, 120000)
+      : '';
+
   const systemPrompt = `You are an expert ATS (Applicant Tracking System) analyst and technical recruiter.
 
 SCORING FRAMEWORK — use these dimension ids and weights. Each dimension "score" is 0-100.
@@ -304,8 +309,9 @@ SCORING FRAMEWORK — use these dimension ids and weights. Each dimension "score
 - completeness (15%): Contact, skills depth, work history, education, links; consistency across sections.
 
 RULES:
-- Judge ONLY from the resume JSON provided. Do not invent employers, degrees, metrics, or dates.
-- If the resume is sparse, keep scores honestly low and say so in executiveSummary.
+- You may receive (1) structured RESUME JSON and (2) optional FULL RESUME TEXT extracted from the user's PDF. When full text is provided, treat it as the primary source for scoring and feedback; the JSON may be incomplete if the parser missed fields.
+- Judge only from content you are given. Do not invent employers, degrees, metrics, or dates.
+- If both JSON and full text are thin or empty, keep scores honestly low and say so in executiveSummary.
 - overallAtsScore is 0-100 and should reflect the weighted dimensions (compute a weighted average or equivalent).
 - keywordAnalysis.stuffingRisk must be exactly one of: "low", "medium", "high".
 - recommendations: 3-8 items, each with priority "high" | "medium" | "low".
@@ -348,12 +354,18 @@ Return ONLY valid JSON with this exact shape:
 
 Include exactly five dimensions in "dimensions", one per id above, with matching weightPercent (25,25,20,15,15) and human-readable labels.`;
 
+  const userParts = [`STRUCTURED RESUME (JSON — may be incomplete):\n${JSON.stringify(profile, null, 2)}`];
+  if (rawResumeText) {
+    userParts.push(
+      `\n--- FULL RESUME TEXT (from PDF — use for ATS scoring when JSON is sparse) ---\n${rawResumeText}`,
+    );
+  }
   const content = await aiChat(
     [
       { role: 'system', content: systemPrompt },
       {
         role: 'user',
-        content: `RESUME (JSON):\n${JSON.stringify(profile, null, 2)}`,
+        content: userParts.join('\n'),
       },
     ],
     { response_format: { type: 'json_object' }, temperature: 0.15, max_tokens: 4096 }

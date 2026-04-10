@@ -15,6 +15,9 @@ import {
   Bug,
   PanelLeftClose,
   PanelLeft,
+  User,
+  Settings,
+  CreditCard,
 } from 'lucide-react';
 import { useDashboardStats } from '../../hooks/useDashboardStats.js';
 
@@ -32,27 +35,45 @@ const sections = [
   {
     label: 'TOOLS',
     items: [
-      //{ to: '/dashboard', hash: '#negotiation', label: 'Negotiation Agent', icon: MessageCircle, beta: true },
       { to: '/dashboard/application-materials/documents', label: 'Application Materials', icon: FolderOpen },
-    //   { to: '/profile-builder', label: 'Networking', icon: Users },
-    //   { to: '/dashboard/help', label: 'AI Toolbox', icon: Sparkles },
       { to: '/dashboard/job-preferences', label: 'Job Preferences', icon: SlidersHorizontal },
     ],
   },
   {
-    label: 'SUPPORT',
+    label: 'ACCOUNT',
     items: [
-      { to: '/dashboard/score-resume', label: 'Chrome Extension', icon: Puzzle },
-    //   { to: '/settings', label: 'Suggest a Feature', icon: Lightbulb },
-    //   { to: '/settings', label: 'Report a Bug', icon: Bug },
+      {
+        to: '/dashboard/profile',
+        label: 'My Profile',
+        icon: User,
+        match: (p) => p === '/profile' || p === '/dashboard/profile',
+      },
+      {
+        to: '/dashboard/settings',
+        label: 'Account Settings',
+        icon: Settings,
+        match: (p) => p === '/settings' || p === '/dashboard/settings',
+      },
+      {
+        to: '/dashboard/billing',
+        label: 'Billing & Plans',
+        icon: CreditCard,
+        match: (p) => p === '/billing' || p === '/dashboard/billing',
+      },
     ],
+  },
+  {
+    label: 'SUPPORT',
+    items: [{ to: '/dashboard', label: 'Chrome Extension', icon: Puzzle }],
   },
 ];
 
 function isActive(path, item, hash) {
+  if (typeof item.match === 'function') return item.match(path);
   if (item.hash) return path === item.to && hash === item.hash;
   if (item.end) return path === item.to;
-  return path === item.to || path.startsWith(`${item.to}/`);
+  if (path === item.to) return true;
+  return path.startsWith(`${item.to}/`);
 }
 
 export default function Sidebar({ collapsed, onToggleCollapse }) {
@@ -63,15 +84,15 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
   return (
     <aside className={`dl-sidebar${collapsed ? ' collapsed' : ''}`}>
       <div className="dl-sidebar__accent" />
-      <div className="dl-sidebar__logo">
-        <div className="dl-sidebar__logo-mark">H</div>
+      <Link to="/dashboard" className="dl-sidebar__logo">
+        <img src="/logo.png" alt="" className="dl-sidebar__logo-img" width={34} height={34} />
         {!collapsed && (
           <div>
-            <div className="dl-sidebar__brand">Hirdlogic</div>
-            <div className="dl-sidebar__subbrand">Career Intelligence</div>
+            <div className="dl-sidebar__brand">HiredLogics</div>
+            <div className="dl-sidebar__subbrand">AI-powered career tools</div>
           </div>
         )}
-      </div>
+      </Link>
 
       <div className="dl-sidebar__scroll">
         {sections.map((section) => (
@@ -93,7 +114,7 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
         ))}
       </div>
 
-      <Link to="/settings" className="dl-sidebar__user-card">
+      <Link to="/dashboard/settings" className="dl-sidebar__user-card">
         <div className="dl-sidebar__user-avatar">U</div>
         {!collapsed && (
           <div>

@@ -1,10 +1,9 @@
 import { Link } from 'react-router-dom';
 
 const items = [
-  { to: '/profile', label: 'My Profile' },
-  { to: '/settings', label: 'Account Settings' },
-  { to: '/settings', label: 'Notifications' },
-  { to: '/billing', label: 'Billing & Plans' },
+  { to: '/dashboard/profile', label: 'My Profile' },
+  { to: '/dashboard/settings', label: 'Account Settings' },
+  { to: '/dashboard/billing', label: 'Billing & Plans' },
   { to: '/dashboard/help', label: 'Help & Support' },
 ];
 

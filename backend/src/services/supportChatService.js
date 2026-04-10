@@ -127,6 +127,14 @@ export async function markConversationRead(userId, conversationId) {
   );
 }
 
+/** Mark every conversation read for this user (notification clear-all). */
+export async function markAllConversationsRead(userId) {
+  await query(
+    `UPDATE support_conversations SET unread_count = 0, updated_at = NOW() WHERE user_id = $1 AND unread_count > 0`,
+    [userId],
+  );
+}
+
 export async function getTotalUnread(userId) {
   const r = await query(
     `SELECT COALESCE(SUM(unread_count), 0)::int AS c FROM support_conversations WHERE user_id = $1`,

@@ -71,7 +71,7 @@ export default function ResumeEditorShell(props) {
     lineHeight: customization.lineHeight ?? 1.125,
     marginLR: customization.marginLR ?? 0.39,
     marginTB: customization.marginTB ?? 0.39,
-    accentColor: customization.accentColor || customization.primaryColor || '#2563eb',
+    accentColor: customization.accentColor || customization.primaryColor || '#7c3aed',
     paperSize: customization.paperSize || 'a4',
   };
 
@@ -154,7 +154,7 @@ export default function ResumeEditorShell(props) {
             {previewMode === 'pdf' && (
               <>
                 {previewLoading && (
-                  <div style={{ marginBottom: 8, fontSize: 13, color: '#2563eb', fontWeight: 600 }}>Updating PDF preview…</div>
+                  <div className="re-preview-loading">Updating PDF preview…</div>
                 )}
                 <ResumePreview profile={profile} design={design} paperSize={design.paperSize} />
                 {previewUrl && (

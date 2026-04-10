@@ -1,23 +1,25 @@
-import React, { useEffect, useState } from 'react';
-import { CheckCircle2, CreditCard } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api, { setAccessToken } from '../services/api.js';
-import UserSidebar from '../components/UserSidebar.jsx';
+import DashboardLayout from '../components/layout/DashboardLayout.jsx';
+import PlanCard from '../components/billing/PlanCard.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import './Billing.css';
 
 function formatPrice(price, currency = 'USD') {
-  if (Number(price) === 0) return 'Free';
+  if (Number(price) === 0) return '$0';
   const symbol = currency === 'USD' ? '$' : currency;
   return `${symbol}${Number(price).toFixed(2)}`;
 }
 
 function formatPeriod(billingInterval) {
   if (!billingInterval || billingInterval === 'never') return '';
-  if (billingInterval === 'one-time') return 'One-time';
+  if (billingInterval === 'one-time') return ' one-time';
   if (billingInterval === 'per_interview') return '/interview';
   if (billingInterval === 'monthly') return '/month';
   if (billingInterval === 'yearly') return '/year';
-  return billingInterval;
+  return ` /${billingInterval}`;
 }
 
 export default function Billing() {
@@ -27,6 +29,20 @@ export default function Billing() {
   const [loading, setLoading] = useState(true);
   const [startingPlan, setStartingPlan] = useState('');
   const [error, setError] = useState('');
+
+  const displayName = useMemo(() => user?.name || 'User', [user?.name]);
+  const initials = useMemo(() => {
+    const n = displayName || '';
+    return (
+      n
+        .split(' ')
+        .filter(Boolean)
+        .map((p) => p[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase() || 'U'
+    );
+  }, [displayName]);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,12 +68,44 @@ export default function Billing() {
     };
   }, []);
 
+  const displayPlans = useMemo(() => {
+    const free = {
+      plan_id: 'free',
+      name: 'Free',
+      priceFormatted: '$0',
+      period: '/month',
+      description: '',
+      features: ['Core resume tools', 'Limited AI features', 'Community support'],
+    };
+    const enterprise = {
+      plan_id: 'enterprise',
+      name: 'Enterprise',
+      priceFormatted: 'Custom',
+      period: '',
+      description: '',
+      features: ['Dedicated success manager', 'SSO & security reviews', 'Volume pricing'],
+    };
+    return [free, ...plans, enterprise];
+  }, [plans]);
+
+  const userPlanId = String(user?.subscription_plan || '').toLowerCase();
+
+  const planIsCurrent = (plan) => {
+    const pid = String(plan.plan_id || '').toLowerCase();
+    if (pid === 'free') {
+      return userPlanId === 'free' || userPlanId === '' || !userPlanId;
+    }
+    if (pid === 'enterprise') {
+      return userPlanId === 'enterprise';
+    }
+    return userPlanId === pid;
+  };
+
   const startCheckout = async (plan) => {
-    if (!plan?.plan_id) return;
+    if (!plan?.plan_id || plan.plan_id === 'free' || plan.plan_id === 'enterprise') return;
     setError('');
     setStartingPlan(plan.plan_id);
     try {
-      // Mirror existing signup/checkout behavior while ensuring auth is fresh.
       const refresh = await api.post('/auth/refresh-token');
       if (refresh?.data?.accessToken) {
         setAccessToken(refresh.data.accessToken);
@@ -72,94 +120,69 @@ export default function Billing() {
     }
   };
 
+  const primaryAction = (plan) => {
+    if (plan.plan_id === 'enterprise') {
+      window.location.href = 'mailto:support@hirdlogic.com?subject=Enterprise%20plan%20inquiry';
+      return;
+    }
+    if (plan.plan_id === 'free') {
+      navigate('/dashboard/score-resume?upgrade=1');
+      return;
+    }
+    startCheckout(plan);
+  };
+
+  const primaryLabel = (plan) => {
+    if (plan.plan_id === 'enterprise') return 'Contact sales';
+    if (plan.plan_id === 'free') return 'Explore free tools';
+    return startingPlan === plan.plan_id ? 'Redirecting…' : `Upgrade to ${plan.name}`;
+  };
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
-      <UserSidebar />
-      <main style={{ flex: 1, padding: '28px 24px 48px', maxWidth: 980, width: '100%', margin: '0 auto' }}>
-        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: '#0f172a' }}>Billing & subscriptions</h1>
-        <p style={{ color: '#64748b', margin: '8px 0 24px', fontSize: 15 }}>
-          Choose a plan for your account{user?.email ? ` (${user.email})` : ''}.
-        </p>
+    <DashboardLayout userName={displayName} userInitials={initials}>
+      <div className="hl-bill-page">
+        <header className="hl-bill-hero">
+          <h1 className="hl-bill-title">Billing & subscriptions</h1>
+          <p className="hl-bill-lead">
+            Choose a plan for your account (<strong>{user?.email || '—'}</strong>)
+          </p>
+        </header>
 
         {loading ? (
-          <p style={{ color: '#64748b' }}>Loading plans...</p>
-        ) : plans.length === 0 ? (
-          <p style={{ color: '#b91c1c' }}>No paid plans are available right now.</p>
+          <p className="hl-bill-loading">Loading plans…</p>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-            {plans.map((plan) => {
-              const current = String(user?.subscription_plan || '').toLowerCase() === String(plan.plan_id || '').toLowerCase();
+          <div className="hl-bill-stack">
+            {displayPlans.map((plan) => {
+              const current = planIsCurrent(plan);
+              const isEnt = plan.plan_id === 'enterprise';
+              const isFree = plan.plan_id === 'free';
               return (
-                <section
+                <PlanCard
                   key={plan.plan_id}
-                  style={{
-                    border: '1px solid #e2e8f0',
-                    borderRadius: 14,
-                    background: '#fff',
-                    padding: 18,
-                    boxShadow: '0 1px 3px rgba(15,23,42,0.06)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{plan.name}</h2>
-                    <CreditCard size={18} color="#0d9488" />
-                  </div>
-                  <div style={{ fontSize: 28, fontWeight: 900, color: '#0f172a' }}>
-                    {plan.priceFormatted}
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginLeft: 6 }}>{plan.period}</span>
-                  </div>
-                  {plan.description && <p style={{ margin: 0, color: '#64748b', fontSize: 14 }}>{plan.description}</p>}
-                  <button
-                    type="button"
-                    onClick={() => startCheckout(plan)}
-                    disabled={startingPlan === plan.plan_id || current}
-                    style={{
-                      marginTop: 'auto',
-                      border: 'none',
-                      borderRadius: 10,
-                      padding: '10px 12px',
-                      fontSize: 14,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      background: current ? '#ecfdf5' : '#0d9488',
-                      color: current ? '#047857' : '#fff',
-                    }}
-                  >
-                    {current ? 'Current plan' : startingPlan === plan.plan_id ? 'Redirecting...' : 'Subscribe'}
-                  </button>
-                </section>
+                  name={plan.name}
+                  priceDisplay={plan.priceFormatted}
+                  periodLabel={plan.period}
+                  description={plan.description}
+                  features={plan.features}
+                  isCurrent={current}
+                  isEnterprise={isEnt}
+                  isFree={isFree}
+                  onPrimaryClick={() => primaryAction(plan)}
+                  primaryDisabled={startingPlan === plan.plan_id && !isFree && !isEnt}
+                  primaryLabel={primaryLabel(plan)}
+                />
               );
             })}
           </div>
         )}
 
-        {error && <p style={{ marginTop: 14, color: '#b91c1c', fontSize: 14 }}>{error}</p>}
+        {error ? <p className="hl-bill-error">{error}</p> : null}
 
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          style={{
-            marginTop: 20,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            border: '1px solid #cbd5e1',
-            background: '#fff',
-            color: '#334155',
-            borderRadius: 10,
-            padding: '9px 12px',
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
-        >
-          <CheckCircle2 size={16} />
+        <button type="button" className="hl-bill-back" onClick={() => navigate(-1)}>
+          <ArrowLeft size={16} aria-hidden />
           Back
         </button>
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
