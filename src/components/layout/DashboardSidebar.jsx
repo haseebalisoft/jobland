@@ -26,16 +26,16 @@ const navMain = [
   { to: '/dashboard/mock-interviews', label: 'Mock Interviews', icon: MonitorPlay },
   { to: '/dashboard/score-resume', label: 'Score Resume', icon: Target },
   { to: '/dashboard', label: 'Negotiation Agent', icon: MessageCircle, beta: true, hash: '#negotiation' },
-  {
-    key: 'appmat',
-    label: 'Application Materials',
-    icon: FolderOpen,
-    children: [
-      { to: '/dashboard/application-materials/documents', label: 'My Documents' },
-      { to: '/dashboard/application-materials/linkedin', label: 'LinkedIn' },
-      { to: '/dashboard/application-materials/cover-letters', label: 'Cover Letters' },
-    ],
-  },
+  // {
+  //   key: 'appmat',
+  //   label: 'Application Materials',
+  //   icon: FolderOpen,
+  //   children: [
+  //     { to: '/dashboard/application-materials/documents', label: 'My Documents' },
+  //     { to: '/dashboard/application-materials/linkedin', label: 'LinkedIn' },
+  //     { to: '/dashboard/application-materials/cover-letters', label: 'Cover Letters' },
+  //   ],
+  // },
   {
     key: 'net',
     label: 'Networking',

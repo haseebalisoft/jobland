@@ -35,7 +35,7 @@ const sections = [
   {
     label: 'TOOLS',
     items: [
-      { to: '/dashboard/application-materials/documents', label: 'Application Materials', icon: FolderOpen },
+      // { to: '/dashboard/application-materials/documents', label: 'Application Materials', icon: FolderOpen },
       { to: '/dashboard/job-preferences', label: 'Job Preferences', icon: SlidersHorizontal },
     ],
   },
@@ -62,10 +62,10 @@ const sections = [
       },
     ],
   },
-  {
-    label: 'SUPPORT',
-    items: [{ to: '/dashboard', label: 'Chrome Extension', icon: Puzzle }],
-  },
+  // {
+  //   label: 'SUPPORT',
+  //   items: [{ to: '/dashboard', label: 'Chrome Extension', icon: Puzzle }],
+  // },
 ];
 
 function isActive(path, item, hash) {
